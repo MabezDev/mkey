@@ -421,70 +421,6 @@
         )
       )
     )
-    (symbol "Device:D_TVS" (pin_numbers hide) (pin_names (offset 1.016) hide) (in_bom yes) (on_board yes)
-      (property "Reference" "D" (at 0 2.54 0)
-        (effects (font (size 1.27 1.27)))
-      )
-      (property "Value" "D_TVS" (at 0 -2.54 0)
-        (effects (font (size 1.27 1.27)))
-      )
-      (property "Footprint" "" (at 0 0 0)
-        (effects (font (size 1.27 1.27)) hide)
-      )
-      (property "Datasheet" "~" (at 0 0 0)
-        (effects (font (size 1.27 1.27)) hide)
-      )
-      (property "ki_keywords" "diode TVS thyrector" (at 0 0 0)
-        (effects (font (size 1.27 1.27)) hide)
-      )
-      (property "ki_description" "Bidirectional transient-voltage-suppression diode" (at 0 0 0)
-        (effects (font (size 1.27 1.27)) hide)
-      )
-      (property "ki_fp_filters" "TO-???* *_Diode_* *SingleDiode* D_*" (at 0 0 0)
-        (effects (font (size 1.27 1.27)) hide)
-      )
-      (symbol "D_TVS_0_1"
-        (polyline
-          (pts
-            (xy 1.27 0)
-            (xy -1.27 0)
-          )
-          (stroke (width 0) (type default))
-          (fill (type none))
-        )
-        (polyline
-          (pts
-            (xy 0.508 1.27)
-            (xy 0 1.27)
-            (xy 0 -1.27)
-            (xy -0.508 -1.27)
-          )
-          (stroke (width 0.254) (type default))
-          (fill (type none))
-        )
-        (polyline
-          (pts
-            (xy -2.54 1.27)
-            (xy -2.54 -1.27)
-            (xy 2.54 1.27)
-            (xy 2.54 -1.27)
-            (xy -2.54 1.27)
-          )
-          (stroke (width 0.254) (type default))
-          (fill (type none))
-        )
-      )
-      (symbol "D_TVS_1_1"
-        (pin passive line (at -3.81 0 0) (length 2.54)
-          (name "A1" (effects (font (size 1.27 1.27))))
-          (number "1" (effects (font (size 1.27 1.27))))
-        )
-        (pin passive line (at 3.81 0 180) (length 2.54)
-          (name "A2" (effects (font (size 1.27 1.27))))
-          (number "2" (effects (font (size 1.27 1.27))))
-        )
-      )
-    )
     (symbol "Device:L_Small" (pin_numbers hide) (pin_names (offset 0.254) hide) (in_bom yes) (on_board yes)
       (property "Reference" "L" (at 0.762 1.016 0)
         (effects (font (size 1.27 1.27)) (justify left))
@@ -587,6 +523,79 @@
         )
         (pin passive line (at 0 -2.54 90) (length 1.016)
           (name "~" (effects (font (size 1.27 1.27))))
+          (number "2" (effects (font (size 1.27 1.27))))
+        )
+      )
+    )
+    (symbol "Diode:SD05_SOD323" (pin_numbers hide) (pin_names (offset 1.016) hide) (in_bom yes) (on_board yes)
+      (property "Reference" "D" (at 0 2.54 0)
+        (effects (font (size 1.27 1.27)))
+      )
+      (property "Value" "SD05_SOD323" (at 0 -2.54 0)
+        (effects (font (size 1.27 1.27)))
+      )
+      (property "Footprint" "Diode_SMD:D_SOD-323" (at 0 -5.08 0)
+        (effects (font (size 1.27 1.27)) hide)
+      )
+      (property "Datasheet" "https://www.littelfuse.com/~/media/electronics/datasheets/tvs_diode_arrays/littelfuse_tvs_diode_array_sd_c_datasheet.pdf.pdf" (at 0 0 0)
+        (effects (font (size 1.27 1.27)) hide)
+      )
+      (property "ki_keywords" "transient voltage suppressor thyrector transil" (at 0 0 0)
+        (effects (font (size 1.27 1.27)) hide)
+      )
+      (property "ki_description" "5V, 450W Discrete Bidirectional TVS Diode, SOD-323" (at 0 0 0)
+        (effects (font (size 1.27 1.27)) hide)
+      )
+      (property "ki_fp_filters" "D?SOD?323*" (at 0 0 0)
+        (effects (font (size 1.27 1.27)) hide)
+      )
+      (symbol "SD05_SOD323_0_1"
+        (polyline
+          (pts
+            (xy 1.27 0)
+            (xy -1.27 0)
+          )
+          (stroke (width 0) (type default))
+          (fill (type none))
+        )
+        (polyline
+          (pts
+            (xy -2.54 -1.27)
+            (xy 0 0)
+            (xy -2.54 1.27)
+            (xy -2.54 -1.27)
+          )
+          (stroke (width 0.2032) (type default))
+          (fill (type none))
+        )
+        (polyline
+          (pts
+            (xy 0.508 1.27)
+            (xy 0 1.27)
+            (xy 0 -1.27)
+            (xy -0.508 -1.27)
+          )
+          (stroke (width 0.2032) (type default))
+          (fill (type none))
+        )
+        (polyline
+          (pts
+            (xy 2.54 1.27)
+            (xy 2.54 -1.27)
+            (xy 0 0)
+            (xy 2.54 1.27)
+          )
+          (stroke (width 0.2032) (type default))
+          (fill (type none))
+        )
+      )
+      (symbol "SD05_SOD323_1_1"
+        (pin passive line (at -3.81 0 0) (length 2.54)
+          (name "A1" (effects (font (size 1.27 1.27))))
+          (number "1" (effects (font (size 1.27 1.27))))
+        )
+        (pin passive line (at 3.81 0 180) (length 2.54)
+          (name "A2" (effects (font (size 1.27 1.27))))
           (number "2" (effects (font (size 1.27 1.27))))
         )
       )
@@ -896,6 +905,176 @@
         )
       )
     )
+    (symbol "Power_Protection:SP0503BAHT" (pin_names hide) (in_bom yes) (on_board yes)
+      (property "Reference" "D" (at 5.715 2.54 0)
+        (effects (font (size 1.27 1.27)) (justify left))
+      )
+      (property "Value" "SP0503BAHT" (at 5.715 0.635 0)
+        (effects (font (size 1.27 1.27)) (justify left))
+      )
+      (property "Footprint" "Package_TO_SOT_SMD:SOT-143" (at 5.715 -1.27 0)
+        (effects (font (size 1.27 1.27)) (justify left) hide)
+      )
+      (property "Datasheet" "http://www.littelfuse.com/~/media/files/littelfuse/technical%20resources/documents/data%20sheets/sp05xxba.pdf" (at 3.175 3.175 0)
+        (effects (font (size 1.27 1.27)) hide)
+      )
+      (property "ki_keywords" "usb esd protection suppression transient" (at 0 0 0)
+        (effects (font (size 1.27 1.27)) hide)
+      )
+      (property "ki_description" "TVS Diode Array, 5.5V Standoff, 3 Channels, SOT-143 package" (at 0 0 0)
+        (effects (font (size 1.27 1.27)) hide)
+      )
+      (property "ki_fp_filters" "SOT?143*" (at 0 0 0)
+        (effects (font (size 1.27 1.27)) hide)
+      )
+      (symbol "SP0503BAHT_0_0"
+        (pin passive line (at 0 -5.08 90) (length 2.54)
+          (name "A" (effects (font (size 1.27 1.27))))
+          (number "1" (effects (font (size 1.27 1.27))))
+        )
+      )
+      (symbol "SP0503BAHT_0_1"
+        (rectangle (start -4.445 2.54) (end 4.445 -2.54)
+          (stroke (width 0.254) (type default))
+          (fill (type background))
+        )
+        (circle (center 0 -1.27) (radius 0.254)
+          (stroke (width 0) (type default))
+          (fill (type outline))
+        )
+        (polyline
+          (pts
+            (xy -2.54 2.54)
+            (xy -2.54 1.27)
+          )
+          (stroke (width 0) (type default))
+          (fill (type none))
+        )
+        (polyline
+          (pts
+            (xy 0 -1.27)
+            (xy 0 -2.54)
+          )
+          (stroke (width 0) (type default))
+          (fill (type none))
+        )
+        (polyline
+          (pts
+            (xy 0 -1.27)
+            (xy 0 1.27)
+          )
+          (stroke (width 0) (type default))
+          (fill (type none))
+        )
+        (polyline
+          (pts
+            (xy 0 2.54)
+            (xy 0 1.27)
+          )
+          (stroke (width 0) (type default))
+          (fill (type none))
+        )
+        (polyline
+          (pts
+            (xy 0.635 1.27)
+            (xy 0.762 1.27)
+          )
+          (stroke (width 0) (type default))
+          (fill (type none))
+        )
+        (polyline
+          (pts
+            (xy 2.54 2.54)
+            (xy 2.54 1.27)
+          )
+          (stroke (width 0) (type default))
+          (fill (type none))
+        )
+        (polyline
+          (pts
+            (xy 0.635 1.27)
+            (xy -0.762 1.27)
+            (xy -0.762 1.016)
+          )
+          (stroke (width 0) (type default))
+          (fill (type none))
+        )
+        (polyline
+          (pts
+            (xy -3.302 1.016)
+            (xy -3.302 1.27)
+            (xy -1.905 1.27)
+            (xy -1.778 1.27)
+          )
+          (stroke (width 0) (type default))
+          (fill (type none))
+        )
+        (polyline
+          (pts
+            (xy -2.54 1.27)
+            (xy -2.54 -1.27)
+            (xy 2.54 -1.27)
+            (xy 2.54 1.27)
+          )
+          (stroke (width 0) (type default))
+          (fill (type none))
+        )
+        (polyline
+          (pts
+            (xy -2.54 1.27)
+            (xy -1.905 0)
+            (xy -3.175 0)
+            (xy -2.54 1.27)
+          )
+          (stroke (width 0) (type default))
+          (fill (type none))
+        )
+        (polyline
+          (pts
+            (xy 0.635 0)
+            (xy -0.635 0)
+            (xy 0 1.27)
+            (xy 0.635 0)
+          )
+          (stroke (width 0) (type default))
+          (fill (type none))
+        )
+        (polyline
+          (pts
+            (xy 1.778 1.016)
+            (xy 1.778 1.27)
+            (xy 3.175 1.27)
+            (xy 3.302 1.27)
+          )
+          (stroke (width 0) (type default))
+          (fill (type none))
+        )
+        (polyline
+          (pts
+            (xy 2.54 1.27)
+            (xy 1.905 0)
+            (xy 3.175 0)
+            (xy 2.54 1.27)
+          )
+          (stroke (width 0) (type default))
+          (fill (type none))
+        )
+      )
+      (symbol "SP0503BAHT_1_1"
+        (pin passive line (at -2.54 5.08 270) (length 2.54)
+          (name "K" (effects (font (size 1.27 1.27))))
+          (number "2" (effects (font (size 1.27 1.27))))
+        )
+        (pin passive line (at 0 5.08 270) (length 2.54)
+          (name "K" (effects (font (size 1.27 1.27))))
+          (number "3" (effects (font (size 1.27 1.27))))
+        )
+        (pin passive line (at 2.54 5.08 270) (length 2.54)
+          (name "K" (effects (font (size 1.27 1.27))))
+          (number "4" (effects (font (size 1.27 1.27))))
+        )
+      )
+    )
     (symbol "Rust_Board:SY8088" (pin_names (offset 1.016)) (in_bom yes) (on_board yes)
       (property "Reference" "U" (at 5.08 10.16 0)
         (effects (font (size 1.27 1.27)))
@@ -1190,11 +1369,14 @@
     )
   )
 
-  (junction (at 74.93 24.13) (diameter 0) (color 0 0 0 0)
-    (uuid 041793bd-7160-49b6-8157-4f87bd6f9457)
+  (junction (at 105.41 233.68) (diameter 0) (color 0 0 0 0)
+    (uuid 102cb950-4d31-4533-9a96-5a349a3a059c)
   )
   (junction (at 44.45 255.27) (diameter 0) (color 0 0 0 0)
     (uuid 1212acf3-7212-4f58-a836-54f6a2ce5bed)
+  )
+  (junction (at 172.72 219.71) (diameter 0) (color 0 0 0 0)
+    (uuid 16e3bdfd-61a8-403c-acaa-c60d478b205e)
   )
   (junction (at 107.95 214.63) (diameter 0) (color 0 0 0 0)
     (uuid 296ac675-87ec-4dcd-833f-3036314d1b42)
@@ -1204,9 +1386,6 @@
   )
   (junction (at 58.42 182.88) (diameter 0) (color 0 0 0 0)
     (uuid 54b686ec-4f43-4884-a0ea-2fd386e0364a)
-  )
-  (junction (at 74.93 29.21) (diameter 0) (color 0 0 0 0)
-    (uuid 666823aa-febb-43cd-98be-783fa4542d61)
   )
   (junction (at 82.55 182.88) (diameter 0) (color 0 0 0 0)
     (uuid 6b162b0d-7b09-4703-a874-99479aa98647)
@@ -1220,8 +1399,8 @@
   (junction (at 34.29 68.58) (diameter 0) (color 0 0 0 0)
     (uuid 8c758810-fc22-4cca-9094-c8cc8b1afa60)
   )
-  (junction (at 113.03 233.68) (diameter 0) (color 0 0 0 0)
-    (uuid 97875dcf-2d62-4a40-a5e5-cc1365b6bd0e)
+  (junction (at 181.61 219.71) (diameter 0) (color 0 0 0 0)
+    (uuid 9ae10c7e-56a9-44e5-ab5f-5322e84290de)
   )
   (junction (at 66.04 182.88) (diameter 0) (color 0 0 0 0)
     (uuid aabc584d-d14f-4fc0-9c4f-b67bb9d73e3c)
@@ -1229,11 +1408,11 @@
   (junction (at 25.4 182.88) (diameter 0) (color 0 0 0 0)
     (uuid ac4af474-26e0-40c7-9f50-84a20632fea5)
   )
-  (junction (at 83.82 29.21) (diameter 0) (color 0 0 0 0)
-    (uuid b67f2c6c-c705-4271-9753-eaa17e9cd6b0)
+  (junction (at 105.41 251.46) (diameter 0) (color 0 0 0 0)
+    (uuid b8badc07-5036-42d7-ad41-4dd0600549ee)
   )
-  (junction (at 91.44 29.21) (diameter 0) (color 0 0 0 0)
-    (uuid d5c28576-b232-4544-a63e-3dfed9e699b1)
+  (junction (at 172.72 214.63) (diameter 0) (color 0 0 0 0)
+    (uuid ce197a8a-7327-4189-872d-ae28d28a97cd)
   )
   (junction (at 66.04 191.77) (diameter 0) (color 0 0 0 0)
     (uuid de01243b-bc11-4270-9a41-986366ac00de)
@@ -1247,6 +1426,9 @@
   (junction (at 34.29 182.88) (diameter 0) (color 0 0 0 0)
     (uuid eedff9c5-2081-4990-8822-2385ce58d7d6)
   )
+  (junction (at 189.23 219.71) (diameter 0) (color 0 0 0 0)
+    (uuid f3a3fb61-37d8-4726-a0b5-29c528fc67b8)
+  )
 
   (no_connect (at 97.79 250.19) (uuid 344b4ac0-1c9d-4dee-acd5-ca195522dbf2))
   (no_connect (at 97.79 247.65) (uuid 5d8058db-dd0e-4135-9b44-adc7f150c7e5))
@@ -1254,6 +1436,10 @@
   (wire (pts (xy 82.55 182.88) (xy 82.55 185.42))
     (stroke (width 0) (type default))
     (uuid 0197883a-6c48-4554-8a4d-1b140d895489)
+  )
+  (wire (pts (xy 105.41 233.68) (xy 105.41 241.3))
+    (stroke (width 0) (type default))
+    (uuid 019ad1d7-fa9c-44b0-818f-7dc46d35eecf)
   )
   (wire (pts (xy 34.29 57.15) (xy 34.29 59.69))
     (stroke (width 0) (type default))
@@ -1296,18 +1482,9 @@
     (stroke (width 0) (type default))
     (uuid 16b2622d-f3f4-4352-8004-6eba6dbf8274)
   )
-  (wire (pts (xy 113.03 233.68) (xy 119.38 233.68))
-    (stroke (width 0) (type default))
-    (uuid 1b45a008-a92a-41c9-b237-71db662b5484)
-  )
   (polyline (pts (xy 69.85 210.82) (xy 153.67 210.82))
     (stroke (width 0) (type default))
     (uuid 264971f4-8c2f-432e-a467-241a6a54e796)
-  )
-
-  (wire (pts (xy 83.82 31.75) (xy 83.82 29.21))
-    (stroke (width 0) (type default))
-    (uuid 26b7c908-6c77-4463-b583-b234e2679323)
   )
   (polyline (pts (xy 67.31 270.51) (xy 67.31 223.52))
     (stroke (width 0) (type default))
@@ -1326,25 +1503,29 @@
     (stroke (width 0) (type default))
     (uuid 3315dd0b-df0f-4273-8d72-31fd5905e0dc)
   )
-  (wire (pts (xy 66.04 58.42) (xy 95.25 58.42))
+  (wire (pts (xy 105.41 233.68) (xy 119.38 233.68))
     (stroke (width 0) (type default))
-    (uuid 341481ca-c89b-4eb6-8996-08eab6721714)
-  )
-  (wire (pts (xy 74.93 29.21) (xy 74.93 33.02))
-    (stroke (width 0) (type default))
-    (uuid 36309cc5-3d37-46cf-be25-ed0baa8737d3)
+    (uuid 365d5490-8378-456f-a77a-ceca2a8dc5c7)
   )
   (wire (pts (xy 44.45 252.73) (xy 44.45 255.27))
     (stroke (width 0) (type default))
     (uuid 373777d7-110e-483f-8572-cf737378cf44)
   )
+  (wire (pts (xy 172.72 228.6) (xy 172.72 236.22))
+    (stroke (width 0) (type default))
+    (uuid 37d364b4-f95b-466d-8850-36fc68627a91)
+  )
   (wire (pts (xy 55.88 261.62) (xy 62.23 261.62))
     (stroke (width 0) (type default))
     (uuid 3b51d800-0776-4dbd-a1f3-3ceb80b0f40d)
   )
-  (wire (pts (xy 66.04 24.13) (xy 66.04 58.42))
+  (wire (pts (xy 181.61 219.71) (xy 172.72 219.71))
     (stroke (width 0) (type default))
-    (uuid 3e235187-e5d5-4967-a992-f51aa375d917)
+    (uuid 3f09b5e9-83c0-4a93-8743-15977e7ceaef)
+  )
+  (wire (pts (xy 107.95 214.63) (xy 107.95 241.3))
+    (stroke (width 0) (type default))
+    (uuid 40b2372e-a376-417f-a89d-bf561b4f0841)
   )
   (wire (pts (xy 102.87 241.3) (xy 102.87 238.76))
     (stroke (width 0) (type default))
@@ -1358,9 +1539,9 @@
     (stroke (width 0) (type default))
     (uuid 43093e5a-427e-4668-a731-2d682767f707)
   )
-  (wire (pts (xy 83.82 45.72) (xy 83.82 36.83))
+  (wire (pts (xy 196.85 222.25) (xy 196.85 219.71))
     (stroke (width 0) (type default))
-    (uuid 43db0a73-a6aa-40d7-92d7-2dd19abf950e)
+    (uuid 46dd3271-2de4-42ad-b88a-dd6925f2f44d)
   )
   (wire (pts (xy 99.06 232.41) (xy 99.06 233.68))
     (stroke (width 0) (type default))
@@ -1373,10 +1554,6 @@
   (wire (pts (xy 134.62 227.33) (xy 134.62 228.6))
     (stroke (width 0) (type default))
     (uuid 50ae2b52-74bc-4722-987f-f84826f580fd)
-  )
-  (wire (pts (xy 99.06 31.75) (xy 99.06 29.21))
-    (stroke (width 0) (type default))
-    (uuid 5498b17b-d7fb-42b4-895d-b402f25723f5)
   )
   (wire (pts (xy 97.79 219.71) (xy 102.87 219.71))
     (stroke (width 0) (type default))
@@ -1398,13 +1575,13 @@
     (stroke (width 0) (type default))
     (uuid 5d75d1ef-e536-4c19-a46f-7adcab8017f5)
   )
-  (wire (pts (xy 83.82 29.21) (xy 91.44 29.21))
-    (stroke (width 0) (type default))
-    (uuid 5f2f7b72-94c8-4cab-b35e-28b87670a410)
-  )
   (wire (pts (xy 82.55 262.89) (xy 93.98 262.89))
     (stroke (width 0) (type default))
     (uuid 651e41b3-25e2-43b3-b811-04ec5c17fd0c)
+  )
+  (wire (pts (xy 189.23 227.33) (xy 189.23 236.22))
+    (stroke (width 0) (type default))
+    (uuid 65631b1a-a8ce-48fb-81a9-d44b1a118b25)
   )
   (polyline (pts (xy 21.59 172.72) (xy 21.59 208.28))
     (stroke (width 0) (type default))
@@ -1414,6 +1591,10 @@
   (wire (pts (xy 48.26 200.66) (xy 48.26 201.93))
     (stroke (width 0) (type default))
     (uuid 6611b6fe-90b5-4374-9938-85a4753b8b3d)
+  )
+  (wire (pts (xy 189.23 219.71) (xy 189.23 222.25))
+    (stroke (width 0) (type default))
+    (uuid 675edc66-5809-4d2f-b9ea-d8352516683e)
   )
   (polyline (pts (xy 153.67 210.82) (xy 153.67 270.51))
     (stroke (width 0) (type default))
@@ -1427,12 +1608,17 @@
     (stroke (width 0) (type default))
     (uuid 6d69535a-d7f2-4812-90fa-a056284348e9)
   )
+
+  (wire (pts (xy 196.85 227.33) (xy 196.85 236.22))
+    (stroke (width 0) (type default))
+    (uuid 79cd8426-9fb3-4a28-81ad-43e01d91f676)
+  )
   (polyline (pts (xy 21.59 172.72) (xy 105.41 172.72))
     (stroke (width 0) (type default))
     (uuid 8116e3c5-bce1-4be3-842b-29f92e1c15f5)
   )
 
-  (wire (pts (xy 102.87 250.19) (xy 102.87 248.92))
+  (wire (pts (xy 105.41 251.46) (xy 105.41 250.19))
     (stroke (width 0) (type default))
     (uuid 83c14330-b7ff-456b-99fd-2623e38e6f02)
   )
@@ -1440,13 +1626,13 @@
     (stroke (width 0) (type default))
     (uuid 8b934a3e-ae4a-4447-bf0f-ff2558dd88f8)
   )
+  (wire (pts (xy 172.72 219.71) (xy 172.72 220.98))
+    (stroke (width 0) (type default))
+    (uuid 8e7de353-7e36-4f03-89d3-9aa1b7e84763)
+  )
   (wire (pts (xy 99.06 234.95) (xy 97.79 234.95))
     (stroke (width 0) (type default))
     (uuid 8f290e54-2916-4674-a298-a41721b87cd2)
-  )
-  (wire (pts (xy 99.06 36.83) (xy 99.06 45.72))
-    (stroke (width 0) (type default))
-    (uuid 90e641c1-6b23-4a3a-9b25-38c8cf73c4f6)
   )
   (polyline (pts (xy 67.31 223.52) (xy 21.59 223.52))
     (stroke (width 0) (type default))
@@ -1481,25 +1667,13 @@
     (stroke (width 0) (type default))
     (uuid 9a43dcd3-ff90-48df-9a4d-9d46e742c0e4)
   )
-  (wire (pts (xy 107.95 220.98) (xy 107.95 214.63))
-    (stroke (width 0) (type default))
-    (uuid 9a4dc633-1b72-412a-9945-49e1d6a9adac)
-  )
   (wire (pts (xy 25.4 68.58) (xy 34.29 68.58))
     (stroke (width 0) (type default))
     (uuid 9ae5bc70-3da0-4674-8881-56d1d019257c)
   )
-  (wire (pts (xy 91.44 29.21) (xy 91.44 31.75))
+  (wire (pts (xy 196.85 219.71) (xy 189.23 219.71))
     (stroke (width 0) (type default))
-    (uuid 9b439ad4-2fbe-4b4c-97fb-494adcf8ab94)
-  )
-  (wire (pts (xy 74.93 24.13) (xy 66.04 24.13))
-    (stroke (width 0) (type default))
-    (uuid 9b78e295-e229-4b4c-bb54-72ce54fccfb6)
-  )
-  (wire (pts (xy 119.38 220.98) (xy 123.19 220.98))
-    (stroke (width 0) (type default))
-    (uuid 9ca6b5cd-e404-460b-b4f2-e4bbc43a88ce)
+    (uuid 9bf55253-94b7-4736-b87b-5bd89d391ce5)
   )
   (wire (pts (xy 102.87 219.71) (xy 102.87 214.63))
     (stroke (width 0) (type default))
@@ -1518,6 +1692,10 @@
     (uuid a073e5ea-13b3-4f9c-a5c4-c0d0e395adea)
   )
 
+  (wire (pts (xy 181.61 222.25) (xy 181.61 219.71))
+    (stroke (width 0) (type default))
+    (uuid a248e35c-832c-48ea-a9d9-d66b5a0420b4)
+  )
   (wire (pts (xy 95.25 190.5) (xy 95.25 199.39))
     (stroke (width 0) (type default))
     (uuid a34d8778-abcb-4539-bdb6-c1caee8962a1)
@@ -1529,10 +1707,6 @@
   (wire (pts (xy 66.04 191.77) (xy 66.04 193.04))
     (stroke (width 0) (type default))
     (uuid a446c4bd-ac3d-4297-972d-fc8153d10ab3)
-  )
-  (wire (pts (xy 113.03 241.3) (xy 113.03 233.68))
-    (stroke (width 0) (type default))
-    (uuid a4a9e572-ee94-4c76-b298-d84251640139)
   )
   (wire (pts (xy 97.79 237.49) (xy 99.06 237.49))
     (stroke (width 0) (type default))
@@ -1550,6 +1724,10 @@
     (stroke (width 0) (type default))
     (uuid aec251e4-600e-49d9-97f2-4d03b5379c2f)
   )
+  (wire (pts (xy 172.72 214.63) (xy 172.72 219.71))
+    (stroke (width 0) (type default))
+    (uuid b3c96934-1925-4b7d-b6ac-0359521e4348)
+  )
   (wire (pts (xy 44.45 245.11) (xy 44.45 247.65))
     (stroke (width 0) (type default))
     (uuid b73b5038-cdc9-4827-adaa-91eab37aeb7a)
@@ -1563,25 +1741,17 @@
     (uuid b848457f-fb0d-42fe-a7c0-e20f4233c49e)
   )
 
-  (wire (pts (xy 99.06 29.21) (xy 91.44 29.21))
-    (stroke (width 0) (type default))
-    (uuid b99e2e4b-53e3-4453-b130-b91fa2592368)
-  )
   (wire (pts (xy 34.29 68.58) (xy 49.53 68.58))
     (stroke (width 0) (type default))
     (uuid bd3120cc-1a13-4650-9b01-8185920b3de0)
-  )
-  (wire (pts (xy 74.93 24.13) (xy 74.93 29.21))
-    (stroke (width 0) (type default))
-    (uuid bd59c7f3-e5f9-47ff-88cb-10d94751736d)
   )
   (wire (pts (xy 97.79 232.41) (xy 99.06 232.41))
     (stroke (width 0) (type default))
     (uuid c01e1042-d2d0-4027-acec-f0aac19dab87)
   )
-  (wire (pts (xy 91.44 36.83) (xy 91.44 45.72))
+  (wire (pts (xy 172.72 214.63) (xy 163.83 214.63))
     (stroke (width 0) (type default))
-    (uuid c6689735-3ce6-4366-8541-9a69df8ef80b)
+    (uuid c445dce2-33a0-4d77-b7fd-949053c71e52)
   )
   (wire (pts (xy 25.4 190.5) (xy 25.4 191.77))
     (stroke (width 0) (type default))
@@ -1591,9 +1761,9 @@
     (stroke (width 0) (type default))
     (uuid c7543d03-a598-4257-a42d-dbf1621730a0)
   )
-  (wire (pts (xy 74.93 40.64) (xy 74.93 45.72))
+  (wire (pts (xy 181.61 219.71) (xy 189.23 219.71))
     (stroke (width 0) (type default))
-    (uuid cbaf281d-6ffa-4f16-af9d-3a74359f296c)
+    (uuid cd94c234-2e24-4639-ac13-f6a6195a32eb)
   )
   (wire (pts (xy 97.79 224.79) (xy 144.78 224.79))
     (stroke (width 0) (type default))
@@ -1607,6 +1777,10 @@
     (stroke (width 0) (type default))
     (uuid d1055de3-3b7c-49d5-9b18-54fb13293bbe)
   )
+  (wire (pts (xy 181.61 236.22) (xy 181.61 227.33))
+    (stroke (width 0) (type default))
+    (uuid d1c8c153-a348-4791-9c97-8be92113e485)
+  )
   (wire (pts (xy 62.23 255.27) (xy 62.23 261.62))
     (stroke (width 0) (type default))
     (uuid d5244cd7-ce49-4cbf-9048-d91e243ded27)
@@ -1615,17 +1789,9 @@
     (stroke (width 0) (type default))
     (uuid d615e116-b0eb-44b1-9ab8-9acb15608739)
   )
-  (wire (pts (xy 99.06 233.68) (xy 113.03 233.68))
+  (wire (pts (xy 99.06 233.68) (xy 105.41 233.68))
     (stroke (width 0) (type default))
     (uuid d6349307-7134-4c31-8377-5bdd5fee0553)
-  )
-  (wire (pts (xy 83.82 29.21) (xy 74.93 29.21))
-    (stroke (width 0) (type default))
-    (uuid d83449a7-938e-402e-8fc9-181782e23798)
-  )
-  (wire (pts (xy 113.03 250.19) (xy 113.03 248.92))
-    (stroke (width 0) (type default))
-    (uuid d8aa6a46-d2f3-4371-9d8a-7185a02d4efc)
   )
   (wire (pts (xy 99.06 262.89) (xy 101.6 262.89))
     (stroke (width 0) (type default))
@@ -1639,6 +1805,10 @@
     (stroke (width 0) (type default))
     (uuid d96934d9-9f36-4915-92ab-08ab9acb2418)
   )
+  (wire (pts (xy 163.83 214.63) (xy 163.83 248.92))
+    (stroke (width 0) (type default))
+    (uuid da29a7bb-6bbf-4437-9e1b-7d51bafb2062)
+  )
   (wire (pts (xy 66.04 190.5) (xy 66.04 191.77))
     (stroke (width 0) (type default))
     (uuid dbf8b0da-79d9-43d7-848d-1c92ea86d4cb)
@@ -1646,6 +1816,10 @@
   (wire (pts (xy 66.04 198.12) (xy 66.04 199.39))
     (stroke (width 0) (type default))
     (uuid de4fd0e4-c417-4ae1-8128-cf9ade9edd5e)
+  )
+  (wire (pts (xy 163.83 248.92) (xy 193.04 248.92))
+    (stroke (width 0) (type default))
+    (uuid e316dfc5-2883-4086-8246-904054e2f08a)
   )
   (wire (pts (xy 99.06 238.76) (xy 99.06 240.03))
     (stroke (width 0) (type default))
@@ -1659,10 +1833,6 @@
   (wire (pts (xy 44.45 261.62) (xy 50.8 261.62))
     (stroke (width 0) (type default))
     (uuid ea2231c6-fd1f-413d-9b07-5eaabf6b576f)
-  )
-  (wire (pts (xy 111.76 220.98) (xy 107.95 220.98))
-    (stroke (width 0) (type default))
-    (uuid ea44b5a7-75f8-4afc-82c1-d152e97f481f)
   )
   (wire (pts (xy 43.18 232.41) (xy 48.26 232.41))
     (stroke (width 0) (type default))
@@ -1736,6 +1906,13 @@
       (effects (font (size 1.27 1.27)) (justify left) hide)
     )
   )
+  (global_label "CHIP_POWER" (shape input) (at 193.04 248.92 0) (fields_autoplaced)
+    (effects (font (size 1.27 1.27)) (justify left))
+    (uuid 32a3af25-20dc-4f30-980d-ea65a1a110b6)
+    (property "Intersheetrefs" "${INTERSHEET_REFS}" (at 207.8596 248.92 0)
+      (effects (font (size 1.27 1.27)) (justify left) hide)
+    )
+  )
   (global_label "USB_D-" (shape bidirectional) (at 140.97 78.74 0) (fields_autoplaced)
     (effects (font (size 1.27 1.27)) (justify left))
     (uuid 3f304f69-39f3-4b71-b148-03debf667a68)
@@ -1754,6 +1931,13 @@
     (effects (font (size 1.27 1.27)) (justify left))
     (uuid 73995a21-10d7-4db0-9ecb-4d18ee38f28c)
     (property "Intersheetrefs" "${INTERSHEET_REFS}" (at 130.2041 238.76 0)
+      (effects (font (size 1.27 1.27)) (justify left) hide)
+    )
+  )
+  (global_label "CHIP_POWER" (shape input) (at 95.25 58.42 90) (fields_autoplaced)
+    (effects (font (size 1.27 1.27)) (justify left))
+    (uuid c7b8689e-94d5-41b1-9d6a-af49b8b41f7a)
+    (property "Intersheetrefs" "${INTERSHEET_REFS}" (at 95.25 43.6004 90)
       (effects (font (size 1.27 1.27)) (justify left) hide)
     )
   )
@@ -1809,7 +1993,7 @@
   (symbol (lib_id "Device:D_Small") (at 294.64 93.98 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 017d91ce-78cf-43e0-bf10-ab52e1d66ba1)
-    (property "Reference" "D24" (at 297.18 93.345 90)
+    (property "Reference" "D23" (at 297.18 93.345 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 297.18 95.885 90)
@@ -1832,7 +2016,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D24") (unit 1)
+          (reference "D23") (unit 1)
         )
       )
     )
@@ -1841,7 +2025,7 @@
   (symbol (lib_id "Device:D_Small") (at 218.44 68.58 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 0312e30d-dabd-446e-bac5-14ac8454ece4)
-    (property "Reference" "D4" (at 220.98 67.945 90)
+    (property "Reference" "D3" (at 220.98 67.945 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 220.98 70.485 90)
@@ -1864,7 +2048,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D4") (unit 1)
+          (reference "D3") (unit 1)
         )
       )
     )
@@ -1925,7 +2109,7 @@
   (symbol (lib_id "Device:D_Small") (at 243.84 144.78 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 0a0a6668-1ad8-4a14-852b-cd6fc0348c4d)
-    (property "Reference" "D47" (at 246.38 144.145 90)
+    (property "Reference" "D46" (at 246.38 144.145 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 246.38 146.685 90)
@@ -1948,7 +2132,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D47") (unit 1)
+          (reference "D46") (unit 1)
         )
       )
     )
@@ -2009,7 +2193,7 @@
   (symbol (lib_id "Device:D_Small") (at 294.64 68.58 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 0f07d8ff-23ee-4d8d-aa87-cf2f43a4d691)
-    (property "Reference" "D10" (at 297.18 67.945 90)
+    (property "Reference" "D9" (at 297.18 67.945 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 297.18 70.485 90)
@@ -2032,7 +2216,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D10") (unit 1)
+          (reference "D9") (unit 1)
         )
       )
     )
@@ -2066,7 +2250,7 @@
       )
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "C4") (unit 1)
+          (reference "C1") (unit 1)
         )
       )
     )
@@ -2096,7 +2280,7 @@
       )
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "#PWR011") (unit 1)
+          (reference "#PWR06") (unit 1)
         )
       )
     )
@@ -2219,7 +2403,7 @@
       )
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "#PWR020") (unit 1)
+          (reference "#PWR019") (unit 1)
         )
       )
     )
@@ -2253,37 +2437,7 @@
       )
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "C6") (unit 1)
-        )
-      )
-    )
-  )
-
-  (symbol (lib_id "power:GND") (at 83.82 45.72 0) (unit 1)
-    (in_bom yes) (on_board yes) (dnp no)
-    (uuid 1aad797e-5a4b-4778-b9ff-43625776f15d)
-    (property "Reference" "#PWR0140" (at 83.82 52.07 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (property "Value" "GND" (at 83.947 50.1142 0)
-      (effects (font (size 1.27 1.27)))
-    )
-    (property "Footprint" "" (at 83.82 45.72 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (property "Datasheet" "" (at 83.82 45.72 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (pin "1" (uuid 1dd8437e-950b-4ae5-b9e9-8e5055bbee72))
-    (instances
-      (project "esp-rust-board"
-        (path "/196a8dd5-5fd6-4c7f-ae4a-0104bd82e61b"
-          (reference "#PWR0140") (unit 1)
-        )
-      )
-      (project "mkey"
-        (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "#PWR03") (unit 1)
+          (reference "C3") (unit 1)
         )
       )
     )
@@ -2323,44 +2477,10 @@
     )
   )
 
-  (symbol (lib_id "Device:D_TVS") (at 113.03 245.11 270) (unit 1)
-    (in_bom yes) (on_board yes) (dnp no)
-    (uuid 1d0be75a-cab3-474c-b2d0-33e8fea0be91)
-    (property "Reference" "D8" (at 115.062 243.9416 90)
-      (effects (font (size 1.27 1.27)) (justify left))
-    )
-    (property "Value" "LESD5D5.0CT1G" (at 119.38 241.3 0)
-      (effects (font (size 1.27 1.27)) (justify left))
-    )
-    (property "Footprint" "Diode_SMD:D_SOD-523" (at 113.03 245.11 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (property "Datasheet" "~" (at 113.03 245.11 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (property "LCSC" "C383211" (at 113.03 245.11 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (pin "1" (uuid 6842db94-a29b-4d57-ac38-984bc8f70390))
-    (pin "2" (uuid 2c26924b-a01d-4a8e-bbe4-bb591a2282a3))
-    (instances
-      (project "esp-rust-board"
-        (path "/196a8dd5-5fd6-4c7f-ae4a-0104bd82e61b"
-          (reference "D8") (unit 1)
-        )
-      )
-      (project "mkey"
-        (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D71") (unit 1)
-        )
-      )
-    )
-  )
-
   (symbol (lib_id "Device:D_Small") (at 231.14 119.38 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 1d1c26a6-725a-40b0-bd32-5f098956b3b8)
-    (property "Reference" "D32" (at 233.68 118.745 90)
+    (property "Reference" "D31" (at 233.68 118.745 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 233.68 121.285 90)
@@ -2383,7 +2503,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D32") (unit 1)
+          (reference "D31") (unit 1)
         )
       )
     )
@@ -2444,7 +2564,7 @@
   (symbol (lib_id "Device:D_Small") (at 193.04 93.98 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 22f3a598-06f5-48fa-abed-595ca0f55b03)
-    (property "Reference" "D16" (at 195.58 93.345 90)
+    (property "Reference" "D15" (at 195.58 93.345 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 195.58 95.885 90)
@@ -2467,7 +2587,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D16") (unit 1)
+          (reference "D15") (unit 1)
         )
       )
     )
@@ -2502,7 +2622,7 @@
   (symbol (lib_id "Device:D_Small") (at 370.84 170.18 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 2457bb4d-b349-414c-9200-d3d66a0aa3f6)
-    (property "Reference" "D66" (at 373.38 169.545 90)
+    (property "Reference" "D65" (at 373.38 169.545 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 373.38 172.085 90)
@@ -2525,7 +2645,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D66") (unit 1)
+          (reference "D65") (unit 1)
         )
       )
     )
@@ -2534,7 +2654,7 @@
   (symbol (lib_id "Device:D_Small") (at 256.54 144.78 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 25a6fa67-fdac-4363-845f-387fb214efb2)
-    (property "Reference" "D48" (at 259.08 144.145 90)
+    (property "Reference" "D47" (at 259.08 144.145 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 259.08 146.685 90)
@@ -2557,7 +2677,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D48") (unit 1)
+          (reference "D47") (unit 1)
         )
       )
     )
@@ -2641,10 +2761,44 @@
     )
   )
 
+  (symbol (lib_id "Device:C_Small") (at 189.23 224.79 0) (unit 1)
+    (in_bom yes) (on_board yes) (dnp no)
+    (uuid 2a285bf7-1080-460b-a107-9a4cd86b3b45)
+    (property "Reference" "C9" (at 190.5 222.25 0)
+      (effects (font (size 1.27 1.27)) (justify left))
+    )
+    (property "Value" "100nF 10V" (at 193.04 234.95 90)
+      (effects (font (size 1.27 1.27)) (justify left))
+    )
+    (property "Footprint" "Capacitor_SMD:C_0402_1005Metric" (at 189.23 224.79 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Datasheet" "~" (at 189.23 224.79 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "LCSC" "C1525" (at 189.23 224.79 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (pin "1" (uuid 97502a94-950c-4ff7-86d7-3dc3456ecb30))
+    (pin "2" (uuid 9cb72775-b1c8-4ecb-86f7-6df17315428d))
+    (instances
+      (project "esp-rust-board"
+        (path "/196a8dd5-5fd6-4c7f-ae4a-0104bd82e61b"
+          (reference "C9") (unit 1)
+        )
+      )
+      (project "mkey"
+        (path "/f3397802-fe64-44a3-9f7f-58231a072723"
+          (reference "C6") (unit 1)
+        )
+      )
+    )
+  )
+
   (symbol (lib_id "Device:D_Small") (at 193.04 119.38 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 2ae473d2-831d-4a10-9084-e1d30fe6265c)
-    (property "Reference" "D29" (at 195.58 118.745 90)
+    (property "Reference" "D28" (at 195.58 118.745 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 195.58 121.285 90)
@@ -2667,7 +2821,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D29") (unit 1)
+          (reference "D28") (unit 1)
         )
       )
     )
@@ -2676,7 +2830,7 @@
   (symbol (lib_id "Device:D_Small") (at 193.04 68.58 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 2c0fa3d0-52d8-467a-bbe4-6c4e7b45ba8c)
-    (property "Reference" "D2" (at 195.58 67.945 90)
+    (property "Reference" "D1" (at 195.58 67.945 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 195.58 70.485 90)
@@ -2699,7 +2853,37 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D2") (unit 1)
+          (reference "D1") (unit 1)
+        )
+      )
+    )
+  )
+
+  (symbol (lib_id "power:GND") (at 196.85 236.22 0) (unit 1)
+    (in_bom yes) (on_board yes) (dnp no)
+    (uuid 2d7f18c9-a557-4543-848a-bcdb8459be20)
+    (property "Reference" "#PWR0125" (at 196.85 242.57 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Value" "GND" (at 196.977 240.6142 0)
+      (effects (font (size 1.27 1.27)))
+    )
+    (property "Footprint" "" (at 196.85 236.22 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Datasheet" "" (at 196.85 236.22 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (pin "1" (uuid 53f44ab0-c69c-4baf-999e-e46c8190e91d))
+    (instances
+      (project "esp-rust-board"
+        (path "/196a8dd5-5fd6-4c7f-ae4a-0104bd82e61b"
+          (reference "#PWR0125") (unit 1)
+        )
+      )
+      (project "mkey"
+        (path "/f3397802-fe64-44a3-9f7f-58231a072723"
+          (reference "#PWR017") (unit 1)
         )
       )
     )
@@ -2731,40 +2915,10 @@
     )
   )
 
-  (symbol (lib_id "power:GND") (at 123.19 220.98 90) (unit 1)
-    (in_bom yes) (on_board yes) (dnp no)
-    (uuid 312cc4d1-fad3-4b47-a85f-f6bcac60c98f)
-    (property "Reference" "#PWR0146" (at 129.54 220.98 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (property "Value" "GND" (at 126.4412 220.853 90)
-      (effects (font (size 1.27 1.27)) (justify right))
-    )
-    (property "Footprint" "" (at 123.19 220.98 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (property "Datasheet" "" (at 123.19 220.98 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (pin "1" (uuid 42940ea0-6081-4848-a2d0-29ebca8a2fa4))
-    (instances
-      (project "esp-rust-board"
-        (path "/196a8dd5-5fd6-4c7f-ae4a-0104bd82e61b"
-          (reference "#PWR0146") (unit 1)
-        )
-      )
-      (project "mkey"
-        (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "#PWR016") (unit 1)
-        )
-      )
-    )
-  )
-
   (symbol (lib_id "Device:D_Small") (at 281.94 93.98 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 3187db01-6dc2-4d2b-a209-c3bf85fa0fd0)
-    (property "Reference" "D23" (at 284.48 93.345 90)
+    (property "Reference" "D22" (at 284.48 93.345 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 284.48 95.885 90)
@@ -2787,7 +2941,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D23") (unit 1)
+          (reference "D22") (unit 1)
         )
       )
     )
@@ -2796,7 +2950,7 @@
   (symbol (lib_id "Device:D_Small") (at 307.34 170.18 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 31ed30b4-3042-4e43-8afb-95836d013c56)
-    (property "Reference" "D63" (at 309.88 169.545 90)
+    (property "Reference" "D62" (at 309.88 169.545 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 309.88 172.085 90)
@@ -2819,7 +2973,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D63") (unit 1)
+          (reference "D62") (unit 1)
         )
       )
     )
@@ -2886,7 +3040,7 @@
       )
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "#PWR018") (unit 1)
+          (reference "#PWR013") (unit 1)
         )
       )
     )
@@ -2895,7 +3049,7 @@
   (symbol (lib_name "VBUS_1") (lib_id "power:VBUS") (at 25.4 181.61 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 367fe021-1573-40d3-9c41-96f6a10332d6)
-    (property "Reference" "#PWR09" (at 25.4 185.42 0)
+    (property "Reference" "#PWR04" (at 25.4 185.42 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Value" "VBUS" (at 25.4 177.8 0)
@@ -2911,7 +3065,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "#PWR09") (unit 1)
+          (reference "#PWR04") (unit 1)
         )
       )
     )
@@ -2920,7 +3074,7 @@
   (symbol (lib_id "Device:D_Small") (at 307.34 93.98 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 36cc9fc9-bbfb-4eb0-8fa7-61f727cdd834)
-    (property "Reference" "D25" (at 309.88 93.345 90)
+    (property "Reference" "D24" (at 309.88 93.345 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 309.88 95.885 90)
@@ -2943,7 +3097,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D25") (unit 1)
+          (reference "D24") (unit 1)
         )
       )
     )
@@ -2952,7 +3106,7 @@
   (symbol (lib_id "Device:D_Small") (at 256.54 119.38 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 36cd3573-5148-4e3e-a790-dd1f5b65c04d)
-    (property "Reference" "D34" (at 259.08 118.745 90)
+    (property "Reference" "D33" (at 259.08 118.745 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 259.08 121.285 90)
@@ -2975,7 +3129,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D34") (unit 1)
+          (reference "D33") (unit 1)
         )
       )
     )
@@ -3010,7 +3164,7 @@
   (symbol (lib_id "Device:D_Small") (at 218.44 119.38 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 381b8af0-f5da-4e68-be67-a24a4efdb880)
-    (property "Reference" "D31" (at 220.98 118.745 90)
+    (property "Reference" "D30" (at 220.98 118.745 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 220.98 121.285 90)
@@ -3033,7 +3187,37 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D31") (unit 1)
+          (reference "D30") (unit 1)
+        )
+      )
+    )
+  )
+
+  (symbol (lib_id "power:GND") (at 181.61 236.22 0) (unit 1)
+    (in_bom yes) (on_board yes) (dnp no)
+    (uuid 38a57f94-138e-4af7-bd29-0a42aa3fd2f4)
+    (property "Reference" "#PWR0140" (at 181.61 242.57 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Value" "GND" (at 181.737 240.6142 0)
+      (effects (font (size 1.27 1.27)))
+    )
+    (property "Footprint" "" (at 181.61 236.22 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Datasheet" "" (at 181.61 236.22 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (pin "1" (uuid 67805355-87c4-4cd9-a585-4063e1e16067))
+    (instances
+      (project "esp-rust-board"
+        (path "/196a8dd5-5fd6-4c7f-ae4a-0104bd82e61b"
+          (reference "#PWR0140") (unit 1)
+        )
+      )
+      (project "mkey"
+        (path "/f3397802-fe64-44a3-9f7f-58231a072723"
+          (reference "#PWR015") (unit 1)
         )
       )
     )
@@ -3042,7 +3226,7 @@
   (symbol (lib_id "Device:D_Small") (at 269.24 93.98 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 3906976b-912e-4d98-975c-f4c98664ed64)
-    (property "Reference" "D22" (at 271.78 93.345 90)
+    (property "Reference" "D21" (at 271.78 93.345 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 271.78 95.885 90)
@@ -3065,7 +3249,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D22") (unit 1)
+          (reference "D21") (unit 1)
         )
       )
     )
@@ -3074,7 +3258,7 @@
   (symbol (lib_id "Device:D_Small") (at 345.44 68.58 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 39409fdf-ad20-4b27-86c4-886c996818fd)
-    (property "Reference" "D14" (at 347.98 67.945 90)
+    (property "Reference" "D13" (at 347.98 67.945 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 347.98 70.485 90)
@@ -3097,7 +3281,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D14") (unit 1)
+          (reference "D13") (unit 1)
         )
       )
     )
@@ -3106,7 +3290,7 @@
   (symbol (lib_id "Device:D_Small") (at 358.14 119.38 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 3a7aff31-a144-42c2-8a56-7ebcf4e1ef06)
-    (property "Reference" "D42" (at 360.68 118.745 90)
+    (property "Reference" "D41" (at 360.68 118.745 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 360.68 121.285 90)
@@ -3129,7 +3313,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D42") (unit 1)
+          (reference "D41") (unit 1)
         )
       )
     )
@@ -3359,40 +3543,6 @@
     )
   )
 
-  (symbol (lib_id "Device:D_TVS") (at 102.87 245.11 270) (unit 1)
-    (in_bom yes) (on_board yes) (dnp no)
-    (uuid 40851238-02db-4ae7-8cac-23c914810e4c)
-    (property "Reference" "D5" (at 104.902 243.9416 90)
-      (effects (font (size 1.27 1.27)) (justify left))
-    )
-    (property "Value" "LESD5D5.0CT1G" (at 109.22 241.3 0)
-      (effects (font (size 1.27 1.27)) (justify left))
-    )
-    (property "Footprint" "Diode_SMD:D_SOD-523" (at 102.87 245.11 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (property "Datasheet" "~" (at 102.87 245.11 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (property "LCSC" "C383211" (at 102.87 245.11 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (pin "1" (uuid dc13c578-fe57-435d-a32a-dcbc6975eb4b))
-    (pin "2" (uuid b8a616f9-d287-4bee-8221-8bf82c4848c8))
-    (instances
-      (project "esp-rust-board"
-        (path "/196a8dd5-5fd6-4c7f-ae4a-0104bd82e61b"
-          (reference "D5") (unit 1)
-        )
-      )
-      (project "mkey"
-        (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D70") (unit 1)
-        )
-      )
-    )
-  )
-
   (symbol (lib_id "PCM_marbastlib-mx:MX_SW_solder") (at 317.5 114.3 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 412b8dfc-49ad-43a3-8aaa-20c78b1b0ae9)
@@ -3419,10 +3569,38 @@
     )
   )
 
+  (symbol (lib_id "Power_Protection:SP0503BAHT") (at 105.41 246.38 0) (unit 1)
+    (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
+    (uuid 4235a441-cd20-46e4-a9f9-2cdced3f5043)
+    (property "Reference" "D69" (at 111.76 245.745 0)
+      (effects (font (size 1.27 1.27)) (justify left))
+    )
+    (property "Value" "SP0503BAHT" (at 111.76 248.285 0)
+      (effects (font (size 1.27 1.27)) (justify left))
+    )
+    (property "Footprint" "Package_TO_SOT_SMD:SOT-143" (at 111.125 247.65 0)
+      (effects (font (size 1.27 1.27)) (justify left) hide)
+    )
+    (property "Datasheet" "http://www.littelfuse.com/~/media/files/littelfuse/technical%20resources/documents/data%20sheets/sp05xxba.pdf" (at 108.585 243.205 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (pin "1" (uuid ccdeecbf-dabd-45ca-8c7a-9f161dbaf0c8))
+    (pin "2" (uuid 0d9f3081-8c43-45fd-b420-ae792a50722e))
+    (pin "3" (uuid 51a6d0a8-c307-478d-8bae-000d1531b1cb))
+    (pin "4" (uuid f6a14884-5ddd-41aa-a40d-c9d3f2a85d00))
+    (instances
+      (project "mkey"
+        (path "/f3397802-fe64-44a3-9f7f-58231a072723"
+          (reference "D69") (unit 1)
+        )
+      )
+    )
+  )
+
   (symbol (lib_id "Device:D_Small") (at 345.44 93.98 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 42ede067-bb8b-4135-bfa7-671a30b01010)
-    (property "Reference" "D28" (at 347.98 93.345 90)
+    (property "Reference" "D27" (at 347.98 93.345 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 347.98 95.885 90)
@@ -3445,7 +3623,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D28") (unit 1)
+          (reference "D27") (unit 1)
         )
       )
     )
@@ -3454,7 +3632,7 @@
   (symbol (lib_name "GND_1") (lib_id "power:GND") (at 95.25 144.78 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 438fcd8f-fbdf-4bc5-8d5f-81b9431561a9)
-    (property "Reference" "#PWR08" (at 95.25 151.13 0)
+    (property "Reference" "#PWR03" (at 95.25 151.13 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Value" "GND" (at 95.25 149.86 0)
@@ -3470,37 +3648,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "#PWR08") (unit 1)
-        )
-      )
-    )
-  )
-
-  (symbol (lib_id "power:GND") (at 74.93 45.72 0) (unit 1)
-    (in_bom yes) (on_board yes) (dnp no)
-    (uuid 4550977c-c400-4b09-9f3b-b7d4548c882a)
-    (property "Reference" "#PWR0144" (at 74.93 52.07 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (property "Value" "GND" (at 75.057 50.1142 0)
-      (effects (font (size 1.27 1.27)))
-    )
-    (property "Footprint" "" (at 74.93 45.72 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (property "Datasheet" "" (at 74.93 45.72 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (pin "1" (uuid 63fece5e-0764-4f69-9fba-e35eb12c5e3d))
-    (instances
-      (project "esp-rust-board"
-        (path "/196a8dd5-5fd6-4c7f-ae4a-0104bd82e61b"
-          (reference "#PWR0144") (unit 1)
-        )
-      )
-      (project "mkey"
-        (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "#PWR02") (unit 1)
+          (reference "#PWR03") (unit 1)
         )
       )
     )
@@ -3509,7 +3657,7 @@
   (symbol (lib_id "Device:D_Small") (at 193.04 170.18 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 47b15be5-94c4-41e8-830d-004e0ae38d05)
-    (property "Reference" "D57" (at 195.58 169.545 90)
+    (property "Reference" "D56" (at 195.58 169.545 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 195.58 172.085 90)
@@ -3532,7 +3680,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D57") (unit 1)
+          (reference "D56") (unit 1)
         )
       )
     )
@@ -3567,7 +3715,7 @@
   (symbol (lib_id "Device:D_Small") (at 218.44 144.78 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 488fe92a-27fd-4d03-bf32-67f62eed8877)
-    (property "Reference" "D45" (at 220.98 144.145 90)
+    (property "Reference" "D44" (at 220.98 144.145 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 220.98 146.685 90)
@@ -3590,37 +3738,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D45") (unit 1)
-        )
-      )
-    )
-  )
-
-  (symbol (lib_id "power:GND") (at 113.03 250.19 0) (unit 1)
-    (in_bom yes) (on_board yes) (dnp no)
-    (uuid 48a19da4-a0de-4f98-9530-9cfdf3563dff)
-    (property "Reference" "#PWR0143" (at 113.03 256.54 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (property "Value" "GND" (at 113.157 254.5842 0)
-      (effects (font (size 1.27 1.27)))
-    )
-    (property "Footprint" "" (at 113.03 250.19 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (property "Datasheet" "" (at 113.03 250.19 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (pin "1" (uuid 0bea6447-e890-496c-80e0-f24f9eaa2b69))
-    (instances
-      (project "esp-rust-board"
-        (path "/196a8dd5-5fd6-4c7f-ae4a-0104bd82e61b"
-          (reference "#PWR0143") (unit 1)
-        )
-      )
-      (project "mkey"
-        (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "#PWR022") (unit 1)
+          (reference "D44") (unit 1)
         )
       )
     )
@@ -3650,7 +3768,7 @@
       )
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "#PWR014") (unit 1)
+          (reference "#PWR09") (unit 1)
         )
       )
     )
@@ -3659,7 +3777,7 @@
   (symbol (lib_id "Device:D_Small") (at 332.74 119.38 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 4aaed8ca-2d3d-4fb6-a764-50f425c3f509)
-    (property "Reference" "D40" (at 335.28 118.745 90)
+    (property "Reference" "D39" (at 335.28 118.745 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 335.28 121.285 90)
@@ -3682,7 +3800,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D40") (unit 1)
+          (reference "D39") (unit 1)
         )
       )
     )
@@ -3768,7 +3886,7 @@
       )
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "C7") (unit 1)
+          (reference "C4") (unit 1)
         )
       )
     )
@@ -3777,7 +3895,7 @@
   (symbol (lib_id "Device:D_Small") (at 243.84 119.38 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 50f1fbde-b63c-4183-8952-e96561407b3b)
-    (property "Reference" "D33" (at 246.38 118.745 90)
+    (property "Reference" "D32" (at 246.38 118.745 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 246.38 121.285 90)
@@ -3800,7 +3918,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D33") (unit 1)
+          (reference "D32") (unit 1)
         )
       )
     )
@@ -3809,7 +3927,7 @@
   (symbol (lib_id "Device:D_Small") (at 370.84 144.78 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 510914b1-e663-421e-b2bf-6ead451d3033)
-    (property "Reference" "D56" (at 373.38 144.145 90)
+    (property "Reference" "D55" (at 373.38 144.145 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 373.38 146.685 90)
@@ -3832,7 +3950,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D56") (unit 1)
+          (reference "D55") (unit 1)
         )
       )
     )
@@ -3867,7 +3985,7 @@
   (symbol (lib_id "Device:D_Small") (at 256.54 93.98 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 5153a5fc-8fd9-4c62-ba40-8c3866aebc61)
-    (property "Reference" "D21" (at 259.08 93.345 90)
+    (property "Reference" "D20" (at 259.08 93.345 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 259.08 95.885 90)
@@ -3890,7 +4008,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D21") (unit 1)
+          (reference "D20") (unit 1)
         )
       )
     )
@@ -3899,7 +4017,7 @@
   (symbol (lib_id "Device:D_Small") (at 320.04 93.98 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 520943fc-1212-4bef-943b-74672162b1e3)
-    (property "Reference" "D26" (at 322.58 93.345 90)
+    (property "Reference" "D25" (at 322.58 93.345 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 322.58 95.885 90)
@@ -3922,7 +4040,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D26") (unit 1)
+          (reference "D25") (unit 1)
         )
       )
     )
@@ -3931,7 +4049,7 @@
   (symbol (lib_id "Device:D_Small") (at 320.04 170.18 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 54a26beb-c8b5-4ce7-8aa4-15c272ccd998)
-    (property "Reference" "D64" (at 322.58 169.545 90)
+    (property "Reference" "D63" (at 322.58 169.545 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 322.58 172.085 90)
@@ -3954,7 +4072,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D64") (unit 1)
+          (reference "D63") (unit 1)
         )
       )
     )
@@ -3989,7 +4107,7 @@
   (symbol (lib_id "Device:D_Small") (at 205.74 68.58 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 59f30813-e81b-4fc1-82a3-54740472bb8c)
-    (property "Reference" "D3" (at 208.28 67.945 90)
+    (property "Reference" "D2" (at 208.28 67.945 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 208.28 70.485 90)
@@ -4012,7 +4130,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D3") (unit 1)
+          (reference "D2") (unit 1)
         )
       )
     )
@@ -4046,7 +4164,7 @@
       )
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "C5") (unit 1)
+          (reference "C2") (unit 1)
         )
       )
     )
@@ -4055,7 +4173,7 @@
   (symbol (lib_id "Device:D_Small") (at 205.74 119.38 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 5cc64e20-ae0e-45a5-9093-3085943459d5)
-    (property "Reference" "D30" (at 208.28 118.745 90)
+    (property "Reference" "D29" (at 208.28 118.745 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 208.28 121.285 90)
@@ -4078,7 +4196,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D30") (unit 1)
+          (reference "D29") (unit 1)
         )
       )
     )
@@ -4108,7 +4226,7 @@
       )
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "#PWR07") (unit 1)
+          (reference "#PWR02") (unit 1)
         )
       )
     )
@@ -4255,7 +4373,7 @@
   (symbol (lib_id "Device:D_Small") (at 332.74 93.98 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 626e9a03-0e8f-4861-8dde-7ffd61a052c8)
-    (property "Reference" "D27" (at 335.28 93.345 90)
+    (property "Reference" "D26" (at 335.28 93.345 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 335.28 95.885 90)
@@ -4278,7 +4396,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D27") (unit 1)
+          (reference "D26") (unit 1)
         )
       )
     )
@@ -4459,7 +4577,7 @@
   (symbol (lib_id "Device:D_Small") (at 193.04 144.78 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 6cfaa1e9-1a1a-4d02-b433-dc40f2fbb409)
-    (property "Reference" "D43" (at 195.58 144.145 90)
+    (property "Reference" "D42" (at 195.58 144.145 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 195.58 146.685 90)
@@ -4482,7 +4600,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D43") (unit 1)
+          (reference "D42") (unit 1)
         )
       )
     )
@@ -4517,7 +4635,7 @@
   (symbol (lib_id "Device:D_Small") (at 243.84 68.58 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 7670e047-eb93-4774-97de-d93a0cb555ea)
-    (property "Reference" "D6" (at 246.38 67.945 90)
+    (property "Reference" "D5" (at 246.38 67.945 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 246.38 70.485 90)
@@ -4540,7 +4658,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D6") (unit 1)
+          (reference "D5") (unit 1)
         )
       )
     )
@@ -4549,7 +4667,7 @@
   (symbol (lib_id "Device:D_Small") (at 218.44 170.18 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 79f62e45-435d-4635-ae9e-9d15f5fe72c2)
-    (property "Reference" "D59" (at 220.98 169.545 90)
+    (property "Reference" "D58" (at 220.98 169.545 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 220.98 172.085 90)
@@ -4572,7 +4690,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D59") (unit 1)
+          (reference "D58") (unit 1)
         )
       )
     )
@@ -4604,19 +4722,19 @@
     )
   )
 
-  (symbol (lib_id "power:GND") (at 102.87 250.19 0) (unit 1)
+  (symbol (lib_id "power:GND") (at 105.41 251.46 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no)
     (uuid 7b363c77-0165-4343-8cd1-908460231fb4)
-    (property "Reference" "#PWR0109" (at 102.87 256.54 0)
+    (property "Reference" "#PWR0109" (at 105.41 257.81 0)
       (effects (font (size 1.27 1.27)) hide)
     )
-    (property "Value" "GND" (at 102.997 254.5842 0)
+    (property "Value" "GND" (at 105.537 255.8542 0)
       (effects (font (size 1.27 1.27)))
     )
-    (property "Footprint" "" (at 102.87 250.19 0)
+    (property "Footprint" "" (at 105.41 251.46 0)
       (effects (font (size 1.27 1.27)) hide)
     )
-    (property "Datasheet" "" (at 102.87 250.19 0)
+    (property "Datasheet" "" (at 105.41 251.46 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (pin "1" (uuid dcf16980-6c13-4f74-85eb-7f9d36ddbcd7))
@@ -4628,7 +4746,7 @@
       )
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "#PWR021") (unit 1)
+          (reference "#PWR020") (unit 1)
         )
       )
     )
@@ -4658,7 +4776,37 @@
       )
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "#PWR06") (unit 1)
+          (reference "#PWR01") (unit 1)
+        )
+      )
+    )
+  )
+
+  (symbol (lib_id "power:GND") (at 172.72 236.22 0) (unit 1)
+    (in_bom yes) (on_board yes) (dnp no)
+    (uuid 7d75cd8b-8cdc-4141-870c-ab4a9b4d8a4a)
+    (property "Reference" "#PWR0144" (at 172.72 242.57 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Value" "GND" (at 172.847 240.6142 0)
+      (effects (font (size 1.27 1.27)))
+    )
+    (property "Footprint" "" (at 172.72 236.22 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Datasheet" "" (at 172.72 236.22 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (pin "1" (uuid 1c68ff51-7948-4c39-9f16-612884cd9599))
+    (instances
+      (project "esp-rust-board"
+        (path "/196a8dd5-5fd6-4c7f-ae4a-0104bd82e61b"
+          (reference "#PWR0144") (unit 1)
+        )
+      )
+      (project "mkey"
+        (path "/f3397802-fe64-44a3-9f7f-58231a072723"
+          (reference "#PWR014") (unit 1)
         )
       )
     )
@@ -4716,10 +4864,44 @@
     )
   )
 
+  (symbol (lib_id "Device:C_Small") (at 196.85 224.79 0) (unit 1)
+    (in_bom yes) (on_board yes) (dnp no)
+    (uuid 7fcdeb5c-1458-4c1f-baa8-1c9b64bae064)
+    (property "Reference" "C11" (at 198.12 222.25 0)
+      (effects (font (size 1.27 1.27)) (justify left))
+    )
+    (property "Value" "10nF 10V" (at 200.66 233.68 90)
+      (effects (font (size 1.27 1.27)) (justify left))
+    )
+    (property "Footprint" "Capacitor_SMD:C_0402_1005Metric" (at 196.85 224.79 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Datasheet" "~" (at 196.85 224.79 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "LCSC" "C15195" (at 196.85 224.79 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (pin "1" (uuid 658351bc-d641-48a8-928a-11bf6137a86c))
+    (pin "2" (uuid c501184f-4003-4d5d-ac6c-18c303040cca))
+    (instances
+      (project "esp-rust-board"
+        (path "/196a8dd5-5fd6-4c7f-ae4a-0104bd82e61b"
+          (reference "C11") (unit 1)
+        )
+      )
+      (project "mkey"
+        (path "/f3397802-fe64-44a3-9f7f-58231a072723"
+          (reference "C7") (unit 1)
+        )
+      )
+    )
+  )
+
   (symbol (lib_id "Device:D_Small") (at 231.14 93.98 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 815f2cd4-0f4d-4dbd-81d6-0a14f138b1c2)
-    (property "Reference" "D19" (at 233.68 93.345 90)
+    (property "Reference" "D18" (at 233.68 93.345 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 233.68 95.885 90)
@@ -4742,7 +4924,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D19") (unit 1)
+          (reference "D18") (unit 1)
         )
       )
     )
@@ -4769,40 +4951,6 @@
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
           (reference "MX36") (unit 1)
-        )
-      )
-    )
-  )
-
-  (symbol (lib_id "Device:D_TVS") (at 74.93 36.83 270) (unit 1)
-    (in_bom yes) (on_board yes) (dnp no)
-    (uuid 82ae025a-4cea-4de8-a7f8-a287be43f10e)
-    (property "Reference" "D1" (at 71.12 36.83 90)
-      (effects (font (size 1.27 1.27)) (justify left))
-    )
-    (property "Value" "LESD8D3.3CAT5G" (at 78.74 30.48 0)
-      (effects (font (size 1.27 1.27)) (justify left))
-    )
-    (property "Footprint" "Rust_Board:SOD-882" (at 74.93 36.83 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (property "Datasheet" "~" (at 74.93 36.83 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (property "LCSC" "C172409" (at 74.93 36.83 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (pin "1" (uuid 0fd3fb12-a42c-447d-86e2-c0ce4f8b30fb))
-    (pin "2" (uuid f98e7ef2-17cd-4f6f-902a-85d9825f4c81))
-    (instances
-      (project "esp-rust-board"
-        (path "/196a8dd5-5fd6-4c7f-ae4a-0104bd82e61b"
-          (reference "D1") (unit 1)
-        )
-      )
-      (project "mkey"
-        (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D1") (unit 1)
         )
       )
     )
@@ -4894,6 +5042,36 @@
     )
   )
 
+  (symbol (lib_id "power:GND") (at 189.23 236.22 0) (unit 1)
+    (in_bom yes) (on_board yes) (dnp no)
+    (uuid 88e7ea6e-9346-462d-8489-1cb044520352)
+    (property "Reference" "#PWR0105" (at 189.23 242.57 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Value" "GND" (at 189.357 240.6142 0)
+      (effects (font (size 1.27 1.27)))
+    )
+    (property "Footprint" "" (at 189.23 236.22 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Datasheet" "" (at 189.23 236.22 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (pin "1" (uuid 3b4b1153-92f4-42cf-bfe1-24aeb3b03c50))
+    (instances
+      (project "esp-rust-board"
+        (path "/196a8dd5-5fd6-4c7f-ae4a-0104bd82e61b"
+          (reference "#PWR0105") (unit 1)
+        )
+      )
+      (project "mkey"
+        (path "/f3397802-fe64-44a3-9f7f-58231a072723"
+          (reference "#PWR016") (unit 1)
+        )
+      )
+    )
+  )
+
   (symbol (lib_id "power:GND") (at 66.04 199.39 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no)
     (uuid 88eee96b-a529-4662-90c2-c342400a7c9d)
@@ -4918,7 +5096,7 @@
       )
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "#PWR012") (unit 1)
+          (reference "#PWR07") (unit 1)
         )
       )
     )
@@ -4927,7 +5105,7 @@
   (symbol (lib_id "Device:D_Small") (at 205.74 144.78 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 8b640231-bda5-4ffb-8ac7-7c330d4fd94f)
-    (property "Reference" "D44" (at 208.28 144.145 90)
+    (property "Reference" "D43" (at 208.28 144.145 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 208.28 146.685 90)
@@ -4950,7 +5128,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D44") (unit 1)
+          (reference "D43") (unit 1)
         )
       )
     )
@@ -4959,7 +5137,7 @@
   (symbol (lib_id "Device:D_Small") (at 345.44 119.38 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 8b716aed-4657-4899-8902-98ce2d8a03d4)
-    (property "Reference" "D41" (at 347.98 118.745 90)
+    (property "Reference" "D40" (at 347.98 118.745 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 347.98 121.285 90)
@@ -4982,7 +5160,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D41") (unit 1)
+          (reference "D40") (unit 1)
         )
       )
     )
@@ -5017,7 +5195,7 @@
   (symbol (lib_id "Device:D_Small") (at 294.64 170.18 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 92a444cb-142f-4036-ac00-dd3c7920ac08)
-    (property "Reference" "D62" (at 297.18 169.545 90)
+    (property "Reference" "D61" (at 297.18 169.545 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 297.18 172.085 90)
@@ -5040,37 +5218,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D62") (unit 1)
-        )
-      )
-    )
-  )
-
-  (symbol (lib_id "power:GND") (at 91.44 45.72 0) (unit 1)
-    (in_bom yes) (on_board yes) (dnp no)
-    (uuid 972fac90-17f3-4dbf-9c89-d0138275c55f)
-    (property "Reference" "#PWR0105" (at 91.44 52.07 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (property "Value" "GND" (at 91.567 50.1142 0)
-      (effects (font (size 1.27 1.27)))
-    )
-    (property "Footprint" "" (at 91.44 45.72 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (property "Datasheet" "" (at 91.44 45.72 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (pin "1" (uuid ad2a38a0-3f4a-4bd2-8808-eb654a4012c1))
-    (instances
-      (project "esp-rust-board"
-        (path "/196a8dd5-5fd6-4c7f-ae4a-0104bd82e61b"
-          (reference "#PWR0105") (unit 1)
-        )
-      )
-      (project "mkey"
-        (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "#PWR04") (unit 1)
+          (reference "D61") (unit 1)
         )
       )
     )
@@ -5104,37 +5252,7 @@
       )
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D68") (unit 1)
-        )
-      )
-    )
-  )
-
-  (symbol (lib_id "power:GND") (at 99.06 45.72 0) (unit 1)
-    (in_bom yes) (on_board yes) (dnp no)
-    (uuid 998f0eeb-b7de-4fe7-9583-4d807d95c621)
-    (property "Reference" "#PWR0125" (at 99.06 52.07 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (property "Value" "GND" (at 99.187 50.1142 0)
-      (effects (font (size 1.27 1.27)))
-    )
-    (property "Footprint" "" (at 99.06 45.72 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (property "Datasheet" "" (at 99.06 45.72 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (pin "1" (uuid 18fb1212-c563-4f28-a2a3-2c833d9f71e7))
-    (instances
-      (project "esp-rust-board"
-        (path "/196a8dd5-5fd6-4c7f-ae4a-0104bd82e61b"
-          (reference "#PWR0125") (unit 1)
-        )
-      )
-      (project "mkey"
-        (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "#PWR05") (unit 1)
+          (reference "D67") (unit 1)
         )
       )
     )
@@ -5143,7 +5261,7 @@
   (symbol (lib_id "Device:D_Small") (at 332.74 144.78 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 9f740cd6-771a-4c60-8120-f193ec2c719d)
-    (property "Reference" "D54" (at 335.28 144.145 90)
+    (property "Reference" "D53" (at 335.28 144.145 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 335.28 146.685 90)
@@ -5166,7 +5284,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D54") (unit 1)
+          (reference "D53") (unit 1)
         )
       )
     )
@@ -5196,7 +5314,7 @@
       )
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "#PWR019") (unit 1)
+          (reference "#PWR018") (unit 1)
         )
       )
     )
@@ -5205,7 +5323,7 @@
   (symbol (lib_id "Device:D_Small") (at 294.64 119.38 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid a3b5f247-a968-49b6-bb65-3fb9ad0a9177)
-    (property "Reference" "D37" (at 297.18 118.745 90)
+    (property "Reference" "D36" (at 297.18 118.745 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 297.18 121.285 90)
@@ -5228,7 +5346,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D37") (unit 1)
+          (reference "D36") (unit 1)
         )
       )
     )
@@ -5258,7 +5376,7 @@
       )
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "#PWR017") (unit 1)
+          (reference "#PWR012") (unit 1)
         )
       )
     )
@@ -5314,41 +5432,7 @@
       )
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "#PWR010") (unit 1)
-        )
-      )
-    )
-  )
-
-  (symbol (lib_id "Device:D_TVS") (at 115.57 220.98 0) (unit 1)
-    (in_bom yes) (on_board yes) (dnp no)
-    (uuid a5dbc075-806e-41e4-b133-25d0c79ac22c)
-    (property "Reference" "D7" (at 120.65 219.71 0)
-      (effects (font (size 1.27 1.27)))
-    )
-    (property "Value" "LESD5D5.0CT1G" (at 115.57 223.52 0)
-      (effects (font (size 1.27 1.27)))
-    )
-    (property "Footprint" "Diode_SMD:D_SOD-523" (at 115.57 220.98 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (property "Datasheet" "~" (at 115.57 220.98 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (property "LCSC" "C383211" (at 115.57 220.98 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (pin "1" (uuid 1b2a0b83-3208-4e11-b89a-de80fde34e72))
-    (pin "2" (uuid 60a83ad7-2703-454c-864c-8cf9e0ceb011))
-    (instances
-      (project "esp-rust-board"
-        (path "/196a8dd5-5fd6-4c7f-ae4a-0104bd82e61b"
-          (reference "D7") (unit 1)
-        )
-      )
-      (project "mkey"
-        (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D69") (unit 1)
+          (reference "#PWR05") (unit 1)
         )
       )
     )
@@ -5383,7 +5467,7 @@
   (symbol (lib_id "Device:D_Small") (at 256.54 68.58 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid a75d08e0-7e84-4e89-83a9-450ad83c2966)
-    (property "Reference" "D7" (at 259.08 67.945 90)
+    (property "Reference" "D6" (at 259.08 67.945 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 259.08 70.485 90)
@@ -5406,37 +5490,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D7") (unit 1)
-        )
-      )
-    )
-  )
-
-  (symbol (lib_id "power:+3V3") (at 74.93 24.13 0) (unit 1)
-    (in_bom yes) (on_board yes) (dnp no)
-    (uuid aa0394f7-36e5-406e-8134-da26a5d69ef5)
-    (property "Reference" "#PWR0126" (at 74.93 27.94 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (property "Value" "+3V3" (at 75.311 19.7358 0)
-      (effects (font (size 1.27 1.27)))
-    )
-    (property "Footprint" "" (at 74.93 24.13 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (property "Datasheet" "" (at 74.93 24.13 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (pin "1" (uuid 7333d1a1-3c47-400c-8d53-edd054ab49f1))
-    (instances
-      (project "esp-rust-board"
-        (path "/196a8dd5-5fd6-4c7f-ae4a-0104bd82e61b"
-          (reference "#PWR0126") (unit 1)
-        )
-      )
-      (project "mkey"
-        (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "#PWR01") (unit 1)
+          (reference "D6") (unit 1)
         )
       )
     )
@@ -5445,7 +5499,7 @@
   (symbol (lib_id "Device:D_Small") (at 358.14 68.58 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid b0157f11-7263-4306-8123-7ef848677ee3)
-    (property "Reference" "D15" (at 360.68 67.945 90)
+    (property "Reference" "D14" (at 360.68 67.945 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 360.68 70.485 90)
@@ -5468,7 +5522,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D15") (unit 1)
+          (reference "D14") (unit 1)
         )
       )
     )
@@ -5511,7 +5565,7 @@
   (symbol (lib_id "Device:D_Small") (at 320.04 144.78 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid b267505c-bcee-4bcf-8ea6-389851b488bc)
-    (property "Reference" "D53" (at 322.58 144.145 90)
+    (property "Reference" "D52" (at 322.58 144.145 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 322.58 146.685 90)
@@ -5534,7 +5588,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D53") (unit 1)
+          (reference "D52") (unit 1)
         )
       )
     )
@@ -5543,7 +5597,7 @@
   (symbol (lib_id "Device:D_Small") (at 231.14 144.78 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid b29bf50b-beed-463f-9373-71497f4f68a4)
-    (property "Reference" "D46" (at 233.68 144.145 90)
+    (property "Reference" "D45" (at 233.68 144.145 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 233.68 146.685 90)
@@ -5566,7 +5620,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D46") (unit 1)
+          (reference "D45") (unit 1)
         )
       )
     )
@@ -5575,7 +5629,7 @@
   (symbol (lib_id "Device:D_Small") (at 332.74 68.58 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid b3a87d07-f816-42d4-a6fb-07dfc4a71555)
-    (property "Reference" "D13" (at 335.28 67.945 90)
+    (property "Reference" "D12" (at 335.28 67.945 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 335.28 70.485 90)
@@ -5598,7 +5652,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D13") (unit 1)
+          (reference "D12") (unit 1)
         )
       )
     )
@@ -5633,7 +5687,7 @@
   (symbol (lib_id "Device:D_Small") (at 205.74 93.98 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid b6b7cd9f-cac5-4ee3-ac80-c0af409e57fd)
-    (property "Reference" "D17" (at 208.28 93.345 90)
+    (property "Reference" "D16" (at 208.28 93.345 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 208.28 95.885 90)
@@ -5656,41 +5710,33 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D17") (unit 1)
+          (reference "D16") (unit 1)
         )
       )
     )
   )
 
-  (symbol (lib_id "Device:C_Small") (at 83.82 34.29 0) (unit 1)
+  (symbol (lib_id "Diode:SD05_SOD323") (at 172.72 224.79 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no)
-    (uuid b8cf9173-5921-487a-9e06-84e4579fe6e5)
-    (property "Reference" "C8" (at 85.09 31.75 0)
-      (effects (font (size 1.27 1.27)) (justify left))
+    (uuid b6ff1e01-4bf2-4553-8592-079eed917333)
+    (property "Reference" "D68" (at 175.26 222.25 90)
+      (effects (font (size 1.27 1.27)) (justify right))
     )
-    (property "Value" "1uF 16V" (at 87.63 41.91 90)
-      (effects (font (size 1.27 1.27)) (justify left))
+    (property "Value" "PESD3V3L1BA,115" (at 176.53 223.52 0)
+      (effects (font (size 1.27 1.27)) (justify right))
     )
-    (property "Footprint" "Capacitor_SMD:C_0402_1005Metric" (at 83.82 34.29 0)
+    (property "Footprint" "Diode_SMD:D_SOD-323" (at 177.8 224.79 0)
       (effects (font (size 1.27 1.27)) hide)
     )
-    (property "Datasheet" "~" (at 83.82 34.29 0)
+    (property "Datasheet" "https://www.littelfuse.com/~/media/electronics/datasheets/tvs_diode_arrays/littelfuse_tvs_diode_array_sd_c_datasheet.pdf.pdf" (at 172.72 224.79 0)
       (effects (font (size 1.27 1.27)) hide)
     )
-    (property "LCSC" "C52923" (at 83.82 34.29 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (pin "1" (uuid f7008a13-ac92-48c8-a23d-35bf1a2a4be2))
-    (pin "2" (uuid 2347fa70-705c-4d6a-be5a-061ac28ecdb8))
+    (pin "1" (uuid 99009d1c-0cb9-475f-9fa8-3b3e50e13dce))
+    (pin "2" (uuid 2c3abe7c-e258-4cb1-8464-5e5621b6ee85))
     (instances
-      (project "esp-rust-board"
-        (path "/196a8dd5-5fd6-4c7f-ae4a-0104bd82e61b"
-          (reference "C8") (unit 1)
-        )
-      )
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "C1") (unit 1)
+          (reference "D68") (unit 1)
         )
       )
     )
@@ -5699,7 +5745,7 @@
   (symbol (lib_id "Device:D_Small") (at 269.24 144.78 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid bb50e2a2-51c0-4f7c-9245-3aeba9196d6a)
-    (property "Reference" "D49" (at 271.78 144.145 90)
+    (property "Reference" "D48" (at 271.78 144.145 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 271.78 146.685 90)
@@ -5722,7 +5768,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D49") (unit 1)
+          (reference "D48") (unit 1)
         )
       )
     )
@@ -5754,10 +5800,40 @@
     )
   )
 
+  (symbol (lib_id "power:+3V3") (at 172.72 214.63 0) (unit 1)
+    (in_bom yes) (on_board yes) (dnp no)
+    (uuid bc10a5ec-da12-44d3-be70-2524a700b21d)
+    (property "Reference" "#PWR0126" (at 172.72 218.44 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Value" "+3V3" (at 173.101 210.2358 0)
+      (effects (font (size 1.27 1.27)))
+    )
+    (property "Footprint" "" (at 172.72 214.63 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Datasheet" "" (at 172.72 214.63 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (pin "1" (uuid d58ec8c2-fa1e-476a-88ff-e02b63efb5c1))
+    (instances
+      (project "esp-rust-board"
+        (path "/196a8dd5-5fd6-4c7f-ae4a-0104bd82e61b"
+          (reference "#PWR0126") (unit 1)
+        )
+      )
+      (project "mkey"
+        (path "/f3397802-fe64-44a3-9f7f-58231a072723"
+          (reference "#PWR011") (unit 1)
+        )
+      )
+    )
+  )
+
   (symbol (lib_id "Device:D_Small") (at 320.04 68.58 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid bc5c46d3-4ba8-43e1-b04a-3689607bb66f)
-    (property "Reference" "D12" (at 322.58 67.945 90)
+    (property "Reference" "D11" (at 322.58 67.945 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 322.58 70.485 90)
@@ -5780,7 +5856,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D12") (unit 1)
+          (reference "D11") (unit 1)
         )
       )
     )
@@ -5815,7 +5891,7 @@
   (symbol (lib_id "Device:D_Small") (at 231.14 68.58 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid bd140fef-29db-4295-b724-34800e9a42e7)
-    (property "Reference" "D5" (at 233.68 67.945 90)
+    (property "Reference" "D4" (at 233.68 67.945 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 233.68 70.485 90)
@@ -5838,7 +5914,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D5") (unit 1)
+          (reference "D4") (unit 1)
         )
       )
     )
@@ -5847,7 +5923,7 @@
   (symbol (lib_id "Device:D_Small") (at 243.84 93.98 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid be0fd31e-a6df-4f74-8994-1df6ba7a2ab3)
-    (property "Reference" "D20" (at 246.38 93.345 90)
+    (property "Reference" "D19" (at 246.38 93.345 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 246.38 95.885 90)
@@ -5870,7 +5946,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D20") (unit 1)
+          (reference "D19") (unit 1)
         )
       )
     )
@@ -5983,7 +6059,7 @@
   (symbol (lib_id "Device:D_Small") (at 269.24 119.38 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid c3987999-09d1-4c8a-8072-94a241fa4785)
-    (property "Reference" "D35" (at 271.78 118.745 90)
+    (property "Reference" "D34" (at 271.78 118.745 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 271.78 121.285 90)
@@ -6006,7 +6082,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D35") (unit 1)
+          (reference "D34") (unit 1)
         )
       )
     )
@@ -6015,7 +6091,7 @@
   (symbol (lib_id "Device:D_Small") (at 205.74 170.18 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid c481fdbc-ffea-4489-bf49-ede2ceb7c077)
-    (property "Reference" "D58" (at 208.28 169.545 90)
+    (property "Reference" "D57" (at 208.28 169.545 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 208.28 172.085 90)
@@ -6038,7 +6114,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D58") (unit 1)
+          (reference "D57") (unit 1)
         )
       )
     )
@@ -6047,7 +6123,7 @@
   (symbol (lib_id "Device:D_Small") (at 294.64 144.78 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid c5c42243-f3f0-464c-9006-adbeb48fab33)
-    (property "Reference" "D51" (at 297.18 144.145 90)
+    (property "Reference" "D50" (at 297.18 144.145 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 297.18 146.685 90)
@@ -6070,7 +6146,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D51") (unit 1)
+          (reference "D50") (unit 1)
         )
       )
     )
@@ -6097,40 +6173,6 @@
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
           (reference "MX32") (unit 1)
-        )
-      )
-    )
-  )
-
-  (symbol (lib_id "Device:C_Small") (at 91.44 34.29 0) (unit 1)
-    (in_bom yes) (on_board yes) (dnp no)
-    (uuid c9b62e7d-f125-4cd8-af39-5b4d2a55d11e)
-    (property "Reference" "C9" (at 92.71 31.75 0)
-      (effects (font (size 1.27 1.27)) (justify left))
-    )
-    (property "Value" "100nF 10V" (at 95.25 44.45 90)
-      (effects (font (size 1.27 1.27)) (justify left))
-    )
-    (property "Footprint" "Capacitor_SMD:C_0402_1005Metric" (at 91.44 34.29 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (property "Datasheet" "~" (at 91.44 34.29 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (property "LCSC" "C1525" (at 91.44 34.29 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (pin "1" (uuid f0f13ffb-abc5-4b9f-8701-caab54161479))
-    (pin "2" (uuid 9b033ba5-2fea-45ab-a034-9d426fd0e7c1))
-    (instances
-      (project "esp-rust-board"
-        (path "/196a8dd5-5fd6-4c7f-ae4a-0104bd82e61b"
-          (reference "C9") (unit 1)
-        )
-      )
-      (project "mkey"
-        (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "C2") (unit 1)
         )
       )
     )
@@ -6165,7 +6207,7 @@
   (symbol (lib_id "Device:D_Small") (at 243.84 170.18 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid cb9a9747-9a11-4225-9020-7c450c9f56eb)
-    (property "Reference" "D60" (at 246.38 169.545 90)
+    (property "Reference" "D59" (at 246.38 169.545 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 246.38 172.085 90)
@@ -6188,7 +6230,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D60") (unit 1)
+          (reference "D59") (unit 1)
         )
       )
     )
@@ -6223,7 +6265,7 @@
   (symbol (lib_id "Device:D_Small") (at 281.94 119.38 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid cea7fd92-ae9e-421f-a4cc-113533bcda7e)
-    (property "Reference" "D36" (at 284.48 118.745 90)
+    (property "Reference" "D35" (at 284.48 118.745 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 284.48 121.285 90)
@@ -6246,7 +6288,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D36") (unit 1)
+          (reference "D35") (unit 1)
         )
       )
     )
@@ -6255,7 +6297,7 @@
   (symbol (lib_id "Device:D_Small") (at 281.94 68.58 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid d08184fb-949d-4f44-897d-42cdcf425909)
-    (property "Reference" "D9" (at 284.48 67.945 90)
+    (property "Reference" "D8" (at 284.48 67.945 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 284.48 70.485 90)
@@ -6278,7 +6320,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D9") (unit 1)
+          (reference "D8") (unit 1)
         )
       )
     )
@@ -6287,7 +6329,7 @@
   (symbol (lib_id "Device:D_Small") (at 218.44 93.98 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid d21479bb-2234-4e87-89c0-79ecb5aa62c2)
-    (property "Reference" "D18" (at 220.98 93.345 90)
+    (property "Reference" "D17" (at 220.98 93.345 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 220.98 95.885 90)
@@ -6310,7 +6352,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D18") (unit 1)
+          (reference "D17") (unit 1)
         )
       )
     )
@@ -6319,7 +6361,7 @@
   (symbol (lib_id "Device:D_Small") (at 358.14 170.18 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid d2744eb2-2d24-4dd7-8306-eb2b70031241)
-    (property "Reference" "D65" (at 360.68 169.545 90)
+    (property "Reference" "D64" (at 360.68 169.545 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 360.68 172.085 90)
@@ -6342,7 +6384,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D65") (unit 1)
+          (reference "D64") (unit 1)
         )
       )
     )
@@ -6377,7 +6419,7 @@
   (symbol (lib_id "Device:D_Small") (at 383.54 170.18 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid d36a9be0-354d-494c-ab26-729d3cad8a41)
-    (property "Reference" "D67" (at 386.08 169.545 90)
+    (property "Reference" "D66" (at 386.08 169.545 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 386.08 172.085 90)
@@ -6400,7 +6442,41 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D67") (unit 1)
+          (reference "D66") (unit 1)
+        )
+      )
+    )
+  )
+
+  (symbol (lib_id "Device:C_Small") (at 181.61 224.79 0) (unit 1)
+    (in_bom yes) (on_board yes) (dnp no)
+    (uuid d5355a8d-22c6-401a-b1a2-567d4b3cbe31)
+    (property "Reference" "C8" (at 182.88 222.25 0)
+      (effects (font (size 1.27 1.27)) (justify left))
+    )
+    (property "Value" "1uF 16V" (at 185.42 232.41 90)
+      (effects (font (size 1.27 1.27)) (justify left))
+    )
+    (property "Footprint" "Capacitor_SMD:C_0402_1005Metric" (at 181.61 224.79 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Datasheet" "~" (at 181.61 224.79 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "LCSC" "C52923" (at 181.61 224.79 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (pin "1" (uuid 2bcb239f-8abf-4a02-8ad8-cc1d3d5c8746))
+    (pin "2" (uuid f0036aaa-63dd-405a-ba82-bbc34a411179))
+    (instances
+      (project "esp-rust-board"
+        (path "/196a8dd5-5fd6-4c7f-ae4a-0104bd82e61b"
+          (reference "C8") (unit 1)
+        )
+      )
+      (project "mkey"
+        (path "/f3397802-fe64-44a3-9f7f-58231a072723"
+          (reference "C5") (unit 1)
         )
       )
     )
@@ -6409,7 +6485,7 @@
   (symbol (lib_id "Device:D_Small") (at 307.34 68.58 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid d708aacf-57ba-41d5-8272-d11d34280672)
-    (property "Reference" "D11" (at 309.88 67.945 90)
+    (property "Reference" "D10" (at 309.88 67.945 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 309.88 70.485 90)
@@ -6432,7 +6508,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D11") (unit 1)
+          (reference "D10") (unit 1)
         )
       )
     )
@@ -6441,7 +6517,7 @@
   (symbol (lib_id "Device:D_Small") (at 320.04 119.38 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid d80b3096-3d58-4324-984f-2df3d5a74aa0)
-    (property "Reference" "D39" (at 322.58 118.745 90)
+    (property "Reference" "D38" (at 322.58 118.745 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 322.58 121.285 90)
@@ -6464,7 +6540,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D39") (unit 1)
+          (reference "D38") (unit 1)
         )
       )
     )
@@ -6528,7 +6604,7 @@
       )
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "#PWR025") (unit 1)
+          (reference "#PWR023") (unit 1)
         )
       )
     )
@@ -6686,7 +6762,7 @@
     (property "Value" "SW_Push" (at 53.34 256.54 0)
       (effects (font (size 1.27 1.27)))
     )
-    (property "Footprint" "Connector_USB:USB_C_Receptacle_HRO_TYPE-C-31-M-12" (at 53.34 250.19 0)
+    (property "Footprint" "Button_Switch_SMD:SW_SPST_PTS810" (at 53.34 250.19 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Datasheet" "~" (at 53.34 250.19 0)
@@ -6740,7 +6816,7 @@
   (symbol (lib_id "Device:D_Small") (at 307.34 119.38 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid e0507a2f-3be0-4404-8959-3b5734ee5d4b)
-    (property "Reference" "D38" (at 309.88 118.745 90)
+    (property "Reference" "D37" (at 309.88 118.745 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 309.88 121.285 90)
@@ -6763,7 +6839,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D38") (unit 1)
+          (reference "D37") (unit 1)
         )
       )
     )
@@ -6772,7 +6848,7 @@
   (symbol (lib_id "Device:D_Small") (at 345.44 144.78 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid e15a3cea-2ce0-4cda-afd2-84d634e4b07e)
-    (property "Reference" "D55" (at 347.98 144.145 90)
+    (property "Reference" "D54" (at 347.98 144.145 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 347.98 146.685 90)
@@ -6795,7 +6871,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D55") (unit 1)
+          (reference "D54") (unit 1)
         )
       )
     )
@@ -6825,7 +6901,7 @@
       )
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "#PWR013") (unit 1)
+          (reference "#PWR08") (unit 1)
         )
       )
     )
@@ -6886,7 +6962,7 @@
   (symbol (lib_id "Device:D_Small") (at 281.94 170.18 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid e83ed0f3-8180-48a4-ac69-24a412340645)
-    (property "Reference" "D61" (at 284.48 169.545 90)
+    (property "Reference" "D60" (at 284.48 169.545 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 284.48 172.085 90)
@@ -6909,7 +6985,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D61") (unit 1)
+          (reference "D60") (unit 1)
         )
       )
     )
@@ -6939,7 +7015,7 @@
       )
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "#PWR024") (unit 1)
+          (reference "#PWR021") (unit 1)
         )
       )
     )
@@ -7000,7 +7076,7 @@
   (symbol (lib_id "Device:D_Small") (at 281.94 144.78 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid ec1156c3-16e7-4882-9ae6-6de32032b38d)
-    (property "Reference" "D50" (at 284.48 144.145 90)
+    (property "Reference" "D49" (at 284.48 144.145 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 284.48 146.685 90)
@@ -7023,7 +7099,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D50") (unit 1)
+          (reference "D49") (unit 1)
         )
       )
     )
@@ -7087,7 +7163,7 @@
       )
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "#PWR023") (unit 1)
+          (reference "#PWR022") (unit 1)
         )
       )
     )
@@ -7119,40 +7195,6 @@
     )
   )
 
-  (symbol (lib_id "Device:C_Small") (at 99.06 34.29 0) (unit 1)
-    (in_bom yes) (on_board yes) (dnp no)
-    (uuid efc99473-6ad9-4342-b07e-b0d3167f4db2)
-    (property "Reference" "C11" (at 100.33 31.75 0)
-      (effects (font (size 1.27 1.27)) (justify left))
-    )
-    (property "Value" "10nF 10V" (at 102.87 43.18 90)
-      (effects (font (size 1.27 1.27)) (justify left))
-    )
-    (property "Footprint" "Capacitor_SMD:C_0402_1005Metric" (at 99.06 34.29 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (property "Datasheet" "~" (at 99.06 34.29 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (property "LCSC" "C15195" (at 99.06 34.29 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (pin "1" (uuid 5e690604-6552-4548-bc0d-4c1012f7e81d))
-    (pin "2" (uuid abe8757d-06cf-4421-b162-a8cc2245a774))
-    (instances
-      (project "esp-rust-board"
-        (path "/196a8dd5-5fd6-4c7f-ae4a-0104bd82e61b"
-          (reference "C11") (unit 1)
-        )
-      )
-      (project "mkey"
-        (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "C3") (unit 1)
-        )
-      )
-    )
-  )
-
   (symbol (lib_id "power:VBUS") (at 123.19 214.63 270) (unit 1)
     (in_bom yes) (on_board yes) (dnp no)
     (uuid f44877b9-0952-4a8f-a215-beeef979c850)
@@ -7177,7 +7219,7 @@
       )
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "#PWR015") (unit 1)
+          (reference "#PWR010") (unit 1)
         )
       )
     )
@@ -7212,7 +7254,7 @@
   (symbol (lib_id "Device:D_Small") (at 269.24 68.58 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid fd1d4e00-2f89-407d-ae8b-a50493c8adcb)
-    (property "Reference" "D8" (at 271.78 67.945 90)
+    (property "Reference" "D7" (at 271.78 67.945 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 271.78 70.485 90)
@@ -7235,7 +7277,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D8") (unit 1)
+          (reference "D7") (unit 1)
         )
       )
     )
@@ -7270,7 +7312,7 @@
   (symbol (lib_id "Device:D_Small") (at 307.34 144.78 90) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid ff9ada36-6947-4104-99e6-91cc103f335f)
-    (property "Reference" "D52" (at 309.88 144.145 90)
+    (property "Reference" "D51" (at 309.88 144.145 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "D_Small" (at 309.88 146.685 90)
@@ -7293,7 +7335,7 @@
     (instances
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "D52") (unit 1)
+          (reference "D51") (unit 1)
         )
       )
     )
