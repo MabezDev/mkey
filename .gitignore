@@ -29,3 +29,5 @@ fp-info-cache
 # Backup Files/Folder
 *-backups
 *.zip
+
+*.lck
