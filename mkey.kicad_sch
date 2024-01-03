@@ -4315,7 +4315,7 @@
     (property "Value" "24 pin LCD FPC connector" (at 295.91 200.66 90)
       (effects (font (size 1.27 1.27)))
     )
-    (property "Footprint" "CONN-SMD_24P-P0.40__X0400FVS-24-LPSN:CONN-SMD_24P-P0.40_X0400FVS-24-LPSN" (at 294.64 203.2 0)
+    (property "Footprint" "CONN-SMD_24P-P0.40_X0400FVS-24-LPSN-LINEAR:CONN-SMD_24P-P0.40_X0400FVS-24-LPSN-LINEAR" (at 294.64 203.2 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Datasheet" "~" (at 294.64 203.2 0)
