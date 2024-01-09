@@ -2,7 +2,6 @@
 
 ## Board layout
 
-* Expose external jtag too? Will be helpful for debugging usb
 * drc checks
-* add skedd connector ( buy cable too )
+* QSPI termination resistors? Maybe put in 0ohm placeholder so we can add if needed
 

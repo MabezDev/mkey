@@ -1,4 +1,5 @@
 (fp_lib_table
   (version 7)
   (lib (name "CONN-SMD_24P-P0.40_X0400FVS-24-LPSN-LINEAR")(type "KiCad")(uri "${KIPRJMOD}/lib/footprints/CONN-SMD_24P-P0.40_X0400FVS-24-LPSN-LINEAR.pretty")(options "")(descr ""))
+  (lib (name "24P_LCD_CONN")(type "KiCad")(uri "${KIPRJMOD}/lib/footprints/24P_LCD_CONN.pretty")(options "")(descr ""))
 )
