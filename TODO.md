@@ -2,6 +2,6 @@
 
 ## Board layout
 
-* QSPI termination resistors? Maybe put in 0ohm placeholder so we can add if needed
-* Extra silkscreen artwork
+* Test points around the board
+* Run through https://github.com/azonenberg/pcb-checklist & https://gist.github.com/adamgreig/6134dd96f87c89c7572cf5aadb726ce1
 
