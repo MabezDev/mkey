@@ -2,6 +2,8 @@
 
 A mechanical keyboard based on an ESP32-S3, with firmware written in Rust.
 
+[Click here to view the PCB & Schematic interactively in the browser](https://kicanvas.org/?github=https%3A%2F%2Fgithub.com%2FMabezDev%2Fmkey)
+
 
 ## License
 
