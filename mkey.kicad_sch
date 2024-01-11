@@ -8898,7 +8898,7 @@
       )
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "RESET_SW1") (unit 1)
+          (reference "SW0") (unit 1)
         )
       )
     )
@@ -9105,7 +9105,7 @@
       )
       (project "mkey"
         (path "/f3397802-fe64-44a3-9f7f-58231a072723"
-          (reference "BOOT_SW1") (unit 1)
+          (reference "SW1") (unit 1)
         )
       )
     )
