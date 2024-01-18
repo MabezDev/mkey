@@ -4,6 +4,13 @@ A mechanical keyboard based on an ESP32-S3, with firmware written in Rust.
 
 [Click here to view the PCB & Schematic interactively in the browser](https://kicanvas.org/?github=https%3A%2F%2Fgithub.com%2FMabezDev%2Fmkey%2Ftree%2Fmain%2Fhardware%2Fboard)
 
+## Flashing
+
+The USB port is intended for flashing, as well as software USB usage. Version 1.0 of the board however has the DP and DM pins swapped, therefore to flash the board from the factory (or if the flash is wiped for any reason) you must flash via UART0. The pinout is as follows:
+
+- TX is connected to the input side of D2 (COL1)
+- RX is conncted to the input side of D3 (COL2)
+
 
 ## License
 

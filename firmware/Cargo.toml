@@ -1,0 +1,18 @@
+[package]
+name = "firmware"
+version = "0.1.0"
+authors = ["Scott Mabin <scott@mabez.dev>"]
+edition = "2021"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+esp32s3-hal = "0.14.0"
+esp-backtrace = { version = "0.10.0", features = ["esp32s3", "panic-handler", "exception-handler", "print-jtag-serial"] }
+esp-println = { version = "0.8.0", default-features = false, features = ["esp32s3", "log", "jtag-serial"] }
+log = { version = "0.4.20" }
+
+
+
+[features]
+default = ["usb-pin-exchange"] # usb-pin-exchange is enabled by default for now, until we have a new revision of the hardware
+usb-pin-exchange = []
