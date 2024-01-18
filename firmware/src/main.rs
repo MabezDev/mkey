@@ -3,11 +3,15 @@
 
 use esp32s3_hal::{
     clock::ClockControl,
-    Delay,
     gpio::{AnyPin, Input, Output, PullDown, PushPull},
     peripherals::Peripherals,
     prelude::*,
-    IO,
+    spi::{
+        master::{Address, Command, HalfDuplexReadWrite, Spi},
+        SpiMode,
+        SpiDataMode
+    },
+    Delay, IO,
 };
 use esp_backtrace as _;
 
@@ -41,6 +45,50 @@ fn main() -> ! {
     let mut delay = Delay::new(&clocks);
 
     let io = IO::new(peripherals.GPIO, peripherals.IO_MUX);
+
+    /*
+       Display
+    */
+    let sclk = io.pins.gpio4;
+    let sio0 = io.pins.gpio6;
+    let sio1 = io.pins.gpio5;
+    let sio2 = io.pins.gpio7;
+    let sio3 = io.pins.gpio15;
+    // let dc = io.pins.gpio16;
+    let mut reset = io.pins.gpio3.into_push_pull_output();
+
+    // Half-Duplex because the display will only send a response once the master has finished
+    let mut spi = Spi::new_half_duplex(peripherals.SPI2, 100u32.kHz(), SpiMode::Mode3, &clocks)
+        .with_pins(
+            Some(sclk),
+            Some(sio0),
+            Some(sio1), // TODO: its unclear which line is the miso line, might need to experiment
+            Some(sio2),
+            Some(sio3),
+            Option::<esp32s3_hal::gpio::Gpio0<Output<PushPull>>>::None, // eww
+        );
+
+    reset.set_low().unwrap();
+    delay.delay_ms(100u32);
+    reset.set_high().unwrap();
+    delay.delay_ms(200u32);
+
+    let mut buf = [0u8; 1];
+    let cmd = 0x0Au32;
+    spi.read(
+        SpiDataMode::Single,
+        Command::Command8(0x0B, SpiDataMode::Single),
+        Address::Address24(cmd << 8, SpiDataMode::Single),
+        8,
+        &mut buf
+    )
+    .unwrap();
+    log::info!("resp: {:?}", buf);
+
+    /*
+       Matrix
+    */
+
     let columns: &mut [AnyPin<Output<PushPull>>] = &mut [
         io.pins.gpio2.into_push_pull_output().into(),  // 0
         io.pins.gpio43.into_push_pull_output().into(), // 1
@@ -78,10 +126,10 @@ fn main() -> ! {
                     }
                 }
                 c.set_low().unwrap();
-                // small debounce - is this needed? 
-                // perhaps polling at too high of a rate we run into 
+                // small debounce - is this needed?
+                // perhaps polling at too high of a rate we run into
                 // gpio switching frequency issues, or maybe even capacitance in the trace
-                delay.delay_us(50u32); 
+                delay.delay_us(50u32);
             }
         }
     }
