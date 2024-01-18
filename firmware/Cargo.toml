@@ -14,5 +14,7 @@ log = { version = "0.4.20" }
 
 
 [features]
-default = ["usb-pin-exchange"] # usb-pin-exchange is enabled by default for now, until we have a new revision of the hardware
+# usb-pin-exchange is enabled by default for now, until we have a new revision of the hardware
+# In the future we may wish to auto detect this based on either fw metadata
+default = ["usb-pin-exchange"]
 usb-pin-exchange = []
