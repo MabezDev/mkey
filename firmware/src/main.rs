@@ -47,6 +47,10 @@ fn main() -> ! {
 
     /*
        Display
+
+       TRM: https://cloud.alpelectronix.com/s/nB8xHYaCfjUsjbV/download
+       PINOUT: https://cloud.alpelectronix.com/s/ttTGsVn0wZqScKv/download
+       Arduino + esp32 lib reference: https://github.com/modi12jin/Arduino-ESP32-WEA2012/blob/main/WEA2012_LCD.cpp
     */
     let sclk = io.pins.gpio4;
     let sio0 = io.pins.gpio6;
