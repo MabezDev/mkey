@@ -87,7 +87,7 @@ fn main() -> ! {
             SpiDataMode::Single,
             Command::Command8(0x02, SpiDataMode::Single),
             Address::Address24(cmd << 8, SpiDataMode::Single),
-            8,
+            0,
             &buf[..data.len()],
         )
         .unwrap();
@@ -95,14 +95,14 @@ fn main() -> ! {
     }
     log::info!("Finished initializing display!");
 
-    let pixels = [0xAA; 256];
+    let pixels = [0xFF; (64 * 64) * 2];
 
     // set column cmd
     spi.write(
         SpiDataMode::Single,
         Command::Command8(0x02, SpiDataMode::Single),
         Address::Address24(0x2a << 8, SpiDataMode::Single),
-        8,
+        0,
         &[100, 0, 164, 0],
     )
     .unwrap();
@@ -112,7 +112,7 @@ fn main() -> ! {
         SpiDataMode::Single,
         Command::Command8(0x02, SpiDataMode::Single),
         Address::Address24(0x2b << 8, SpiDataMode::Single),
-        8,
+        0,
         &[100, 0, 164, 0],
     )
     .unwrap();
@@ -122,7 +122,7 @@ fn main() -> ! {
         SpiDataMode::Single,
         Command::Command8(0x02, SpiDataMode::Single),
         Address::Address24(0x2c << 8, SpiDataMode::Single),
-        8,
+        0,
         &[0],
     )
     .unwrap();
@@ -134,7 +134,7 @@ fn main() -> ! {
             SpiDataMode::Quad,
             Command::Command8(if first { 0x32 } else { 0 }, SpiDataMode::Single),
             Address::Address24(if first { 0x002C00 } else { 0 }, SpiDataMode::Single),
-            8,
+            0,
             &pixels,
         )
         .unwrap();
