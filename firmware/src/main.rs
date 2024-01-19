@@ -59,7 +59,7 @@ fn main() -> ! {
     let sio2 = io.pins.gpio15;
     let sio3 = io.pins.gpio7;
     // let mut dc = io.pins.gpio16.into_push_pull_output();
-    // dc.set_high().unwrap();
+    // dc.set_low().unwrap();
     let mut reset = io.pins.gpio3.into_push_pull_output();
 
     // Half-Duplex because the display will only send a response once the master has finished
@@ -76,6 +76,10 @@ fn main() -> ! {
     delay.delay_ms(300u32);
     reset.set_high().unwrap();
     delay.delay_ms(300u32);
+    
+    // SW reset
+    lcd_write_cmd(&mut spi, 0x1, &[0]);
+    delay.delay_ms(300u32);
 
     // initialization commands
     for (cmd, data) in WEA2012_INIT_CMDS {
@@ -83,30 +87,35 @@ fn main() -> ! {
     }
     log::info!("Finished initializing display!");
 
-    // log::info!("Filling display...");
-    // let pixels = [0xFF; (356 * 400) * 2];
-    // set_draw_area(&mut spi, 0, 0, 356, 400);
-    // let mut first = true;
-    // for pixels in pixels.chunks(64) { // fifo size
-    //     spi.write(
-    //         SpiDataMode::Quad,
-    //         Command::Command8(if first { 0x32 } else { 0 }, SpiDataMode::Single),
-    //         Address::Address24(if first { 0x002C00 } else { 0 }, SpiDataMode::Single),
-    //         0,
-    //         &pixels,
-    //     )
-    //     .unwrap();
-    //     if first {
-    //         first = false;
-    //     }
-    // }
+    log::info!("Filling display...");
+    let pixels = [0xFF; (356 * 400) * 2];
+    set_draw_area(&mut spi, 0, 0, 356, 400);
+    let mut first = true;
+    for pixels in pixels.chunks(64) { // fifo size
+        spi.write(
+            SpiDataMode::Quad,
+            Command::Command8(if first { 0x32 } else { 0 }, SpiDataMode::Single),
+            Address::Address24(if first { 0x002C00 } else { 0x003C00 }, SpiDataMode::Single),
+            0,
+            &pixels,
+        )
+        .unwrap();
+        if first {
+            first = false;
+        }
+    }
 
-    lcd_write_cmd(&mut spi, 0x21, &[0]); // invert on
-    let mut buf = [0u8; 1];
-    let cmd = 0x0D; // read invert status in bit 5
-    lcd_read_cmd(&mut spi, cmd, &mut buf);
-    log::info!("Respone from read cmd: {} => {:?}", cmd, buf);
-    lcd_write_cmd(&mut spi, 0x20, &[0]); // invert off
+    let cmd = 0x04u32;
+    let mut buf = [0xFFu8; 3];
+    lcd_read_cmd(&mut spi, cmd, &mut buf[..]);
+    log::info!("Read ID (should be zeroes according to trm): {:?}", buf);
+
+    // lcd_write_cmd(&mut spi, 0x21, &[0]); // invert on
+    // let mut buf = [0u8; 1];
+    // let cmd = 0x0D; // read invert status in bit 5
+    // lcd_read_cmd(&mut spi, cmd, &mut buf);
+    // log::info!("Respone from read cmd: {} => {:?}", cmd, buf);
+    // lcd_write_cmd(&mut spi, 0x20, &[0]); // invert off
 
     /*
        Matrix
