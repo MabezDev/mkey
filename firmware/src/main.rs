@@ -14,6 +14,8 @@ use esp32s3_hal::{
     Delay, IO,
 };
 use esp_backtrace as _;
+use embedded_graphics_core::pixelcolor::RgbColor;
+use embedded_graphics_core::pixelcolor::IntoStorage;
 
 #[entry]
 fn main() -> ! {
@@ -53,48 +55,49 @@ fn main() -> ! {
        PINOUT: https://cloud.alpelectronix.com/s/ttTGsVn0wZqScKv/download
        Arduino + esp32 lib reference: https://github.com/modi12jin/Arduino-ESP32-WEA2012/blob/main/WEA2012_LCD.cpp
     */
-    let sclk = io.pins.gpio4;
-    let sio0 = io.pins.gpio6;
-    let sio1 = io.pins.gpio5;
-    let sio2 = io.pins.gpio15;
-    let sio3 = io.pins.gpio7;
-    // let mut dc = io.pins.gpio16.into_push_pull_output();
-    // dc.set_low().unwrap();
-    let mut reset = io.pins.gpio3.into_push_pull_output();
+    let sclk = io.pins.gpio6;
+    let sio0 = io.pins.gpio5;
+    let sio1 = io.pins.gpio15;
+    let sio2 = io.pins.gpio18;
+    let sio3 = io.pins.gpio17;
+    let cs = io.pins.gpio7;
+    let mut reset = io.pins.gpio16.into_push_pull_output();
 
     // Half-Duplex because the display will only send a response once the master has finished
-    let mut spi = Spi::new_half_duplex(peripherals.SPI2, 1u32.MHz(), SpiMode::Mode3, &clocks)
+    let mut spi = Spi::new_half_duplex(peripherals.SPI2, 8u32.MHz(), SpiMode::Mode3, &clocks)
         .with_pins(
             Some(sclk),
             Some(sio0),
             Some(sio1),
             Some(sio2),
             Some(sio3),
-            Option::<esp32s3_hal::gpio::Gpio0<Output<PushPull>>>::None, // eww
+            Some(cs),
         );
     reset.set_low().unwrap();
     delay.delay_ms(300u32);
     reset.set_high().unwrap();
     delay.delay_ms(300u32);
     
-    // SW reset
-    lcd_write_cmd(&mut spi, 0x1, &[0]);
-    delay.delay_ms(300u32);
-
     // initialization commands
     for (cmd, data) in WEA2012_INIT_CMDS {
         lcd_write_cmd(&mut spi, *cmd, data);
+        delay.delay_us(1u32);
     }
+    // lcd_write_cmd(&mut spi, 0x21, &[0]); // invert on
     log::info!("Finished initializing display!");
 
     log::info!("Filling display...");
-    let pixels = [0xFF; (356 * 400) * 2];
+    let colour = embedded_graphics_core::pixelcolor::Rgb565::GREEN;
+    let colour = colour.into_storage();
+    let pixels = [colour; 356 * 400];
+    let pixels = unsafe { core::slice::from_raw_parts(pixels.as_ptr() as *const u8, pixels.len() * 2) };
+
     set_draw_area(&mut spi, 0, 0, 356, 400);
     let mut first = true;
     for pixels in pixels.chunks(64) { // fifo size
         spi.write(
             SpiDataMode::Quad,
-            Command::Command8(if first { 0x32 } else { 0 }, SpiDataMode::Single),
+            Command::Command8(0x32, SpiDataMode::Single),
             Address::Address24(if first { 0x002C00 } else { 0x003C00 }, SpiDataMode::Single),
             0,
             &pixels,
@@ -104,66 +107,58 @@ fn main() -> ! {
             first = false;
         }
     }
+    log::info!("Done filling display!");    
+    // /*
+    //    Matrix
+    // */
 
-    let cmd = 0x04u32;
-    let mut buf = [0xFFu8; 3];
-    lcd_read_cmd(&mut spi, cmd, &mut buf[..]);
-    log::info!("Read ID (should be zeroes according to trm): {:?}", buf);
+    // let columns: &mut [AnyPin<Output<PushPull>>] = &mut [
+    //     io.pins.gpio2.into_push_pull_output().into(),  // 0
+    //     io.pins.gpio43.into_push_pull_output().into(), // 1
+    //     io.pins.gpio44.into_push_pull_output().into(), // 2
+    //     io.pins.gpio38.into_push_pull_output().into(), // 3
+    //     io.pins.gpio37.into_push_pull_output().into(), // 4
+    //     io.pins.gpio36.into_push_pull_output().into(), // 5
+    //     io.pins.gpio48.into_push_pull_output().into(), // 6
+    //     io.pins.gpio47.into_push_pull_output().into(), // 7
+    //     io.pins.gpio21.into_push_pull_output().into(), // 8
+    //     io.pins.gpio14.into_push_pull_output().into(), // 9
+    //     io.pins.gpio13.into_push_pull_output().into(), // 10
+    //     io.pins.gpio12.into_push_pull_output().into(), // 11
+    //     io.pins.gpio11.into_push_pull_output().into(), // 12
+    //     io.pins.gpio10.into_push_pull_output().into(), // 13
+    // ];
+    // let rows: &mut [AnyPin<Input<PullDown>>] = &mut [
+    //     io.pins.gpio1.into_pull_down_input().into(),  // 0
+    //     io.pins.gpio35.into_pull_down_input().into(), // 1
+    //     io.pins.gpio45.into_pull_down_input().into(), // 2
+    //     io.pins.gpio9.into_pull_down_input().into(),  // 3
+    //     io.pins.gpio46.into_pull_down_input().into(), // 4
+    // ];
 
-    // lcd_write_cmd(&mut spi, 0x21, &[0]); // invert on
-    // let mut buf = [0u8; 1];
-    // let cmd = 0x0D; // read invert status in bit 5
-    // lcd_read_cmd(&mut spi, cmd, &mut buf);
-    // log::info!("Respone from read cmd: {} => {:?}", cmd, buf);
-    // lcd_write_cmd(&mut spi, 0x20, &[0]); // invert off
+    // let mut last = (usize::MAX, usize::MAX);
+    // loop {
+    //     for (x, c) in columns.iter_mut().enumerate() {
+    //         for (y, r) in rows.iter_mut().enumerate() {
+    //             c.set_high().unwrap();
+    //             if r.is_high().unwrap() {
+    //                 let current = (x, y);
+    //                 if current != last {
+    //                     last = current;
+    //                     log::info!("({x}, {y}) is pressed!");
+    //                 }
+    //             }
+    //             c.set_low().unwrap();
+    //             // small debounce - is this needed?
+    //             // perhaps polling at too high of a rate we run into
+    //             // gpio switching frequency issues, or maybe even capacitance in the trace
+    //             delay.delay_us(50u32);
+    //         }
+    //     }
+    // }
 
-    /*
-       Matrix
-    */
-
-    let columns: &mut [AnyPin<Output<PushPull>>] = &mut [
-        io.pins.gpio2.into_push_pull_output().into(),  // 0
-        io.pins.gpio43.into_push_pull_output().into(), // 1
-        io.pins.gpio44.into_push_pull_output().into(), // 2
-        io.pins.gpio38.into_push_pull_output().into(), // 3
-        io.pins.gpio37.into_push_pull_output().into(), // 4
-        io.pins.gpio36.into_push_pull_output().into(), // 5
-        io.pins.gpio48.into_push_pull_output().into(), // 6
-        io.pins.gpio47.into_push_pull_output().into(), // 7
-        io.pins.gpio21.into_push_pull_output().into(), // 8
-        io.pins.gpio14.into_push_pull_output().into(), // 9
-        io.pins.gpio13.into_push_pull_output().into(), // 10
-        io.pins.gpio12.into_push_pull_output().into(), // 11
-        io.pins.gpio11.into_push_pull_output().into(), // 12
-        io.pins.gpio10.into_push_pull_output().into(), // 13
-    ];
-    let rows: &mut [AnyPin<Input<PullDown>>] = &mut [
-        io.pins.gpio1.into_pull_down_input().into(),  // 0
-        io.pins.gpio35.into_pull_down_input().into(), // 1
-        io.pins.gpio45.into_pull_down_input().into(), // 2
-        io.pins.gpio9.into_pull_down_input().into(),  // 3
-        io.pins.gpio46.into_pull_down_input().into(), // 4
-    ];
-
-    let mut last = (usize::MAX, usize::MAX);
     loop {
-        for (x, c) in columns.iter_mut().enumerate() {
-            for (y, r) in rows.iter_mut().enumerate() {
-                c.set_high().unwrap();
-                if r.is_high().unwrap() {
-                    let current = (x, y);
-                    if current != last {
-                        last = current;
-                        log::info!("({x}, {y}) is pressed!");
-                    }
-                }
-                c.set_low().unwrap();
-                // small debounce - is this needed?
-                // perhaps polling at too high of a rate we run into
-                // gpio switching frequency issues, or maybe even capacitance in the trace
-                delay.delay_us(50u32);
-            }
-        }
+
     }
 }
 
@@ -198,7 +193,7 @@ fn set_draw_area<'a>(spi: &mut Spi<'a, SPI2, HalfDuplexMode>, x1: u16, y1: u16, 
     let cmds = [
         (0x2a, &[(x1 >> 8) as u8, x1 as u8, (x2 >> 8) as u8, x2 as u8][..]),
         (0x2b, &[(y1 >> 8) as u8, y1 as u8, (y2 >> 8) as u8, y2 as u8][..]),
-        // (0x2c, &[0][..]),
+        (0x2c, &[0][..]),
     ];
 
     for (cmd, data) in cmds {
