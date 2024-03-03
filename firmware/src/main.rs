@@ -84,11 +84,13 @@ fn main() -> ! {
         delay.delay_us(1u32);
     }
     // lcd_write_cmd(&mut spi, 0x21, &[0]); // invert on
+    // lcd_write_cmd(&mut spi, 0x20, &[0]); // invert off
     log::info!("Finished initializing display!");
 
     log::info!("Filling display...");
-    let colour = embedded_graphics_core::pixelcolor::Rgb565::GREEN;
+    let colour = embedded_graphics_core::pixelcolor::Rgb565::MAGENTA;
     let colour = colour.into_storage();
+    let colour = colour.swap_bytes();
     let pixels = [colour; 356 * 400];
     let pixels = unsafe { core::slice::from_raw_parts(pixels.as_ptr() as *const u8, pixels.len() * 2) };
 
@@ -504,7 +506,7 @@ const WEA2012_INIT_CMDS: &[(u32, &[u8])] = &[
     (0x21, &[0xB4]), // set vcom
     (0xFF, &[0x20, 0x10, 0x00]),
     // ADD FOR QSPI/TP TEST
-    (0x3A, &[0x05]),
+    (0x3A, &[0x05]), // Set 65K colour mode
     (0x11, &[0x00]),
     (0x29, &[0x00]),
 ];
