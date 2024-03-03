@@ -81,7 +81,6 @@ fn main() -> ! {
     // initialization commands
     for (cmd, data) in WEA2012_INIT_CMDS {
         lcd_write_cmd(&mut spi, *cmd, data);
-        delay.delay_us(1u32);
     }
     // lcd_write_cmd(&mut spi, 0x21, &[0]); // invert on
     // lcd_write_cmd(&mut spi, 0x20, &[0]); // invert off
@@ -95,19 +94,15 @@ fn main() -> ! {
     let pixels = unsafe { core::slice::from_raw_parts(pixels.as_ptr() as *const u8, pixels.len() * 2) };
 
     set_draw_area(&mut spi, 0, 0, 356, 400);
-    let mut first = true;
-    for pixels in pixels.chunks(64) { // fifo size
+    for (i, pixels) in pixels.chunks(64).enumerate() { // fifo size
         spi.write(
             SpiDataMode::Quad,
             Command::Command8(0x32, SpiDataMode::Single),
-            Address::Address24(if first { 0x002C00 } else { 0x003C00 }, SpiDataMode::Single),
+            Address::Address24(if i > 0 { 0x002C00 } else { 0x003C00 }, SpiDataMode::Single),
             0,
             &pixels,
         )
         .unwrap();
-        if first {
-            first = false;
-        }
     }
     log::info!("Done filling display!");    
     // /*
