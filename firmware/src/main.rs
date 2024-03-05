@@ -1,21 +1,35 @@
 #![no_std]
 #![no_main]
 
-use esp32s3_hal::{
+#![feature(type_alias_impl_trait)]
+
+use embedded_graphics_core::pixelcolor::IntoStorage;
+use embedded_graphics_core::pixelcolor::RgbColor;
+use esp_backtrace as _;
+use esp_hal::dma::{Dma, DmaPriority};
+use esp_hal::dma_descriptors;
+use esp_hal::spi::master::prelude::_esp_hal_spi_master_dma_WithDmaSpi2;
+use esp_hal::systimer::SystemTimer;
+use esp_hal::{
     clock::ClockControl,
     gpio::{AnyPin, Input, Output, PullDown, PushPull},
     peripherals::{Peripherals, SPI2},
     prelude::*,
     spi::{
         master::{Address, Command, HalfDuplexReadWrite, Spi},
-        HalfDuplexMode,
-        SpiDataMode, SpiMode,
+        HalfDuplexMode, SpiDataMode, SpiMode,
     },
     Delay, IO,
 };
-use esp_backtrace as _;
-use embedded_graphics_core::pixelcolor::RgbColor;
-use embedded_graphics_core::pixelcolor::IntoStorage;
+
+type QSpiDisplay<'a> = esp_hal::spi::master::dma::SpiDma<
+    'a,
+    esp_hal::peripherals::SPI2,
+    esp_hal::dma::Channel0,
+    HalfDuplexMode,
+>;
+
+const MAX_DMA_TRANSFER: usize = 32736;
 
 #[entry]
 fn main() -> ! {
@@ -30,7 +44,7 @@ fn main() -> ! {
     // will have to be flashed via UART0, at which point you can switch back.
     #[cfg(feature = "usb-pin-exchange")]
     {
-        let usj = unsafe { &*esp32s3_hal::peripherals::USB_DEVICE::PTR };
+        let usj = unsafe { &*esp_hal::peripherals::USB_DEVICE::PTR };
         usj.conf0().modify(|_, w| {
             w.pad_pull_override()
                 .set_bit()
@@ -63,8 +77,13 @@ fn main() -> ! {
     let cs = io.pins.gpio7;
     let mut reset = io.pins.gpio16.into_push_pull_output();
 
+    let dma = Dma::new(peripherals.DMA);
+
+    let (mut tx_descriptors, mut rx_descriptors) =
+        dma_descriptors!(MAX_DMA_TRANSFER, MAX_DMA_TRANSFER);
+
     // Half-Duplex because the display will only send a response once the master has finished
-    let mut spi = Spi::new_half_duplex(peripherals.SPI2, 8u32.MHz(), SpiMode::Mode3, &clocks)
+    let mut spi = Spi::new_half_duplex(peripherals.SPI2, 80u32.MHz(), SpiMode::Mode3, &clocks)
         .with_pins(
             Some(sclk),
             Some(sio0),
@@ -72,43 +91,60 @@ fn main() -> ! {
             Some(sio2),
             Some(sio3),
             Some(cs),
-        );
+        )
+        .with_dma(dma.channel0.configure(
+            false,
+            &mut tx_descriptors,
+            &mut rx_descriptors,
+            DmaPriority::Priority0,
+        ));
     reset.set_low().unwrap();
     delay.delay_ms(300u32);
     reset.set_high().unwrap();
     delay.delay_ms(300u32);
-    
+
     // initialization commands
     for (cmd, data) in WEA2012_INIT_CMDS {
         lcd_write_cmd(&mut spi, *cmd, data);
     }
-    // lcd_write_cmd(&mut spi, 0x21, &[0]); // invert on
-    // lcd_write_cmd(&mut spi, 0x20, &[0]); // invert off
     log::info!("Finished initializing display!");
 
     log::info!("Filling display...");
-    let colour = embedded_graphics_core::pixelcolor::Rgb565::MAGENTA;
-    let colour = colour.into_storage();
-    let colour = colour.swap_bytes();
-    let pixels = [colour; 356 * 400];
-    let pixels = unsafe { core::slice::from_raw_parts(pixels.as_ptr() as *const u8, pixels.len() * 2) };
 
-    set_draw_area(&mut spi, 0, 0, 356, 400);
-    for (i, pixels) in pixels.chunks(64).enumerate() { // fifo size
-        spi.write(
-            SpiDataMode::Quad,
-            Command::Command8(0x32, SpiDataMode::Single),
-            Address::Address24(if i > 0 { 0x002C00 } else { 0x003C00 }, SpiDataMode::Single),
-            0,
-            &pixels,
-        )
-        .unwrap();
+    let pixels = static_cell::make_static!([0xFFFFu16; 356 * 400]);
+    let colors = [
+        embedded_graphics_core::pixelcolor::Rgb565::MAGENTA,
+        embedded_graphics_core::pixelcolor::Rgb565::WHITE,
+        embedded_graphics_core::pixelcolor::Rgb565::BLACK,
+        embedded_graphics_core::pixelcolor::Rgb565::BLUE,
+        embedded_graphics_core::pixelcolor::Rgb565::GREEN,
+        embedded_graphics_core::pixelcolor::Rgb565::YELLOW,
+    ];
+    let mut colors = colors.iter().cycle();
+    let mut start = SystemTimer::now();
+    loop {
+        let now = SystemTimer::now();
+        if now.wrapping_sub(start) > SystemTimer::TICKS_PER_SECOND {
+            start = now;
+            let colour = colors.next().unwrap();
+            let colour = colour.into_storage();
+            let colour = colour.to_be();
+            pixels.fill(colour);
+        }
+        let pixels =
+            unsafe { core::slice::from_raw_parts(pixels.as_ptr() as *const u8, pixels.len() * 2) };
+        let now = SystemTimer::now();
+        lcd_fill(&mut spi, pixels);
+        log::info!(
+            "Time to fill display: {}ms",
+            (SystemTimer::now() - now) / (SystemTimer::TICKS_PER_SECOND / 1024)
+        );
     }
-    log::info!("Done filling display!");    
+
+    // log::info!("Done filling display!");
     // /*
     //    Matrix
     // */
-
     // let columns: &mut [AnyPin<Output<PushPull>>] = &mut [
     //     io.pins.gpio2.into_push_pull_output().into(),  // 0
     //     io.pins.gpio43.into_push_pull_output().into(), // 1
@@ -153,25 +189,38 @@ fn main() -> ! {
     //         }
     //     }
     // }
+}
 
-    loop {
+// fn lcd_read_cmd<'a>(spi: &'a mut QSpiDisplay<'a>, cmd: u32, data: &mut [u8]) {
+//     spi.read(
+//         SpiDataMode::Single,
+//         Command::Command8(0x0B, SpiDataMode::Single),
+//         Address::Address32(cmd << 16, SpiDataMode::Single),
+//         0,
+//         &mut &mut data[..],
+//     )
+//     .unwrap();
+// }
 
+fn lcd_fill<'a>(spi: &mut QSpiDisplay<'a>, pixels: &'static [u8]) {
+    set_draw_area(spi, 0, 0, 356, 400);
+    for (i, pixels) in pixels.chunks(MAX_DMA_TRANSFER).enumerate() {
+        // fifo size
+        spi.write(
+            SpiDataMode::Quad,
+            Command::Command8(0x32, SpiDataMode::Single),
+            Address::Address24(if i > 0 { 0x002C00 } else { 0x003C00 }, SpiDataMode::Single),
+            0,
+            &pixels,
+        )
+        .unwrap()
+        .wait()
+        .unwrap();
     }
 }
-
-fn lcd_read_cmd<'a>(spi: &mut Spi<'a, SPI2, HalfDuplexMode>, cmd: u32, data: &mut [u8]) {
-    spi.read(
-        SpiDataMode::Single,
-        Command::Command8(0x0B, SpiDataMode::Single),
-        Address::Address32(cmd << 16, SpiDataMode::Single),
-        0,
-        &mut data[..],
-    )
-    .unwrap();
-}
-
-fn lcd_write_cmd<'a>(spi: &mut Spi<'a, SPI2, HalfDuplexMode>, cmd: u32, data: &[u8]) {
-    let mut buf = [0u8; 4];
+fn lcd_write_cmd<'a>(spi: &mut QSpiDisplay<'a>, cmd: u32, data: &[u8]) {
+    static mut BUF: [u8; 4] = [0u8; 4];
+    let buf = unsafe { &mut BUF };
     if data.len() > 0 {
         buf[..data.len()].copy_from_slice(&data);
     }
@@ -181,15 +230,23 @@ fn lcd_write_cmd<'a>(spi: &mut Spi<'a, SPI2, HalfDuplexMode>, cmd: u32, data: &[
         Command::Command8(0x02, SpiDataMode::Single),
         Address::Address24(cmd << 8, SpiDataMode::Single),
         0,
-        &buf[..data.len()],
+        &&buf[..data.len()],
     )
+    .unwrap()
+    .wait()
     .unwrap();
 }
 
-fn set_draw_area<'a>(spi: &mut Spi<'a, SPI2, HalfDuplexMode>, x1: u16, y1: u16, x2: u16, y2: u16) {
+fn set_draw_area<'a>(spi: &mut QSpiDisplay<'a>, x1: u16, y1: u16, x2: u16, y2: u16) {
     let cmds = [
-        (0x2a, &[(x1 >> 8) as u8, x1 as u8, (x2 >> 8) as u8, x2 as u8][..]),
-        (0x2b, &[(y1 >> 8) as u8, y1 as u8, (y2 >> 8) as u8, y2 as u8][..]),
+        (
+            0x2a,
+            &[(x1 >> 8) as u8, x1 as u8, (x2 >> 8) as u8, x2 as u8][..],
+        ),
+        (
+            0x2b,
+            &[(y1 >> 8) as u8, y1 as u8, (y2 >> 8) as u8, y2 as u8][..],
+        ),
         (0x2c, &[0][..]),
     ];
 
