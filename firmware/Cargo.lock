@@ -423,6 +423,7 @@ dependencies = [
 name = "firmware"
 version = "0.1.0"
 dependencies = [
+ "critical-section",
  "embedded-graphics-core",
  "esp-backtrace",
  "esp-hal",

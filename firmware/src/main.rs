@@ -1,22 +1,30 @@
 #![no_std]
 #![no_main]
-
 #![feature(type_alias_impl_trait)]
 
+use core::cell::RefCell;
+use core::sync::atomic::AtomicBool;
+
+use core::sync::atomic::Ordering;
+use critical_section::Mutex;
 use embedded_graphics_core::pixelcolor::IntoStorage;
 use embedded_graphics_core::pixelcolor::RgbColor;
 use esp_backtrace as _;
+use esp_hal::cpu_control::CpuControl;
+use esp_hal::cpu_control::Stack;
 use esp_hal::dma::{Dma, DmaPriority};
 use esp_hal::dma_descriptors;
-use esp_hal::spi::master::prelude::_esp_hal_spi_master_dma_WithDmaSpi2;
+use esp_hal::interrupt;
+use esp_hal::interrupt::Priority;
+use esp_hal::peripherals::Interrupt;
 use esp_hal::systimer::SystemTimer;
 use esp_hal::{
     clock::ClockControl,
     gpio::{AnyPin, Input, Output, PullDown, PushPull},
-    peripherals::{Peripherals, SPI2},
+    peripherals::Peripherals,
     prelude::*,
     spi::{
-        master::{Address, Command, HalfDuplexReadWrite, Spi},
+        master::{prelude::*, Address, Command, Spi},
         HalfDuplexMode, SpiDataMode, SpiMode,
     },
     Delay, IO,
@@ -30,6 +38,14 @@ type QSpiDisplay<'a> = esp_hal::spi::master::dma::SpiDma<
 >;
 
 const MAX_DMA_TRANSFER: usize = 32736;
+
+static TE: Mutex<RefCell<Option<esp_hal::gpio::Gpio17<Input<PullDown>>>>> =
+    Mutex::new(RefCell::new(None));
+
+static TE_READY: AtomicBool = AtomicBool::new(false);
+static TE_WAITING: AtomicBool = AtomicBool::new(false);
+static mut APP_CORE_STACK: Stack<16384> = Stack::new();
+static mut FRAME_BUFFER: [u16; 356 * 400] = [0u16; 356 * 400];
 
 #[entry]
 fn main() -> ! {
@@ -58,24 +74,25 @@ fn main() -> ! {
     let system = peripherals.SYSTEM.split();
 
     let clocks = ClockControl::max(system.clock_control).freeze();
+    let mut cpu_control = CpuControl::new(system.cpu_control);
+
     let mut delay = Delay::new(&clocks);
 
     let io = IO::new(peripherals.GPIO, peripherals.IO_MUX);
 
-    /*
-       Display
+    let sclk = io.pins.gpio4;
+    let sio0 = io.pins.gpio6;
+    let sio1 = io.pins.gpio5;
+    let sio2 = io.pins.gpio15;
+    let sio3 = io.pins.gpio7;
+    let cs = io.pins.gpio16.into_push_pull_output();
+    let mut reset = io.pins.gpio3.into_push_pull_output();
 
-       TRM: https://cloud.alpelectronix.com/s/nB8xHYaCfjUsjbV/download
-       PINOUT: https://cloud.alpelectronix.com/s/ttTGsVn0wZqScKv/download
-       Arduino + esp32 lib reference: https://github.com/modi12jin/Arduino-ESP32-WEA2012/blob/main/WEA2012_LCD.cpp
-    */
-    let sclk = io.pins.gpio6;
-    let sio0 = io.pins.gpio5;
-    let sio1 = io.pins.gpio15;
-    let sio2 = io.pins.gpio18;
-    let sio3 = io.pins.gpio17;
-    let cs = io.pins.gpio7;
-    let mut reset = io.pins.gpio16.into_push_pull_output();
+    let mut te = io.pins.gpio17.into_pull_down_input();
+    te.listen(esp_hal::gpio::Event::RisingEdge);
+    critical_section::with(|cs| TE.borrow_ref_mut(cs).replace(te));
+
+    interrupt::enable(Interrupt::GPIO, Priority::Priority2).unwrap();
 
     let dma = Dma::new(peripherals.DMA);
 
@@ -109,18 +126,53 @@ fn main() -> ! {
     }
     log::info!("Finished initializing display!");
 
-    log::info!("Filling display...");
-
-    let pixels = static_cell::make_static!([0xFFFFu16; 356 * 400]);
+    let pixels = unsafe { &mut FRAME_BUFFER };
     let colors = [
         embedded_graphics_core::pixelcolor::Rgb565::MAGENTA,
+        embedded_graphics_core::pixelcolor::Rgb565::RED,
         embedded_graphics_core::pixelcolor::Rgb565::WHITE,
-        embedded_graphics_core::pixelcolor::Rgb565::BLACK,
         embedded_graphics_core::pixelcolor::Rgb565::BLUE,
         embedded_graphics_core::pixelcolor::Rgb565::GREEN,
         embedded_graphics_core::pixelcolor::Rgb565::YELLOW,
+        embedded_graphics_core::pixelcolor::Rgb565::CYAN,
     ];
     let mut colors = colors.iter().cycle();
+
+    /*
+       Matrix
+    */
+    let columns: &mut [AnyPin<Output<PushPull>>] = &mut [
+        io.pins.gpio2.into_push_pull_output().into(),  // 0
+        io.pins.gpio43.into_push_pull_output().into(), // 1
+        io.pins.gpio44.into_push_pull_output().into(), // 2
+        io.pins.gpio38.into_push_pull_output().into(), // 3
+        io.pins.gpio37.into_push_pull_output().into(), // 4
+        io.pins.gpio36.into_push_pull_output().into(), // 5
+        io.pins.gpio48.into_push_pull_output().into(), // 6
+        io.pins.gpio47.into_push_pull_output().into(), // 7
+        io.pins.gpio21.into_push_pull_output().into(), // 8
+        io.pins.gpio14.into_push_pull_output().into(), // 9
+        io.pins.gpio13.into_push_pull_output().into(), // 10
+        io.pins.gpio12.into_push_pull_output().into(), // 11
+        io.pins.gpio11.into_push_pull_output().into(), // 12
+        io.pins.gpio10.into_push_pull_output().into(), // 13
+    ];
+    let rows: &mut [AnyPin<Input<PullDown>>] = &mut [
+        io.pins.gpio1.into_pull_down_input().into(),  // 0
+        io.pins.gpio35.into_pull_down_input().into(), // 1
+        io.pins.gpio45.into_pull_down_input().into(), // 2
+        io.pins.gpio9.into_pull_down_input().into(),  // 3
+        io.pins.gpio46.into_pull_down_input().into(), // 4
+    ];
+
+    let _guard = cpu_control
+        .start_app_core(unsafe { &mut APP_CORE_STACK }, || {
+            // TODO why is this a closure, but crashes if we put code in here directly?
+            // for some reason we have to call a function for it to not to get a `InstrProhibited` exception (and a broken stack trace)
+            core1_task(rows, columns, delay)
+        })
+        .unwrap();
+
     let mut start = SystemTimer::now();
     loop {
         let now = SystemTimer::now();
@@ -131,79 +183,68 @@ fn main() -> ! {
             let colour = colour.to_be();
             pixels.fill(colour);
         }
+        // TE_READY won't get set until we mark that we're ready to flush a buffer
+        TE_WAITING.store(true, Ordering::SeqCst);
+        while !TE_READY.swap(false, Ordering::SeqCst) {}
+
         let pixels =
             unsafe { core::slice::from_raw_parts(pixels.as_ptr() as *const u8, pixels.len() * 2) };
         let now = SystemTimer::now();
         lcd_fill(&mut spi, pixels);
-        log::info!(
+        log::trace!(
             "Time to fill display: {}ms",
             (SystemTimer::now() - now) / (SystemTimer::TICKS_PER_SECOND / 1024)
         );
     }
-
-    // log::info!("Done filling display!");
-    // /*
-    //    Matrix
-    // */
-    // let columns: &mut [AnyPin<Output<PushPull>>] = &mut [
-    //     io.pins.gpio2.into_push_pull_output().into(),  // 0
-    //     io.pins.gpio43.into_push_pull_output().into(), // 1
-    //     io.pins.gpio44.into_push_pull_output().into(), // 2
-    //     io.pins.gpio38.into_push_pull_output().into(), // 3
-    //     io.pins.gpio37.into_push_pull_output().into(), // 4
-    //     io.pins.gpio36.into_push_pull_output().into(), // 5
-    //     io.pins.gpio48.into_push_pull_output().into(), // 6
-    //     io.pins.gpio47.into_push_pull_output().into(), // 7
-    //     io.pins.gpio21.into_push_pull_output().into(), // 8
-    //     io.pins.gpio14.into_push_pull_output().into(), // 9
-    //     io.pins.gpio13.into_push_pull_output().into(), // 10
-    //     io.pins.gpio12.into_push_pull_output().into(), // 11
-    //     io.pins.gpio11.into_push_pull_output().into(), // 12
-    //     io.pins.gpio10.into_push_pull_output().into(), // 13
-    // ];
-    // let rows: &mut [AnyPin<Input<PullDown>>] = &mut [
-    //     io.pins.gpio1.into_pull_down_input().into(),  // 0
-    //     io.pins.gpio35.into_pull_down_input().into(), // 1
-    //     io.pins.gpio45.into_pull_down_input().into(), // 2
-    //     io.pins.gpio9.into_pull_down_input().into(),  // 3
-    //     io.pins.gpio46.into_pull_down_input().into(), // 4
-    // ];
-
-    // let mut last = (usize::MAX, usize::MAX);
-    // loop {
-    //     for (x, c) in columns.iter_mut().enumerate() {
-    //         for (y, r) in rows.iter_mut().enumerate() {
-    //             c.set_high().unwrap();
-    //             if r.is_high().unwrap() {
-    //                 let current = (x, y);
-    //                 if current != last {
-    //                     last = current;
-    //                     log::info!("({x}, {y}) is pressed!");
-    //                 }
-    //             }
-    //             c.set_low().unwrap();
-    //             // small debounce - is this needed?
-    //             // perhaps polling at too high of a rate we run into
-    //             // gpio switching frequency issues, or maybe even capacitance in the trace
-    //             delay.delay_us(50u32);
-    //         }
-    //     }
-    // }
 }
 
-// fn lcd_read_cmd<'a>(spi: &'a mut QSpiDisplay<'a>, cmd: u32, data: &mut [u8]) {
-//     spi.read(
-//         SpiDataMode::Single,
-//         Command::Command8(0x0B, SpiDataMode::Single),
-//         Address::Address32(cmd << 16, SpiDataMode::Single),
-//         0,
-//         &mut &mut data[..],
-//     )
-//     .unwrap();
-// }
+fn core1_task(
+    rows: &mut [AnyPin<Input<PullDown>>],
+    columns: &mut [AnyPin<Output<PushPull>>],
+    mut delay: Delay,
+) {
+    let mut last = (usize::MAX, usize::MAX);
+    loop {
+        for (x, c) in columns.iter_mut().enumerate() {
+            for (y, r) in rows.iter_mut().enumerate() {
+                c.set_high().unwrap();
+                if r.is_high().unwrap() {
+                    let current = (x, y);
+                    if current != last {
+                        last = current;
+                        log::info!("({x}, {y}) is pressed!");
+                    }
+                }
+                c.set_low().unwrap();
+                // small debounce - is this needed?
+                // perhaps polling at too high of a rate we run into
+                // gpio switching frequency issues, or maybe even capacitance in the trace
+                delay.delay_us(50u32);
+            }
+        }
+    }
+}
+
+#[ram]
+#[interrupt]
+unsafe fn GPIO() {
+    static mut LAST: u64 = 0;
+    let now = SystemTimer::now();
+    log::trace!(
+        "TE fired! Interval: {}ms",
+        (now - LAST) / (SystemTimer::TICKS_PER_SECOND / 1024)
+    );
+    LAST = now;
+    critical_section::with(|cs| TE.borrow_ref_mut(cs).as_mut().unwrap().clear_interrupt());
+    if TE_WAITING.load(Ordering::SeqCst) {
+        TE_READY.store(true, Ordering::SeqCst);
+        TE_WAITING.store(false, Ordering::SeqCst);
+    }
+}
 
 fn lcd_fill<'a>(spi: &mut QSpiDisplay<'a>, pixels: &'static [u8]) {
     set_draw_area(spi, 0, 0, 356, 400);
+    // set_draw_area(spi, 0, 0, 356, 400);
     for (i, pixels) in pixels.chunks(MAX_DMA_TRANSFER).enumerate() {
         // fifo size
         spi.write(
@@ -224,7 +265,7 @@ fn lcd_write_cmd<'a>(spi: &mut QSpiDisplay<'a>, cmd: u32, data: &[u8]) {
     if data.len() > 0 {
         buf[..data.len()].copy_from_slice(&data);
     }
-    log::info!("Sending: {} => {:?}", cmd, &buf[..data.len()]);
+    log::trace!("Sending: {} => {:?}", cmd, &buf[..data.len()]);
     spi.write(
         SpiDataMode::Single,
         Command::Command8(0x02, SpiDataMode::Single),
