@@ -6,7 +6,7 @@ edition = "2021"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-esp-hal = { features = ["esp32s3"], git = "https://github.com/bjoernQ/esp-hal", branch = "simplify-dma-usage"}
+esp-hal = { features = ["esp32s3", "psram-2m"], git = "https://github.com/bjoernQ/esp-hal", branch = "simplify-dma-usage"}
 esp-backtrace = { version = "0.11.0", features = ["esp32s3", "panic-handler", "exception-handler", "println"] }
 esp-println = { version = "0.9.0", default-features = false, features = ["esp32s3", "log", "jtag-serial"] }
 log = { version = "0.4.20" }
@@ -16,6 +16,7 @@ critical-section = "1"
 
 tinygif = "0.0.4"
 embedded-graphics = "0.8.1"
+esp-alloc = "0.3.0"
 
 
 [features]

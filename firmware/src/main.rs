@@ -2,10 +2,13 @@
 #![no_main]
 #![feature(type_alias_impl_trait)]
 
+extern crate alloc;
+
 use core::cell::RefCell;
 use core::sync::atomic::AtomicBool;
 
 use core::sync::atomic::Ordering;
+use alloc::boxed::Box;
 use critical_section::Mutex;
 use embedded_graphics::framebuffer::buffer_size;
 use embedded_graphics::framebuffer::Framebuffer;
@@ -13,6 +16,8 @@ use embedded_graphics::pixelcolor::raw::BigEndian;
 use embedded_graphics::pixelcolor::raw::RawU16;
 
 use embedded_graphics::image::ImageDrawable;
+use embedded_graphics::pixelcolor::raw::RawU24;
+use embedded_graphics::pixelcolor::Rgb888;
 use embedded_graphics_core::pixelcolor::Rgb565;
 use esp_backtrace as _;
 use esp_hal::cpu_control::CpuControl;
@@ -22,6 +27,7 @@ use esp_hal::dma_descriptors;
 use esp_hal::interrupt;
 use esp_hal::interrupt::Priority;
 use esp_hal::peripherals::Interrupt;
+use esp_hal::psram;
 use esp_hal::systimer::SystemTimer;
 use esp_hal::{
     clock::ClockControl,
@@ -50,15 +56,17 @@ static TE: Mutex<RefCell<Option<esp_hal::gpio::Gpio17<Input<PullDown>>>>> =
     Mutex::new(RefCell::new(None));
 
 static TE_READY: AtomicBool = AtomicBool::new(false);
-static mut APP_CORE_STACK: Stack<16384> = Stack::new();
-static mut FRAME_BUFFER: Framebuffer<
-    Rgb565,
-    RawU16,
-    BigEndian,
-    WIDTH,
-    HEIGHT,
-    { buffer_size::<Rgb565>(WIDTH, HEIGHT) },
-> = Framebuffer::new();
+static mut APP_CORE_STACK: Stack<2048> = Stack::new();
+// static mut FRAME_BUFFER: Framebuffer<
+//     Rgb888,
+//     RawU24,
+//     BigEndian,
+//     WIDTH,
+//     HEIGHT,
+//     { buffer_size::<Rgb888>(WIDTH, HEIGHT) },
+// > = Framebuffer::new();
+#[global_allocator]
+static ALLOCATOR: esp_alloc::EspHeap = esp_alloc::EspHeap::empty();
 
 #[entry]
 fn main() -> ! {
@@ -88,6 +96,11 @@ fn main() -> ! {
 
     let clocks = ClockControl::max(system.clock_control).freeze();
     let mut cpu_control = CpuControl::new(system.cpu_control);
+
+    psram::init_psram(peripherals.PSRAM);
+    unsafe {
+        ALLOCATOR.init(psram::psram_vaddr_start() as *mut u8, psram::PSRAM_BYTES);
+    }
 
     let mut delay = Delay::new(&clocks);
 
@@ -139,7 +152,15 @@ fn main() -> ! {
     }
     log::info!("Finished initializing display!");
 
-    let pixels = unsafe { &mut FRAME_BUFFER };
+    let pixels = Box::new(Framebuffer::<
+        Rgb565,
+        RawU16,
+        BigEndian,
+        WIDTH,
+        HEIGHT,
+        { buffer_size::<Rgb565>(WIDTH, HEIGHT) },
+    >::new());
+    let pixels = Box::leak(pixels);
     /*
        Matrix
     */
