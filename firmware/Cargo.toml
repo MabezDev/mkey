@@ -15,7 +15,7 @@ embedded-graphics-core = "0.4.0"
 critical-section = "1"
 
 tinygif = "0.0.4"
-embedded-graphics-framebuf = "0.5.0"
+embedded-graphics = "0.8.1"
 
 
 [features]

@@ -7,16 +7,17 @@ use core::sync::atomic::AtomicBool;
 
 use core::sync::atomic::Ordering;
 use critical_section::Mutex;
+use embedded_graphics::framebuffer::buffer_size;
+use embedded_graphics::framebuffer::Framebuffer;
+use embedded_graphics::pixelcolor::raw::BigEndian;
+use embedded_graphics::pixelcolor::raw::RawU16;
+use embedded_graphics::transform::Transform;
+use embedded_graphics_core::draw_target::DrawTarget;
 use embedded_graphics_core::geometry::Point;
 use embedded_graphics_core::geometry::Size;
-use embedded_graphics_core::image::ImageDrawable;
-use embedded_graphics_core::draw_target::DrawTarget;
 use embedded_graphics_core::pixelcolor::Rgb565;
 use embedded_graphics_core::pixelcolor::RgbColor;
 use embedded_graphics_core::primitives::Rectangle;
-use embedded_graphics_framebuf::backends::EndianCorrectedBuffer;
-use embedded_graphics_framebuf::backends::EndianCorrection;
-use embedded_graphics_framebuf::FrameBuf;
 use esp_backtrace as _;
 use esp_hal::cpu_control::CpuControl;
 use esp_hal::cpu_control::Stack;
@@ -46,13 +47,22 @@ type QSpiDisplay<'a> = esp_hal::spi::master::dma::SpiDma<
 >;
 
 const MAX_DMA_TRANSFER: usize = 32736;
+const WIDTH: usize = 356;
+const HEIGHT: usize = 400;
 
 static TE: Mutex<RefCell<Option<esp_hal::gpio::Gpio17<Input<PullDown>>>>> =
     Mutex::new(RefCell::new(None));
 
 static TE_READY: AtomicBool = AtomicBool::new(false);
 static mut APP_CORE_STACK: Stack<16384> = Stack::new();
-static mut FRAME_BUFFER: [Rgb565; 356 * 400] = [Rgb565::new(0, 0, 0); 356 * 400];
+static mut FRAME_BUFFER: Framebuffer<
+    Rgb565,
+    RawU16,
+    BigEndian,
+    WIDTH,
+    HEIGHT,
+    { buffer_size::<Rgb565>(WIDTH, HEIGHT) },
+> = Framebuffer::new();
 
 #[entry]
 fn main() -> ! {
@@ -134,11 +144,6 @@ fn main() -> ! {
     log::info!("Finished initializing display!");
 
     let pixels = unsafe { &mut FRAME_BUFFER };
-    let mut fbuf = FrameBuf::new(
-        EndianCorrectedBuffer::new(pixels, EndianCorrection::ToBigEndian),
-        356,
-        400,
-    );
     /*
        Matrix
     */
@@ -180,26 +185,42 @@ fn main() -> ! {
     // let frame = image.frames().next().unwrap();
     loop {
         // for frame in image.frames() {
-            // frame.draw(&mut fbuf).unwrap();
-            fbuf.fill_solid(&Rectangle::new(Point::new(100, 100), Size::new(10, 20)), Rgb565::RED).unwrap();
-            // TE_READY won't get set until we mark that we're ready to flush a buffer
-            critical_section::with(|cs| {
-                TE_READY.store(false, Ordering::SeqCst);
-                TE.borrow_ref_mut(cs).as_mut().unwrap().clear_interrupt();
-            });
-            // wait for next sync
-            while !TE_READY.load(Ordering::SeqCst) {}
+        // frame.draw(&mut fbuf).unwrap();
+        let cube = Rectangle::new(Point::zero(), Size::new(50, 50));
+        // top left
+        pixels
+            .fill_solid(&cube.translate(Point::new(0, 50)), Rgb565::RED)
+            .unwrap();
+        // top right
+        pixels
+            .fill_solid(&cube.translate(Point::new(296, 50)), Rgb565::GREEN)
+            .unwrap();
+        // bottom left
+        pixels
+            .fill_solid(&cube.translate(Point::new(0, 200)), Rgb565::WHITE)
+            .unwrap();
+        // bottom right
+        pixels
+            .fill_solid(&cube.translate(Point::new(296, 200)), Rgb565::BLUE)
+            .unwrap();
+        // TE_READY won't get set until we mark that we're ready to flush a buffer
+        critical_section::with(|cs| {
+            TE_READY.store(false, Ordering::SeqCst);
+            TE.borrow_ref_mut(cs).as_mut().unwrap().clear_interrupt();
+        });
+        // wait for next sync
+        while !TE_READY.load(Ordering::SeqCst) {}
 
-            let (pixels, len) = unsafe { fbuf.read_buffer() };
-            let pixels = unsafe { core::slice::from_raw_parts(pixels as *const u8, len) };
-            let now = SystemTimer::now();
-            lcd_fill(&mut spi, pixels);
-            log::trace!(
-                "Time to fill display: {}ms",
-                (SystemTimer::now() - now) / (SystemTimer::TICKS_PER_SECOND / 1024)
-            );
+        let pixels = unsafe {
+            core::slice::from_raw_parts(pixels.data().as_ptr() as *const u8, pixels.data().len())
+        };
+        let now = SystemTimer::now();
+        lcd_fill(&mut spi, pixels);
+        log::trace!(
+            "Time to fill display: {}ms",
+            (SystemTimer::now() - now) / (SystemTimer::TICKS_PER_SECOND / 1024)
+        );
         // }
-        // log::info!("GIF drawn!");
     }
 }
 
@@ -245,7 +266,7 @@ unsafe fn GPIO() {
 }
 
 fn lcd_fill<'a>(spi: &mut QSpiDisplay<'a>, pixels: &'static [u8]) {
-    set_draw_area(spi, 0, 0, 356, 400);
+    set_draw_area(spi, 0, 0, WIDTH as u16 - 1, HEIGHT as u16 - 1);
     for (i, pixels) in pixels.chunks(MAX_DMA_TRANSFER).enumerate() {
         // fifo size
         spi.write(
@@ -289,7 +310,6 @@ fn set_draw_area<'a>(spi: &mut QSpiDisplay<'a>, x1: u16, y1: u16, x2: u16, y2: u
             0x2b,
             &[(y1 >> 8) as u8, y1 as u8, (y2 >> 8) as u8, y2 as u8][..],
         ),
-        (0x2c, &[0][..]),
     ];
 
     for (cmd, data) in cmds {
