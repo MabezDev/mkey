@@ -11,13 +11,9 @@ use embedded_graphics::framebuffer::buffer_size;
 use embedded_graphics::framebuffer::Framebuffer;
 use embedded_graphics::pixelcolor::raw::BigEndian;
 use embedded_graphics::pixelcolor::raw::RawU16;
-use embedded_graphics::transform::Transform;
-use embedded_graphics_core::draw_target::DrawTarget;
-use embedded_graphics_core::geometry::Point;
-use embedded_graphics_core::geometry::Size;
+
+use embedded_graphics::image::ImageDrawable;
 use embedded_graphics_core::pixelcolor::Rgb565;
-use embedded_graphics_core::pixelcolor::RgbColor;
-use embedded_graphics_core::primitives::Rectangle;
 use esp_backtrace as _;
 use esp_hal::cpu_control::CpuControl;
 use esp_hal::cpu_control::Stack;
@@ -182,45 +178,31 @@ fn main() -> ! {
 
     let image =
         tinygif::Gif::<Rgb565>::from_slice(include_bytes!("../Ferris-240x240.gif")).unwrap();
-    // let frame = image.frames().next().unwrap();
     loop {
-        // for frame in image.frames() {
-        // frame.draw(&mut fbuf).unwrap();
-        let cube = Rectangle::new(Point::zero(), Size::new(50, 50));
-        // top left
-        pixels
-            .fill_solid(&cube.translate(Point::new(0, 50)), Rgb565::RED)
-            .unwrap();
-        // top right
-        pixels
-            .fill_solid(&cube.translate(Point::new(296, 50)), Rgb565::GREEN)
-            .unwrap();
-        // bottom left
-        pixels
-            .fill_solid(&cube.translate(Point::new(0, 200)), Rgb565::WHITE)
-            .unwrap();
-        // bottom right
-        pixels
-            .fill_solid(&cube.translate(Point::new(296, 200)), Rgb565::BLUE)
-            .unwrap();
-        // TE_READY won't get set until we mark that we're ready to flush a buffer
-        critical_section::with(|cs| {
-            TE_READY.store(false, Ordering::SeqCst);
-            TE.borrow_ref_mut(cs).as_mut().unwrap().clear_interrupt();
-        });
-        // wait for next sync
-        while !TE_READY.load(Ordering::SeqCst) {}
+        for frame in image.frames() {
+            frame.draw(pixels).unwrap();
 
-        let pixels = unsafe {
-            core::slice::from_raw_parts(pixels.data().as_ptr() as *const u8, pixels.data().len())
-        };
-        let now = SystemTimer::now();
-        lcd_fill(&mut spi, pixels);
-        log::trace!(
-            "Time to fill display: {}ms",
-            (SystemTimer::now() - now) / (SystemTimer::TICKS_PER_SECOND / 1024)
-        );
-        // }
+            // TE_READY won't get set until we mark that we're ready to flush a buffer
+            critical_section::with(|cs| {
+                TE_READY.store(false, Ordering::SeqCst);
+                TE.borrow_ref_mut(cs).as_mut().unwrap().clear_interrupt();
+            });
+            // wait for next sync
+            while !TE_READY.load(Ordering::SeqCst) {}
+
+            let pixels = unsafe {
+                core::slice::from_raw_parts(
+                    pixels.data().as_ptr() as *const u8,
+                    pixels.data().len(),
+                )
+            };
+            let now = SystemTimer::now();
+            lcd_fill(&mut spi, pixels);
+            log::trace!(
+                "Time to fill display: {}ms",
+                (SystemTimer::now() - now) / (SystemTimer::TICKS_PER_SECOND / 1024)
+            );
+        }
     }
 }
 
