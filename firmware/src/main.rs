@@ -7,9 +7,16 @@ use core::sync::atomic::AtomicBool;
 
 use core::sync::atomic::Ordering;
 use critical_section::Mutex;
-use embedded_graphics_core::pixelcolor::IntoStorage;
+use embedded_graphics_core::geometry::Point;
+use embedded_graphics_core::geometry::Size;
+use embedded_graphics_core::image::ImageDrawable;
+use embedded_graphics_core::draw_target::DrawTarget;
 use embedded_graphics_core::pixelcolor::Rgb565;
 use embedded_graphics_core::pixelcolor::RgbColor;
+use embedded_graphics_core::primitives::Rectangle;
+use embedded_graphics_framebuf::backends::EndianCorrectedBuffer;
+use embedded_graphics_framebuf::backends::EndianCorrection;
+use embedded_graphics_framebuf::FrameBuf;
 use esp_backtrace as _;
 use esp_hal::cpu_control::CpuControl;
 use esp_hal::cpu_control::Stack;
@@ -39,42 +46,13 @@ type QSpiDisplay<'a> = esp_hal::spi::master::dma::SpiDma<
 >;
 
 const MAX_DMA_TRANSFER: usize = 32736;
-const WIDTH: usize = 356;
-const HEIGHT: usize = 400;
-
-const SINE_LUT: [u8; 512] = [
-    127, 129, 131, 136, 138, 143, 145, 147, 151, 154, 158, 160, 162, 166, 169, 173, 175, 177, 181,
-    183, 187, 189, 191, 195, 196, 200, 202, 204, 207, 209, 212, 214, 217, 219, 220, 223, 225, 227,
-    229, 230, 233, 234, 236, 237, 239, 241, 242, 243, 244, 245, 247, 248, 249, 250, 250, 251, 252,
-    253, 253, 253, 254, 254, 254, 254, 255, 254, 254, 254, 254, 254, 253, 253, 252, 252, 251, 250,
-    250, 248, 248, 246, 245, 244, 243, 242, 240, 239, 237, 235, 234, 231, 230, 229, 226, 225, 222,
-    220, 217, 216, 214, 211, 209, 205, 204, 202, 198, 196, 193, 191, 189, 185, 183, 179, 177, 175,
-    171, 169, 164, 162, 160, 156, 154, 149, 147, 145, 140, 138, 134, 131, 127, 125, 123, 118, 116,
-    111, 109, 107, 103, 100, 96, 94, 92, 88, 85, 81, 79, 77, 73, 71, 67, 65, 63, 59, 58, 54, 52,
-    50, 47, 45, 42, 40, 37, 35, 34, 31, 29, 27, 25, 24, 21, 20, 18, 17, 15, 13, 12, 11, 10, 9, 7,
-    6, 5, 4, 4, 3, 2, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 2, 2, 3, 4, 4, 6, 6, 8, 9, 10,
-    11, 12, 14, 15, 17, 19, 20, 23, 24, 25, 28, 29, 32, 34, 37, 38, 40, 43, 45, 49, 50, 52, 56, 58,
-    61, 63, 65, 69, 71, 75, 77, 79, 83, 85, 90, 92, 94, 98, 100, 105, 107, 109, 114, 116, 120, 123,
-    127, 129, 131, 136, 138, 143, 145, 147, 151, 154, 158, 160, 162, 166, 169, 173, 175, 177, 181,
-    183, 187, 189, 191, 195, 196, 200, 202, 204, 207, 209, 212, 214, 217, 219, 220, 223, 225, 227,
-    229, 230, 233, 234, 236, 237, 239, 241, 242, 243, 244, 245, 247, 248, 249, 250, 250, 251, 252,
-    253, 253, 253, 254, 254, 254, 254, 255, 254, 254, 254, 254, 254, 253, 253, 252, 252, 251, 250,
-    250, 248, 248, 246, 245, 244, 243, 242, 240, 239, 237, 235, 234, 231, 230, 229, 226, 225, 222,
-    220, 217, 216, 214, 211, 209, 205, 204, 202, 198, 196, 193, 191, 189, 185, 183, 179, 177, 175,
-    171, 169, 164, 162, 160, 156, 154, 149, 147, 145, 140, 138, 134, 131, 127, 125, 123, 118, 116,
-    111, 109, 107, 103, 100, 96, 94, 92, 88, 85, 81, 79, 77, 73, 71, 67, 65, 63, 59, 58, 54, 52,
-    50, 47, 45, 42, 40, 37, 35, 34, 31, 29, 27, 25, 24, 21, 20, 18, 17, 15, 13, 12, 11, 10, 9, 7,
-    6, 5, 4, 4, 3, 2, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 2, 2, 3, 4, 4, 6, 6, 8, 9, 10,
-    11, 12, 14, 15, 17, 19, 20, 23, 24, 25, 28, 29, 32, 34, 37, 38, 40, 43, 45, 49, 50, 52, 56, 58,
-    61, 63, 65, 69, 71, 75, 77, 79, 83, 85, 90, 92, 94, 98, 100, 105, 107, 109, 114, 116, 120, 123,
-];
 
 static TE: Mutex<RefCell<Option<esp_hal::gpio::Gpio17<Input<PullDown>>>>> =
     Mutex::new(RefCell::new(None));
 
 static TE_READY: AtomicBool = AtomicBool::new(false);
 static mut APP_CORE_STACK: Stack<16384> = Stack::new();
-static mut FRAME_BUFFER: [u16; 356 * 400] = [0u16; 356 * 400];
+static mut FRAME_BUFFER: [Rgb565; 356 * 400] = [Rgb565::new(0, 0, 0); 356 * 400];
 
 #[entry]
 fn main() -> ! {
@@ -156,6 +134,11 @@ fn main() -> ! {
     log::info!("Finished initializing display!");
 
     let pixels = unsafe { &mut FRAME_BUFFER };
+    let mut fbuf = FrameBuf::new(
+        EndianCorrectedBuffer::new(pixels, EndianCorrection::ToBigEndian),
+        356,
+        400,
+    );
     /*
        Matrix
     */
@@ -192,58 +175,31 @@ fn main() -> ! {
         })
         .unwrap();
 
-    let mut i: usize = 0;
-    let mut j: usize = 0;
-    let mut k: usize = 0;
+    let image =
+        tinygif::Gif::<Rgb565>::from_slice(include_bytes!("../Ferris-240x240.gif")).unwrap();
+    // let frame = image.frames().next().unwrap();
     loop {
-        for idx in (0..WIDTH * HEIGHT).step_by(2) {
-            let x = idx / WIDTH;
-            let y = idx % (WIDTH + 1);
+        // for frame in image.frames() {
+            // frame.draw(&mut fbuf).unwrap();
+            fbuf.fill_solid(&Rectangle::new(Point::new(100, 100), Size::new(10, 20)), Rgb565::RED).unwrap();
+            // TE_READY won't get set until we mark that we're ready to flush a buffer
+            critical_section::with(|cs| {
+                TE_READY.store(false, Ordering::SeqCst);
+                TE.borrow_ref_mut(cs).as_mut().unwrap().clear_interrupt();
+            });
+            // wait for next sync
+            while !TE_READY.load(Ordering::SeqCst) {}
 
-            pixels[idx] = Rgb565::new(
-                (SINE_LUT[((x + SINE_LUT[(i + y) % 512] as usize) % 512) as usize] as u16 * 0b11111
-                    / 255) as u8,
-                (SINE_LUT[((y + x + SINE_LUT[(x + j) % 512] as usize) % 512) as usize] as u32
-                    * 0b111111
-                    / 255) as u8,
-                (SINE_LUT[((x + k + SINE_LUT[(y + k) % 512] as usize) % 512) as usize] as u16
-                    * 0b11111
-                    / 255) as u8,
-            )
-            .into_storage()
-            .to_be();
-        }
-        i = i + 1;
-        if i >= 255 {
-            i = 0;
-        }
-
-        j = j + 2;
-        if j >= 255 {
-            j = 0;
-        }
-
-        k = k + 3;
-        if k >= 255 {
-            k = 0;
-        }
-
-        // TE_READY won't get set until we mark that we're ready to flush a buffer
-        critical_section::with(|cs| {
-            TE_READY.store(false, Ordering::SeqCst);
-            TE.borrow_ref_mut(cs).as_mut().unwrap().clear_interrupt();
-        });
-        // wait for next sync
-        while !TE_READY.load(Ordering::SeqCst) {}
-
-        let pixels =
-            unsafe { core::slice::from_raw_parts(pixels.as_ptr() as *const u8, pixels.len() * 2) };
-        let now = SystemTimer::now();
-        lcd_fill(&mut spi, pixels);
-        log::trace!(
-            "Time to fill display: {}ms",
-            (SystemTimer::now() - now) / (SystemTimer::TICKS_PER_SECOND / 1024)
-        );
+            let (pixels, len) = unsafe { fbuf.read_buffer() };
+            let pixels = unsafe { core::slice::from_raw_parts(pixels as *const u8, len) };
+            let now = SystemTimer::now();
+            lcd_fill(&mut spi, pixels);
+            log::trace!(
+                "Time to fill display: {}ms",
+                (SystemTimer::now() - now) / (SystemTimer::TICKS_PER_SECOND / 1024)
+            );
+        // }
+        // log::info!("GIF drawn!");
     }
 }
 
@@ -290,7 +246,6 @@ unsafe fn GPIO() {
 
 fn lcd_fill<'a>(spi: &mut QSpiDisplay<'a>, pixels: &'static [u8]) {
     set_draw_area(spi, 0, 0, 356, 400);
-    // set_draw_area(spi, 0, 0, 356, 400);
     for (i, pixels) in pixels.chunks(MAX_DMA_TRANSFER).enumerate() {
         // fifo size
         spi.write(

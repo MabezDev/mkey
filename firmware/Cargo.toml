@@ -14,6 +14,9 @@ static_cell = { version = "1", features = ["nightly"] }
 embedded-graphics-core = "0.4.0"
 critical-section = "1"
 
+tinygif = "0.0.4"
+embedded-graphics-framebuf = "0.5.0"
+
 
 [features]
 # usb-pin-exchange is enabled by default for now, until we have a new revision of the hardware
