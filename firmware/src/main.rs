@@ -7,12 +7,15 @@ use core::sync::atomic::AtomicBool;
 
 use core::sync::atomic::Ordering;
 use critical_section::Mutex;
+use embedded_graphics::draw_target::DrawTarget;
 use embedded_graphics::framebuffer::buffer_size;
 use embedded_graphics::framebuffer::Framebuffer;
+use embedded_graphics::geometry::Point;
+use embedded_graphics::image::Image;
 use embedded_graphics::pixelcolor::raw::BigEndian;
 use embedded_graphics::pixelcolor::raw::RawU16;
-
-use embedded_graphics::image::ImageDrawable;
+use embedded_graphics::pixelcolor::RgbColor;
+use embedded_graphics::Drawable;
 use embedded_graphics_core::pixelcolor::Rgb565;
 use esp_backtrace as _;
 use esp_hal::cpu_control::CpuControl;
@@ -178,8 +181,14 @@ fn main() -> ! {
 
     let image =
         tinygif::Gif::<Rgb565>::from_slice(include_bytes!("../Ferris-240x240.gif")).unwrap();
+    let mut start = SystemTimer::now();
+    let mut frames = 0;
     loop {
         for frame in image.frames() {
+            let frame = Image::with_center(
+                &frame,
+                Point::new(WIDTH as i32 / 2, (HEIGHT as i32 / 2) - 40),
+            );
             frame.draw(pixels).unwrap();
 
             // TE_READY won't get set until we mark that we're ready to flush a buffer
@@ -202,6 +211,13 @@ fn main() -> ! {
                 "Time to fill display: {}ms",
                 (SystemTimer::now() - now) / (SystemTimer::TICKS_PER_SECOND / 1024)
             );
+            frames += 1;
+            let now = SystemTimer::now();
+            if now.wrapping_sub(start) > SystemTimer::TICKS_PER_SECOND {
+                start = now;
+                log::info!("FPS: {}", frames);
+                frames = 0;
+            }
         }
     }
 }
@@ -227,7 +243,7 @@ fn core1_task(
                 // small debounce - is this needed?
                 // perhaps polling at too high of a rate we run into
                 // gpio switching frequency issues, or maybe even capacitance in the trace
-                delay.delay_us(50u32);
+                delay.delay_us(1u32);
             }
         }
     }

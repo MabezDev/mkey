@@ -23,3 +23,12 @@ embedded-graphics = "0.8.1"
 # In the future we may wish to auto detect this based on either fw metadata
 default = ["usb-pin-exchange"]
 usb-pin-exchange = []
+
+[profile.release]
+codegen-units = 1 # LLVM can perform better optimizations using a single thread
+debug = 2
+debug-assertions = false
+incremental = false
+lto = 'fat'
+opt-level = 's'
+overflow-checks = false
