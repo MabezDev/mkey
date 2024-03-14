@@ -7,14 +7,12 @@ use core::sync::atomic::AtomicBool;
 
 use core::sync::atomic::Ordering;
 use critical_section::Mutex;
-use embedded_graphics::draw_target::DrawTarget;
 use embedded_graphics::framebuffer::buffer_size;
 use embedded_graphics::framebuffer::Framebuffer;
 use embedded_graphics::geometry::Point;
 use embedded_graphics::image::Image;
 use embedded_graphics::pixelcolor::raw::BigEndian;
 use embedded_graphics::pixelcolor::raw::RawU16;
-use embedded_graphics::pixelcolor::RgbColor;
 use embedded_graphics::Drawable;
 use embedded_graphics_core::pixelcolor::Rgb565;
 use esp_backtrace as _;
@@ -28,6 +26,8 @@ use esp_hal::peripherals::Interrupt;
 use esp_hal::systimer::SystemTimer;
 use esp_hal::{
     clock::ClockControl,
+    delay::Delay,
+    gpio::IO,
     gpio::{AnyPin, Input, Output, PullDown, PushPull},
     peripherals::Peripherals,
     prelude::*,
@@ -35,8 +35,8 @@ use esp_hal::{
         master::{prelude::*, Address, Command, Spi},
         HalfDuplexMode, SpiDataMode, SpiMode,
     },
-    Delay, IO,
 };
+use embedded_hal::digital::{OutputPin, InputPin};
 
 type QSpiDisplay<'a> = esp_hal::spi::master::dma::SpiDma<
     'a,
@@ -92,9 +92,11 @@ fn main() -> ! {
     let clocks = ClockControl::max(system.clock_control).freeze();
     let mut cpu_control = CpuControl::new(system.cpu_control);
 
-    let mut delay = Delay::new(&clocks);
+    let delay = Delay::new(&clocks);
 
-    let io = IO::new(peripherals.GPIO, peripherals.IO_MUX);
+    let mut io = IO::new(peripherals.GPIO, peripherals.IO_MUX);
+    io.set_interrupt_handler(te);
+    interrupt::enable(Interrupt::GPIO, Priority::Priority2).unwrap();
 
     let sclk = io.pins.gpio4;
     let sio0 = io.pins.gpio6;
@@ -107,8 +109,6 @@ fn main() -> ! {
     let mut te = io.pins.gpio17.into_pull_down_input();
     te.listen(esp_hal::gpio::Event::RisingEdge);
     critical_section::with(|cs| TE.borrow_ref_mut(cs).replace(te));
-
-    interrupt::enable(Interrupt::GPIO, Priority::Priority2).unwrap();
 
     let dma = Dma::new(peripherals.DMA);
 
@@ -132,9 +132,9 @@ fn main() -> ! {
             DmaPriority::Priority0,
         ));
     reset.set_low().unwrap();
-    delay.delay_ms(300u32);
+    delay.delay_millis(300u32);
     reset.set_high().unwrap();
-    delay.delay_ms(300u32);
+    delay.delay_millis(300u32);
 
     // initialization commands
     for (cmd, data) in WEA2012_INIT_CMDS {
@@ -172,10 +172,26 @@ fn main() -> ! {
 
     let _guard = cpu_control
         .start_app_core(unsafe { &mut APP_CORE_STACK }, move || {
-            // TODO why is this a closure, but crashes if we put code in here directly?
-            // for some reason we have to call a function for it to not to get a `InstrProhibited` exception (and a broken stack trace)
-            // could be `set_stack_pointer` not being inlined?
-            core1_task(rows, columns, delay)
+            let mut last = (usize::MAX, usize::MAX);
+            loop {
+                for (x, c) in columns.iter_mut().enumerate() {
+                    for (y, r) in rows.iter_mut().enumerate() {
+                        c.set_high().unwrap();
+                        if r.is_high().unwrap() {
+                            let current = (x, y);
+                            if current != last {
+                                last = current;
+                                log::info!("({x}, {y}) is pressed!");
+                            }
+                        }
+                        c.set_low().unwrap();
+                        // small debounce - is this needed?
+                        // perhaps polling at too high of a rate we run into
+                        // gpio switching frequency issues, or maybe even capacitance in the trace
+                        delay.delay_micros(50);
+                    }
+                }
+            }
         })
         .unwrap();
 
@@ -222,36 +238,9 @@ fn main() -> ! {
     }
 }
 
-fn core1_task(
-    rows: &mut [AnyPin<Input<PullDown>>],
-    columns: &mut [AnyPin<Output<PushPull>>],
-    mut delay: Delay,
-) {
-    let mut last = (usize::MAX, usize::MAX);
-    loop {
-        for (x, c) in columns.iter_mut().enumerate() {
-            for (y, r) in rows.iter_mut().enumerate() {
-                c.set_high().unwrap();
-                if r.is_high().unwrap() {
-                    let current = (x, y);
-                    if current != last {
-                        last = current;
-                        log::info!("({x}, {y}) is pressed!");
-                    }
-                }
-                c.set_low().unwrap();
-                // small debounce - is this needed?
-                // perhaps polling at too high of a rate we run into
-                // gpio switching frequency issues, or maybe even capacitance in the trace
-                delay.delay_us(1u32);
-            }
-        }
-    }
-}
-
 #[ram]
-#[interrupt]
-unsafe fn GPIO() {
+#[handler]
+unsafe fn te() {
     static mut LAST: u64 = 0;
     let now = SystemTimer::now();
     log::trace!(
