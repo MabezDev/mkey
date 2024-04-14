@@ -6,7 +6,7 @@ edition = "2021"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-esp-hal = { features = ["esp32s3", "embedded-hal"], git = "https://github.com/esp-rs/esp-hal", rev = "b402692c72812614f56cb1ec35d0d3180a8b06b8" }
+esp-hal = { features = ["esp32s3", "embedded-hal"], git = "https://github.com/esp-rs/esp-hal", rev = "da3375bbe47dcb659353b909fbc556a74bb64cda" }
 esp-backtrace = { version = "0.11.0", features = ["esp32s3", "panic-handler", "exception-handler", "println"] }
 esp-println = { version = "0.9.0", default-features = false, features = ["esp32s3", "log", "jtag-serial"] }
 log = { version = "0.4.20" }
@@ -19,14 +19,7 @@ tinygif = "0.0.4"
 embedded-graphics = "0.8.1"
 
 [patch.crates-io]
-esp32 =   { git = "https://github.com/esp-rs/esp-pacs", rev = "963c280621f0b7ec26546a5eff24a5032305437f" }
-esp32s2 = { git = "https://github.com/esp-rs/esp-pacs", rev = "963c280621f0b7ec26546a5eff24a5032305437f" }
-esp32s3 = { git = "https://github.com/esp-rs/esp-pacs", rev = "963c280621f0b7ec26546a5eff24a5032305437f" }
-esp32c2 = { git = "https://github.com/esp-rs/esp-pacs", rev = "963c280621f0b7ec26546a5eff24a5032305437f" }
-esp32c3 = { git = "https://github.com/esp-rs/esp-pacs", rev = "963c280621f0b7ec26546a5eff24a5032305437f" }
-esp32c6 = { git = "https://github.com/esp-rs/esp-pacs", rev = "963c280621f0b7ec26546a5eff24a5032305437f" }
-esp32h2 = { git = "https://github.com/esp-rs/esp-pacs", rev = "963c280621f0b7ec26546a5eff24a5032305437f" }
-esp32p4 = { git = "https://github.com/esp-rs/esp-pacs", rev = "963c280621f0b7ec26546a5eff24a5032305437f" }
+esp32s3 = { git = "https://github.com/esp-rs/esp-pacs", rev = "a8a8340" }
 
 
 [features]

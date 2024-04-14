@@ -3,6 +3,7 @@
 #![feature(type_alias_impl_trait)]
 
 use core::cell::RefCell;
+use core::ptr::addr_of_mut;
 use core::sync::atomic::AtomicBool;
 
 use core::sync::atomic::Ordering;
@@ -24,6 +25,7 @@ use esp_hal::interrupt;
 use esp_hal::interrupt::Priority;
 use esp_hal::peripherals::Interrupt;
 use esp_hal::systimer::SystemTimer;
+use esp_hal::Blocking;
 use esp_hal::{
     clock::ClockControl,
     delay::Delay,
@@ -36,13 +38,13 @@ use esp_hal::{
         HalfDuplexMode, SpiDataMode, SpiMode,
     },
 };
-use embedded_hal::digital::{OutputPin, InputPin};
 
 type QSpiDisplay<'a> = esp_hal::spi::master::dma::SpiDma<
     'a,
     esp_hal::peripherals::SPI2,
     esp_hal::dma::Channel0,
     HalfDuplexMode,
+    Blocking
 >;
 
 const MAX_DMA_TRANSFER: usize = 32736;
@@ -106,9 +108,9 @@ fn main() -> ! {
     let cs = io.pins.gpio16.into_push_pull_output();
     let mut reset = io.pins.gpio3.into_push_pull_output();
 
-    let mut te = io.pins.gpio17.into_pull_down_input();
-    te.listen(esp_hal::gpio::Event::RisingEdge);
-    critical_section::with(|cs| TE.borrow_ref_mut(cs).replace(te));
+    let mut te_pin = io.pins.gpio17.into_pull_down_input();
+    te_pin.listen(esp_hal::gpio::Event::RisingEdge);
+    critical_section::with(|cs| TE.borrow_ref_mut(cs).replace(te_pin));
 
     let dma = Dma::new(peripherals.DMA);
 
@@ -131,9 +133,9 @@ fn main() -> ! {
             &mut rx_descriptors,
             DmaPriority::Priority0,
         ));
-    reset.set_low().unwrap();
+    reset.set_low();
     delay.delay_millis(300u32);
-    reset.set_high().unwrap();
+    reset.set_high();
     delay.delay_millis(300u32);
 
     // initialization commands
@@ -142,7 +144,7 @@ fn main() -> ! {
     }
     log::info!("Finished initializing display!");
 
-    let pixels = unsafe { &mut FRAME_BUFFER };
+    let pixels = unsafe { &mut *addr_of_mut!(FRAME_BUFFER) };
     /*
        Matrix
     */
@@ -171,20 +173,20 @@ fn main() -> ! {
     ];
 
     let _guard = cpu_control
-        .start_app_core(unsafe { &mut APP_CORE_STACK }, move || {
+        .start_app_core(unsafe { &mut *addr_of_mut!(APP_CORE_STACK) }, move || {
             let mut last = (usize::MAX, usize::MAX);
             loop {
                 for (x, c) in columns.iter_mut().enumerate() {
                     for (y, r) in rows.iter_mut().enumerate() {
-                        c.set_high().unwrap();
-                        if r.is_high().unwrap() {
+                        c.set_high();
+                        if r.is_high() {
                             let current = (x, y);
                             if current != last {
                                 last = current;
                                 log::info!("({x}, {y}) is pressed!");
                             }
                         }
-                        c.set_low().unwrap();
+                        c.set_low();
                         // small debounce - is this needed?
                         // perhaps polling at too high of a rate we run into
                         // gpio switching frequency issues, or maybe even capacitance in the trace
@@ -240,14 +242,16 @@ fn main() -> ! {
 
 #[ram]
 #[handler]
-unsafe fn te() {
-    static mut LAST: u64 = 0;
-    let now = SystemTimer::now();
-    log::trace!(
-        "TE fired! Interval: {}ms",
-        (now - LAST) / (SystemTimer::TICKS_PER_SECOND / 1024)
-    );
-    LAST = now;
+fn te() {
+    unsafe {
+        static mut LAST: u64 = 0;
+        let now = SystemTimer::now();
+        log::trace!(
+            "TE fired! Interval: {}ms",
+            (now - LAST) / (SystemTimer::TICKS_PER_SECOND / 1024)
+        );
+        LAST = now;
+    }
     critical_section::with(|cs| TE.borrow_ref_mut(cs).as_mut().unwrap().clear_interrupt());
     TE_READY.store(true, Ordering::SeqCst);
 }
@@ -270,7 +274,7 @@ fn lcd_fill<'a>(spi: &mut QSpiDisplay<'a>, pixels: &'static [u8]) {
 }
 fn lcd_write_cmd<'a>(spi: &mut QSpiDisplay<'a>, cmd: u32, data: &[u8]) {
     static mut BUF: [u8; 4] = [0u8; 4];
-    let buf = unsafe { &mut BUF };
+    let buf = unsafe { &mut *addr_of_mut!(BUF) };
     if data.len() > 0 {
         buf[..data.len()].copy_from_slice(&data);
     }
