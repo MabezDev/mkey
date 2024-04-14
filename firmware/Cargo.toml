@@ -6,11 +6,20 @@ edition = "2021"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-esp32s3-hal = "0.14.0"
-esp-backtrace = { version = "0.10.0", features = ["esp32s3", "panic-handler", "exception-handler", "print-jtag-serial"] }
-esp-println = { version = "0.8.0", default-features = false, features = ["esp32s3", "log", "jtag-serial"] }
+esp-hal = { features = ["esp32s3", "embedded-hal"], git = "https://github.com/esp-rs/esp-hal", rev = "da3375bbe47dcb659353b909fbc556a74bb64cda" }
+esp-backtrace = { version = "0.11.0", features = ["esp32s3", "panic-handler", "exception-handler", "println"] }
+esp-println = { version = "0.9.0", default-features = false, features = ["esp32s3", "log", "jtag-serial"] }
 log = { version = "0.4.20" }
+static_cell = { version = "1", features = ["nightly"] }
+embedded-graphics-core = "0.4.0"
+critical-section = "1"
+embedded-hal = "1"
 
+tinygif = "0.0.4"
+embedded-graphics = "0.8.1"
+
+[patch.crates-io]
+esp32s3 = { git = "https://github.com/esp-rs/esp-pacs", rev = "a8a8340" }
 
 
 [features]
@@ -18,3 +27,12 @@ log = { version = "0.4.20" }
 # In the future we may wish to auto detect this based on either fw metadata
 default = ["usb-pin-exchange"]
 usb-pin-exchange = []
+
+[profile.release]
+codegen-units = 1 # LLVM can perform better optimizations using a single thread
+debug = 2
+debug-assertions = false
+incremental = false
+lto = 'fat'
+opt-level = 's'
+overflow-checks = false
