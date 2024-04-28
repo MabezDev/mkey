@@ -6,7 +6,7 @@ edition = "2021"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-esp-hal = { features = ["esp32s3", "embedded-hal"], git = "https://github.com/esp-rs/esp-hal", rev = "da3375bbe47dcb659353b909fbc556a74bb64cda" }
+esp-hal = { features = ["esp32s3", "embedded-hal"], git = "https://github.com/esp-rs/esp-hal", rev = "03548807fc7621ce083f4e91d8aed03ef27a7fd8" }
 esp-backtrace = { version = "0.11.0", features = ["esp32s3", "panic-handler", "exception-handler", "println"] }
 esp-println = { version = "0.9.0", default-features = false, features = ["esp32s3", "log", "jtag-serial"] }
 log = { version = "0.4.20" }
@@ -17,10 +17,6 @@ embedded-hal = "1"
 
 tinygif = "0.0.4"
 embedded-graphics = "0.8.1"
-
-[patch.crates-io]
-esp32s3 = { git = "https://github.com/esp-rs/esp-pacs", rev = "a8a8340" }
-
 
 [features]
 # usb-pin-exchange is enabled by default for now, until we have a new revision of the hardware

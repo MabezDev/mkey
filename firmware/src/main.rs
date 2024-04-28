@@ -21,15 +21,17 @@ use esp_hal::cpu_control::CpuControl;
 use esp_hal::cpu_control::Stack;
 use esp_hal::dma::{Dma, DmaPriority};
 use esp_hal::dma_descriptors;
+use esp_hal::gpio::PullUp;
 use esp_hal::interrupt;
 use esp_hal::interrupt::Priority;
 use esp_hal::peripherals::Interrupt;
+use esp_hal::system::SystemControl;
 use esp_hal::systimer::SystemTimer;
 use esp_hal::Blocking;
 use esp_hal::{
     clock::ClockControl,
     delay::Delay,
-    gpio::IO,
+    gpio::Io,
     gpio::{AnyPin, Input, Output, PullDown, PushPull},
     peripherals::Peripherals,
     prelude::*,
@@ -44,7 +46,7 @@ type QSpiDisplay<'a> = esp_hal::spi::master::dma::SpiDma<
     esp_hal::peripherals::SPI2,
     esp_hal::dma::Channel0,
     HalfDuplexMode,
-    Blocking
+    Blocking,
 >;
 
 const MAX_DMA_TRANSFER: usize = 32736;
@@ -89,14 +91,14 @@ fn main() -> ! {
         });
     }
 
-    let system = peripherals.SYSTEM.split();
+    let system = SystemControl::new(peripherals.SYSTEM);
 
     let clocks = ClockControl::max(system.clock_control).freeze();
-    let mut cpu_control = CpuControl::new(system.cpu_control);
+    let mut cpu_control = CpuControl::new(peripherals.CPU_CTRL);
 
     let delay = Delay::new(&clocks);
 
-    let mut io = IO::new(peripherals.GPIO, peripherals.IO_MUX);
+    let mut io = Io::new(peripherals.GPIO, peripherals.IO_MUX);
     io.set_interrupt_handler(te);
     interrupt::enable(Interrupt::GPIO, Priority::Priority2).unwrap();
 
@@ -148,50 +150,47 @@ fn main() -> ! {
     /*
        Matrix
     */
-    let columns: &mut [AnyPin<Output<PushPull>>] = &mut [
-        io.pins.gpio2.into_push_pull_output().into(),  // 0
-        io.pins.gpio43.into_push_pull_output().into(), // 1
-        io.pins.gpio44.into_push_pull_output().into(), // 2
-        io.pins.gpio38.into_push_pull_output().into(), // 3
-        io.pins.gpio37.into_push_pull_output().into(), // 4
-        io.pins.gpio36.into_push_pull_output().into(), // 5
-        io.pins.gpio48.into_push_pull_output().into(), // 6
-        io.pins.gpio47.into_push_pull_output().into(), // 7
-        io.pins.gpio21.into_push_pull_output().into(), // 8
-        io.pins.gpio14.into_push_pull_output().into(), // 9
-        io.pins.gpio13.into_push_pull_output().into(), // 10
-        io.pins.gpio12.into_push_pull_output().into(), // 11
-        io.pins.gpio11.into_push_pull_output().into(), // 12
-        io.pins.gpio10.into_push_pull_output().into(), // 13
+    let columns: &mut [AnyPin<Input<PullUp>>] = &mut [
+        io.pins.gpio2.into_pull_up_input().into(),  // 0
+        io.pins.gpio43.into_pull_up_input().into(), // 1
+        io.pins.gpio44.into_pull_up_input().into(), // 2
+        io.pins.gpio38.into_pull_up_input().into(), // 3
+        io.pins.gpio37.into_pull_up_input().into(), // 4
+        io.pins.gpio36.into_pull_up_input().into(), // 5
+        io.pins.gpio48.into_pull_up_input().into(), // 6
+        io.pins.gpio47.into_pull_up_input().into(), // 7
+        io.pins.gpio21.into_pull_up_input().into(), // 8
+        io.pins.gpio14.into_pull_up_input().into(), // 9
+        io.pins.gpio13.into_pull_up_input().into(), // 10
+        io.pins.gpio12.into_pull_up_input().into(), // 11
+        io.pins.gpio11.into_pull_up_input().into(), // 12
+        io.pins.gpio10.into_pull_up_input().into(), // 13
     ];
-    let rows: &mut [AnyPin<Input<PullDown>>] = &mut [
-        io.pins.gpio1.into_pull_down_input().into(),  // 0
-        io.pins.gpio35.into_pull_down_input().into(), // 1
-        io.pins.gpio45.into_pull_down_input().into(), // 2
-        io.pins.gpio9.into_pull_down_input().into(),  // 3
-        io.pins.gpio46.into_pull_down_input().into(), // 4
+    let rows: &mut [AnyPin<Output<PushPull>>] = &mut [
+        io.pins.gpio1.into_push_pull_output().into(),  // 0
+        io.pins.gpio35.into_push_pull_output().into(), // 1
+        io.pins.gpio45.into_push_pull_output().into(), // 2
+        io.pins.gpio9.into_push_pull_output().into(),  // 3
+        io.pins.gpio46.into_push_pull_output().into(), // 4
     ];
 
     let _guard = cpu_control
         .start_app_core(unsafe { &mut *addr_of_mut!(APP_CORE_STACK) }, move || {
             let mut last = (usize::MAX, usize::MAX);
             loop {
-                for (x, c) in columns.iter_mut().enumerate() {
-                    for (y, r) in rows.iter_mut().enumerate() {
-                        c.set_high();
-                        if r.is_high() {
+                for (y, row) in rows.iter_mut().enumerate() {
+                    row.set_low();
+                    delay.delay_micros(1);
+                    for (x, col) in columns.iter_mut().enumerate() {
+                        if col.is_low() {
                             let current = (x, y);
                             if current != last {
                                 last = current;
                                 log::info!("({x}, {y}) is pressed!");
                             }
                         }
-                        c.set_low();
-                        // small debounce - is this needed?
-                        // perhaps polling at too high of a rate we run into
-                        // gpio switching frequency issues, or maybe even capacitance in the trace
-                        delay.delay_micros(50);
                     }
+                    row.set_high();
                 }
             }
         })
