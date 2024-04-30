@@ -8,6 +8,11 @@ use core::sync::atomic::AtomicBool;
 
 use core::sync::atomic::Ordering;
 use critical_section::Mutex;
+use embassy_futures::join::join;
+use embassy_sync::blocking_mutex::raw::NoopRawMutex;
+use embassy_sync::signal::Signal;
+use embassy_time::Duration;
+use embassy_time::Timer;
 use embedded_graphics::framebuffer::buffer_size;
 use embedded_graphics::framebuffer::Framebuffer;
 use embedded_graphics::geometry::Point;
@@ -21,15 +26,21 @@ use esp_hal::cpu_control::CpuControl;
 use esp_hal::cpu_control::Stack;
 use esp_hal::dma::{Dma, DmaPriority};
 use esp_hal::dma_descriptors;
+use esp_hal::embassy::{self, executor::Executor};
+use esp_hal::gpio::PullUp;
 use esp_hal::interrupt;
 use esp_hal::interrupt::Priority;
+use esp_hal::otg_fs;
+use esp_hal::otg_fs::asynch::{Config, Driver};
+use esp_hal::otg_fs::Usb;
 use esp_hal::peripherals::Interrupt;
+use esp_hal::system::SystemControl;
 use esp_hal::systimer::SystemTimer;
 use esp_hal::Blocking;
 use esp_hal::{
     clock::ClockControl,
     delay::Delay,
-    gpio::IO,
+    gpio::Io,
     gpio::{AnyPin, Input, Output, PullDown, PushPull},
     peripherals::Peripherals,
     prelude::*,
@@ -38,13 +49,23 @@ use esp_hal::{
         HalfDuplexMode, SpiDataMode, SpiMode,
     },
 };
+use static_cell::make_static;
+
+use embassy_usb::class::hid::{HidReaderWriter, ReportId, RequestHandler, State};
+use embassy_usb::control::OutResponse;
+use embassy_usb::{Builder, Handler};
+use usbd_hid::descriptor::KeyboardReport;
+use usbd_hid::descriptor::SerializedDescriptor;
+
+// MUST be the first module so other modules see the macros
+pub mod fmt;
 
 type QSpiDisplay<'a> = esp_hal::spi::master::dma::SpiDma<
     'a,
     esp_hal::peripherals::SPI2,
     esp_hal::dma::Channel0,
     HalfDuplexMode,
-    Blocking
+    Blocking,
 >;
 
 const MAX_DMA_TRANSFER: usize = 32736;
@@ -89,14 +110,14 @@ fn main() -> ! {
         });
     }
 
-    let system = peripherals.SYSTEM.split();
-
+    let system = SystemControl::new(peripherals.SYSTEM);
     let clocks = ClockControl::max(system.clock_control).freeze();
-    let mut cpu_control = CpuControl::new(system.cpu_control);
+    embassy::init(&clocks, SystemTimer::new_async(peripherals.SYSTIMER));
 
+    let mut cpu_control = CpuControl::new(peripherals.CPU_CTRL);
     let delay = Delay::new(&clocks);
 
-    let mut io = IO::new(peripherals.GPIO, peripherals.IO_MUX);
+    let mut io = Io::new(peripherals.GPIO, peripherals.IO_MUX);
     io.set_interrupt_handler(te);
     interrupt::enable(Interrupt::GPIO, Priority::Priority2).unwrap();
 
@@ -148,52 +169,39 @@ fn main() -> ! {
     /*
        Matrix
     */
-    let columns: &mut [AnyPin<Output<PushPull>>] = &mut [
-        io.pins.gpio2.into_push_pull_output().into(),  // 0
-        io.pins.gpio43.into_push_pull_output().into(), // 1
-        io.pins.gpio44.into_push_pull_output().into(), // 2
-        io.pins.gpio38.into_push_pull_output().into(), // 3
-        io.pins.gpio37.into_push_pull_output().into(), // 4
-        io.pins.gpio36.into_push_pull_output().into(), // 5
-        io.pins.gpio48.into_push_pull_output().into(), // 6
-        io.pins.gpio47.into_push_pull_output().into(), // 7
-        io.pins.gpio21.into_push_pull_output().into(), // 8
-        io.pins.gpio14.into_push_pull_output().into(), // 9
-        io.pins.gpio13.into_push_pull_output().into(), // 10
-        io.pins.gpio12.into_push_pull_output().into(), // 11
-        io.pins.gpio11.into_push_pull_output().into(), // 12
-        io.pins.gpio10.into_push_pull_output().into(), // 13
-    ];
-    let rows: &mut [AnyPin<Input<PullDown>>] = &mut [
-        io.pins.gpio1.into_pull_down_input().into(),  // 0
-        io.pins.gpio35.into_pull_down_input().into(), // 1
-        io.pins.gpio45.into_pull_down_input().into(), // 2
-        io.pins.gpio9.into_pull_down_input().into(),  // 3
-        io.pins.gpio46.into_pull_down_input().into(), // 4
-    ];
+    let columns: &mut [AnyPin<Input<PullUp>>] = make_static!([
+        io.pins.gpio2.into_pull_up_input().into(),  // 0
+        io.pins.gpio43.into_pull_up_input().into(), // 1
+        io.pins.gpio44.into_pull_up_input().into(), // 2
+        io.pins.gpio38.into_pull_up_input().into(), // 3
+        io.pins.gpio37.into_pull_up_input().into(), // 4
+        io.pins.gpio36.into_pull_up_input().into(), // 5
+        io.pins.gpio48.into_pull_up_input().into(), // 6
+        io.pins.gpio47.into_pull_up_input().into(), // 7
+        io.pins.gpio21.into_pull_up_input().into(), // 8
+        io.pins.gpio14.into_pull_up_input().into(), // 9
+        io.pins.gpio13.into_pull_up_input().into(), // 10
+        io.pins.gpio12.into_pull_up_input().into(), // 11
+        io.pins.gpio11.into_pull_up_input().into(), // 12
+        io.pins.gpio10.into_pull_up_input().into(), // 13
+    ]);
+    let rows: &mut [AnyPin<Output<PushPull>>] = make_static!([
+        io.pins.gpio1.into_push_pull_output().into(),  // 0
+        io.pins.gpio35.into_push_pull_output().into(), // 1
+        io.pins.gpio45.into_push_pull_output().into(), // 2
+        io.pins.gpio9.into_push_pull_output().into(),  // 3
+        io.pins.gpio46.into_push_pull_output().into(), // 4
+    ]);
 
     let _guard = cpu_control
         .start_app_core(unsafe { &mut *addr_of_mut!(APP_CORE_STACK) }, move || {
-            let mut last = (usize::MAX, usize::MAX);
-            loop {
-                for (x, c) in columns.iter_mut().enumerate() {
-                    for (y, r) in rows.iter_mut().enumerate() {
-                        c.set_high();
-                        if r.is_high() {
-                            let current = (x, y);
-                            if current != last {
-                                last = current;
-                                log::info!("({x}, {y}) is pressed!");
-                            }
-                        }
-                        c.set_low();
-                        // small debounce - is this needed?
-                        // perhaps polling at too high of a rate we run into
-                        // gpio switching frequency issues, or maybe even capacitance in the trace
-                        delay.delay_micros(50);
-                    }
-                }
-            }
+            let device = Usb::new(peripherals.USB0, io.pins.gpio19, io.pins.gpio20);
+            let signal = &*make_static!(Signal::new());
+            let executor = make_static!(Executor::new());
+            executor.run(|spawner| {
+                spawner.must_spawn(matrix(columns, rows, signal));
+                spawner.must_spawn(usb(device, signal));
+            });
         })
         .unwrap();
 
@@ -236,6 +244,186 @@ fn main() -> ! {
                 log::info!("FPS: {}", frames);
                 frames = 0;
             }
+        }
+    }
+}
+
+#[embassy_executor::task]
+async fn usb(usb: otg_fs::Usb<'static>, signal: &'static Signal<NoopRawMutex, u8>) {
+    // Create the driver, from the HAL.
+    let mut ep_out_buffer = [0u8; 1024];
+    let driver = Driver::new(usb, &mut ep_out_buffer, Config::default());
+
+    // Create embassy-usb DeviceBuilder using the driver and config.
+    // It needs some buffers for building the descriptors.
+    let mut config_descriptor = [0; 256];
+    let mut bos_descriptor = [0; 256];
+    // You can also add a Microsoft OS descriptor.
+    let mut msos_descriptor = [0; 256];
+    let mut control_buf = [0; 64];
+    let mut request_handler = MyRequestHandler {};
+    let mut device_handler = MyDeviceHandler::new();
+
+    let mut state = State::new();
+
+    // Create embassy-usb Config
+    let mut config = embassy_usb::Config::new(0x16c0, 0x27dd);
+    config.max_power = 100;
+    config.max_packet_size_0 = 64;
+    config.manufacturer = Some("Scott Mabin");
+    config.product = Some("mKey");
+    config.serial_number = Some("000001");
+
+    let mut builder = Builder::new(
+        driver,
+        config,
+        &mut config_descriptor,
+        &mut bos_descriptor,
+        &mut msos_descriptor,
+        &mut control_buf,
+    );
+
+    builder.handler(&mut device_handler);
+
+    // Create classes on the builder.
+    let config = embassy_usb::class::hid::Config {
+        report_descriptor: KeyboardReport::desc(),
+        request_handler: None,
+        poll_ms: 60,
+        max_packet_size: 64,
+    };
+    let hid = HidReaderWriter::<_, 1, 8>::new(&mut builder, &mut state, config);
+
+    let mut usb = builder.build();
+
+    let (reader, mut writer) = hid.split();
+
+    let in_fut = async {
+        loop {
+            let code = signal.wait().await;
+            // Create a report with the A key pressed. (no shift modifier)
+            let report = KeyboardReport {
+                keycodes: [code, 0, 0, 0, 0, 0],
+                leds: 0,
+                modifier: 0,
+                reserved: 0,
+            };
+            // Send the report.
+            match writer.write_serialize(&report).await {
+                Ok(()) => {}
+                Err(e) => warn!("Failed to send report: {:?}", e),
+            };
+            Timer::after_micros(500).await; // simulate a release
+            let report = KeyboardReport {
+                keycodes: [0, 0, 0, 0, 0, 0],
+                leds: 0,
+                modifier: 0,
+                reserved: 0,
+            };
+            match writer.write_serialize(&report).await {
+                Ok(()) => {}
+                Err(e) => warn!("Failed to send report: {:?}", e),
+            };
+        }
+    };
+
+    let out_fut = async {
+        reader.run(false, &mut request_handler).await;
+    };
+
+    // Run everything concurrently.
+    // If we had made everything `'static` above instead, we could do this using separate tasks instead.
+    join(usb.run(), join(in_fut, out_fut)).await;
+}
+#[embassy_executor::task]
+async fn matrix(
+    columns: &'static mut [AnyPin<Input<PullUp>>],
+    rows: &'static mut [AnyPin<Output<PushPull>>],
+    signal: &'static Signal<NoopRawMutex, u8>,
+) -> ! {
+    let mut last = (usize::MAX, usize::MAX);
+    loop {
+        for (y, row) in rows.iter_mut().enumerate() {
+            row.set_low();
+            Timer::after(Duration::from_micros(1)).await;
+            for (x, col) in columns.iter_mut().enumerate() {
+                if col.is_low() {
+                    let current = (x, y);
+                    if current != last {
+                        last = current;
+                        log::info!("({x}, {y}) is pressed!");
+                        signal.signal(4); // always send "a" for now
+                    }
+                }
+            }
+            row.set_high();
+        }
+    }
+}
+
+struct MyRequestHandler {}
+
+impl RequestHandler for MyRequestHandler {
+    fn get_report(&mut self, id: ReportId, _buf: &mut [u8]) -> Option<usize> {
+        info!("Get report for {:?}", id);
+        None
+    }
+
+    fn set_report(&mut self, id: ReportId, data: &[u8]) -> OutResponse {
+        info!("Set report for {:?}: {:?}", id, data);
+        OutResponse::Accepted
+    }
+
+    fn set_idle_ms(&mut self, id: Option<ReportId>, dur: u32) {
+        info!("Set idle rate for {:?} to {:?}", id, dur);
+    }
+
+    fn get_idle_ms(&mut self, id: Option<ReportId>) -> Option<u32> {
+        info!("Get idle rate for {:?}", id);
+        None
+    }
+}
+
+struct MyDeviceHandler {
+    configured: AtomicBool,
+}
+
+impl MyDeviceHandler {
+    fn new() -> Self {
+        MyDeviceHandler {
+            configured: AtomicBool::new(false),
+        }
+    }
+}
+
+impl Handler for MyDeviceHandler {
+    fn enabled(&mut self, enabled: bool) {
+        self.configured.store(false, Ordering::Relaxed);
+        if enabled {
+            info!("Device enabled");
+        } else {
+            info!("Device disabled");
+        }
+    }
+
+    fn reset(&mut self) {
+        self.configured.store(false, Ordering::Relaxed);
+        info!("Bus reset, the Vbus current limit is 100mA");
+    }
+
+    fn addressed(&mut self, addr: u8) {
+        self.configured.store(false, Ordering::Relaxed);
+        info!("USB address set to: {}", addr);
+    }
+
+    fn configured(&mut self, configured: bool) {
+        self.configured.store(configured, Ordering::Relaxed);
+        if configured {
+            info!(
+                "Device configured, it may now draw up to the configured current limit from Vbus."
+            )
+        } else {
+            info!("Device is no longer configured, the Vbus current limit is 100mA.");
         }
     }
 }
