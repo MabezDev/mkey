@@ -6,7 +6,7 @@ edition = "2021"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-esp-hal = { features = ["esp32s3", "embedded-hal"], git = "https://github.com/esp-rs/esp-hal", rev = "03548807fc7621ce083f4e91d8aed03ef27a7fd8" }
+esp-hal = { features = ["esp32s3", "embassy", "async", "embassy-time-systick-16mhz", "embassy-executor-thread"], git = "https://github.com/bugadani/esp-hal", rev = "8e84e6d358b31b25b41cb0bb7a0570df99e613bf" }
 esp-backtrace = { version = "0.11.0", features = ["esp32s3", "panic-handler", "exception-handler", "println"] }
 esp-println = { version = "0.9.0", default-features = false, features = ["esp32s3", "log", "jtag-serial"] }
 log = { version = "0.4.20" }
@@ -15,14 +15,27 @@ embedded-graphics-core = "0.4.0"
 critical-section = "1"
 embedded-hal = "1"
 
+embassy-time = "0.3"
+embassy-executor = { version = "0.5", features = ["integrated-timers"] }
+embassy-usb = { version = "0.2.0", default-features = false, features = ["usbd-hid"] }
+usbd-hid = "0.7.0"
+embassy-futures = "0.1"
+embassy-sync = "0.5"
+
 tinygif = "0.0.4"
 embedded-graphics = "0.8.1"
+
+[patch.crates-io]
+embassy-usb = { git = "https://github.com/embassy-rs/embassy.git" }
+usbd-hid = { git = "https://github.com/twitchyliquid64/usbd-hid" }
 
 [features]
 # usb-pin-exchange is enabled by default for now, until we have a new revision of the hardware
 # In the future we may wish to auto detect this based on either fw metadata
-default = ["usb-pin-exchange"]
+default = ["usb-pin-exchange", "log"]
 usb-pin-exchange = []
+log = []
+defmt = []
 
 [profile.release]
 codegen-units = 1 # LLVM can perform better optimizations using a single thread
