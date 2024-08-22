@@ -24,10 +24,13 @@ use embedded_graphics_core::pixelcolor::Rgb565;
 use esp_backtrace as _;
 use esp_hal::cpu_control::CpuControl;
 use esp_hal::cpu_control::Stack;
+use esp_hal::dma::DmaRxBuf;
+use esp_hal::dma::DmaTxBuf;
+use esp_hal::spi::master::HalfDuplexReadWrite;
 use esp_hal::dma::{Dma, DmaPriority};
+use esp_hal::dma_buffers;
 use esp_hal::dma_descriptors;
-use esp_hal::embassy::{self, executor::Executor};
-use esp_hal::gpio::PullUp;
+use esp_hal::gpio::Level;
 use esp_hal::interrupt;
 use esp_hal::interrupt::Priority;
 use esp_hal::otg_fs;
@@ -35,13 +38,14 @@ use esp_hal::otg_fs::asynch::{Config, Driver};
 use esp_hal::otg_fs::Usb;
 use esp_hal::peripherals::Interrupt;
 use esp_hal::system::SystemControl;
-use esp_hal::systimer::SystemTimer;
+use esp_hal::timer::systimer::SystemTimer;
+use esp_hal::timer::systimer::Target;
 use esp_hal::Blocking;
 use esp_hal::{
     clock::ClockControl,
     delay::Delay,
     gpio::Io,
-    gpio::{AnyPin, Input, Output, PullDown, PushPull},
+    gpio::{any_pin::AnyPin, Input, Output, Pull},
     peripherals::Peripherals,
     prelude::*,
     spi::{
@@ -49,6 +53,7 @@ use esp_hal::{
         HalfDuplexMode, SpiDataMode, SpiMode,
     },
 };
+use esp_hal_embassy::{self, Executor};
 use static_cell::make_static;
 
 use embassy_usb::class::hid::{HidReaderWriter, ReportId, RequestHandler, State};
@@ -60,10 +65,10 @@ use usbd_hid::descriptor::SerializedDescriptor;
 // MUST be the first module so other modules see the macros
 pub mod fmt;
 
-type QSpiDisplay<'a> = esp_hal::spi::master::dma::SpiDma<
+type QSpiDisplay<'a> = esp_hal::spi::master::dma::SpiDmaBus<
     'a,
     esp_hal::peripherals::SPI2,
-    esp_hal::dma::Channel0,
+    esp_hal::dma::DmaChannel0,
     HalfDuplexMode,
     Blocking,
 >;
@@ -72,7 +77,7 @@ const MAX_DMA_TRANSFER: usize = 32736;
 const WIDTH: usize = 356;
 const HEIGHT: usize = 400;
 
-static TE: Mutex<RefCell<Option<esp_hal::gpio::Gpio17<Input<PullDown>>>>> =
+static TE: Mutex<RefCell<Option<Input<'static, esp_hal::gpio::Gpio17>>>> =
     Mutex::new(RefCell::new(None));
 
 static TE_READY: AtomicBool = AtomicBool::new(false);
@@ -112,7 +117,8 @@ fn main() -> ! {
 
     let system = SystemControl::new(peripherals.SYSTEM);
     let clocks = ClockControl::max(system.clock_control).freeze();
-    embassy::init(&clocks, SystemTimer::new_async(peripherals.SYSTIMER));
+    let sys = SystemTimer::new(peripherals.SYSTIMER).split::<Target>();
+    esp_hal_embassy::init(&clocks, sys.alarm0);
 
     let mut cpu_control = CpuControl::new(peripherals.CPU_CTRL);
     let delay = Delay::new(&clocks);
@@ -126,17 +132,17 @@ fn main() -> ! {
     let sio1 = io.pins.gpio5;
     let sio2 = io.pins.gpio15;
     let sio3 = io.pins.gpio7;
-    let cs = io.pins.gpio16.into_push_pull_output();
-    let mut reset = io.pins.gpio3.into_push_pull_output();
+    let cs = io.pins.gpio16;
+    let mut reset = Output::new(io.pins.gpio3, Level::Low);
 
-    let mut te_pin = io.pins.gpio17.into_pull_down_input();
+    let mut te_pin: Input<_> = Input::new(io.pins.gpio17, Pull::Down);
     te_pin.listen(esp_hal::gpio::Event::RisingEdge);
     critical_section::with(|cs| TE.borrow_ref_mut(cs).replace(te_pin));
 
     let dma = Dma::new(peripherals.DMA);
 
-    let (mut tx_descriptors, mut rx_descriptors) =
-        dma_descriptors!(MAX_DMA_TRANSFER, MAX_DMA_TRANSFER);
+    let (tx_buffer, tx_descriptors, _, _) =
+        dma_buffers!(MAX_DMA_TRANSFER, 0);
 
     // Half-Duplex because the display will only send a response once the master has finished
     let mut spi = Spi::new_half_duplex(peripherals.SPI2, 80u32.MHz(), SpiMode::Mode3, &clocks)
@@ -148,12 +154,12 @@ fn main() -> ! {
             Some(sio3),
             Some(cs),
         )
-        .with_dma(dma.channel0.configure(
-            false,
-            &mut tx_descriptors,
-            &mut rx_descriptors,
-            DmaPriority::Priority0,
-        ));
+        .with_dma(dma.channel0.configure(false, DmaPriority::Priority0))
+        .with_buffers(
+            DmaTxBuf::new(tx_descriptors, tx_buffer).unwrap(),
+            DmaRxBuf::empty(),
+        );
+
     reset.set_low();
     delay.delay_millis(300u32);
     reset.set_high();
@@ -169,38 +175,38 @@ fn main() -> ! {
     /*
        Matrix
     */
-    let columns: &mut [AnyPin<Input<PullUp>>] = make_static!([
-        io.pins.gpio2.into_pull_up_input().into(),  // 0
-        io.pins.gpio43.into_pull_up_input().into(), // 1
-        io.pins.gpio44.into_pull_up_input().into(), // 2
-        io.pins.gpio38.into_pull_up_input().into(), // 3
-        io.pins.gpio37.into_pull_up_input().into(), // 4
-        io.pins.gpio36.into_pull_up_input().into(), // 5
-        io.pins.gpio48.into_pull_up_input().into(), // 6
-        io.pins.gpio47.into_pull_up_input().into(), // 7
-        io.pins.gpio21.into_pull_up_input().into(), // 8
-        io.pins.gpio14.into_pull_up_input().into(), // 9
-        io.pins.gpio13.into_pull_up_input().into(), // 10
-        io.pins.gpio12.into_pull_up_input().into(), // 11
-        io.pins.gpio11.into_pull_up_input().into(), // 12
-        io.pins.gpio10.into_pull_up_input().into(), // 13
+    let columns: &mut [Input<'static, AnyPin<'static>>] = make_static!([
+        Input::new(AnyPin::new(io.pins.gpio2), Pull::Up), // 0
+        Input::new(AnyPin::new(io.pins.gpio43), Pull::Up), // 1
+        Input::new(AnyPin::new(io.pins.gpio44), Pull::Up), // 2
+        Input::new(AnyPin::new(io.pins.gpio38), Pull::Up), // 3
+        Input::new(AnyPin::new(io.pins.gpio37), Pull::Up), // 4
+        Input::new(AnyPin::new(io.pins.gpio36), Pull::Up), // 5
+        Input::new(AnyPin::new(io.pins.gpio48), Pull::Up), // 6
+        Input::new(AnyPin::new(io.pins.gpio47), Pull::Up), // 7
+        Input::new(AnyPin::new(io.pins.gpio21), Pull::Up), // 8
+        Input::new(AnyPin::new(io.pins.gpio14), Pull::Up), // 9
+        Input::new(AnyPin::new(io.pins.gpio13), Pull::Up), // 10
+        Input::new(AnyPin::new(io.pins.gpio12), Pull::Up), // 11
+        Input::new(AnyPin::new(io.pins.gpio11), Pull::Up), // 12
+        Input::new(AnyPin::new(io.pins.gpio10), Pull::Up), // 13
     ]);
-    let rows: &mut [AnyPin<Output<PushPull>>] = make_static!([
-        io.pins.gpio1.into_push_pull_output().into(),  // 0
-        io.pins.gpio35.into_push_pull_output().into(), // 1
-        io.pins.gpio45.into_push_pull_output().into(), // 2
-        io.pins.gpio9.into_push_pull_output().into(),  // 3
-        io.pins.gpio46.into_push_pull_output().into(), // 4
+    let rows: &mut [Output<'static, AnyPin<'static>>] = make_static!([
+        Output::new(AnyPin::new(io.pins.gpio1), Level::Low), // 0
+        Output::new(AnyPin::new(io.pins.gpio35), Level::Low), // 1
+        Output::new(AnyPin::new(io.pins.gpio45), Level::Low), // 2
+        Output::new(AnyPin::new(io.pins.gpio9), Level::Low), // 3
+        Output::new(AnyPin::new(io.pins.gpio46), Level::Low), // 4
     ]);
 
     let _guard = cpu_control
         .start_app_core(unsafe { &mut *addr_of_mut!(APP_CORE_STACK) }, move || {
-            let device = Usb::new(peripherals.USB0, io.pins.gpio19, io.pins.gpio20);
+            let device = Usb::new(peripherals.USB0, io.pins.gpio20, io.pins.gpio19);
             let signal = &*make_static!(Signal::new());
             let executor = make_static!(Executor::new());
             executor.run(|spawner| {
                 spawner.must_spawn(matrix(columns, rows, signal));
-                spawner.must_spawn(usb(device, signal));
+                // spawner.must_spawn(usb(device, signal));
             });
         })
         .unwrap();
@@ -220,7 +226,7 @@ fn main() -> ! {
             // TE_READY won't get set until we mark that we're ready to flush a buffer
             critical_section::with(|cs| {
                 TE_READY.store(false, Ordering::SeqCst);
-                TE.borrow_ref_mut(cs).as_mut().unwrap().clear_interrupt();
+                // TE.borrow_ref_mut(cs).as_mut().unwrap().clear_interrupt();
             });
             // wait for next sync
             while !TE_READY.load(Ordering::SeqCst) {}
@@ -235,11 +241,11 @@ fn main() -> ! {
             lcd_fill(&mut spi, pixels);
             log::trace!(
                 "Time to fill display: {}ms",
-                (SystemTimer::now() - now) / (SystemTimer::TICKS_PER_SECOND / 1024)
+                (SystemTimer::now() - now) / (SystemTimer::ticks_per_second() / 1024)
             );
             frames += 1;
             let now = SystemTimer::now();
-            if now.wrapping_sub(start) > SystemTimer::TICKS_PER_SECOND {
+            if now.wrapping_sub(start) > SystemTimer::ticks_per_second() {
                 start = now;
                 log::info!("FPS: {}", frames);
                 frames = 0;
@@ -308,22 +314,22 @@ async fn usb(usb: otg_fs::Usb<'static>, signal: &'static Signal<NoopRawMutex, u8
                 modifier: 0,
                 reserved: 0,
             };
-            // Send the report.
-            match writer.write_serialize(&report).await {
-                Ok(()) => {}
-                Err(e) => warn!("Failed to send report: {:?}", e),
-            };
-            Timer::after_micros(500).await; // simulate a release
-            let report = KeyboardReport {
-                keycodes: [0, 0, 0, 0, 0, 0],
-                leds: 0,
-                modifier: 0,
-                reserved: 0,
-            };
-            match writer.write_serialize(&report).await {
-                Ok(()) => {}
-                Err(e) => warn!("Failed to send report: {:?}", e),
-            };
+            // // Send the report.
+            // match writer.write_serialize(&report).await {
+            //     Ok(()) => {}
+            //     Err(e) => warn!("Failed to send report: {:?}", e),
+            // };
+            // Timer::after_micros(500).await; // simulate a release
+            // let report = KeyboardReport {
+            //     keycodes: [0, 0, 0, 0, 0, 0],
+            //     leds: 0,
+            //     modifier: 0,
+            //     reserved: 0,
+            // };
+            // match writer.write_serialize(&report).await {
+            //     Ok(()) => {}
+            //     Err(e) => warn!("Failed to send report: {:?}", e),
+            // };
         }
     };
 
@@ -337,10 +343,11 @@ async fn usb(usb: otg_fs::Usb<'static>, signal: &'static Signal<NoopRawMutex, u8
 }
 #[embassy_executor::task]
 async fn matrix(
-    columns: &'static mut [AnyPin<Input<PullUp>>],
-    rows: &'static mut [AnyPin<Output<PushPull>>],
+    columns: &'static mut [Input<'static, AnyPin<'static>>],
+    rows: &'static mut [Output<'static, AnyPin<'static>>],
     signal: &'static Signal<NoopRawMutex, u8>,
 ) -> ! {
+    info!("Matrix scanning starting...");
     let mut last = (usize::MAX, usize::MAX);
     loop {
         for (y, row) in rows.iter_mut().enumerate() {
@@ -436,7 +443,7 @@ fn te() {
         let now = SystemTimer::now();
         log::trace!(
             "TE fired! Interval: {}ms",
-            (now - LAST) / (SystemTimer::TICKS_PER_SECOND / 1024)
+            (now - LAST) / (SystemTimer::ticks_per_second() / 1024)
         );
         LAST = now;
     }
@@ -446,7 +453,7 @@ fn te() {
 
 fn lcd_fill<'a>(spi: &mut QSpiDisplay<'a>, pixels: &'static [u8]) {
     set_draw_area(spi, 0, 0, WIDTH as u16 - 1, HEIGHT as u16 - 1);
-    for (i, pixels) in pixels.chunks(MAX_DMA_TRANSFER).enumerate() {
+    for (i, pixels) in pixels.chunks(MAX_DMA_TRANSFER / 2).enumerate() {
         // fifo size
         spi.write(
             SpiDataMode::Quad,
@@ -455,8 +462,6 @@ fn lcd_fill<'a>(spi: &mut QSpiDisplay<'a>, pixels: &'static [u8]) {
             0,
             &pixels,
         )
-        .unwrap()
-        .wait()
         .unwrap();
     }
 }
@@ -474,8 +479,6 @@ fn lcd_write_cmd<'a>(spi: &mut QSpiDisplay<'a>, cmd: u32, data: &[u8]) {
         0,
         &&buf[..data.len()],
     )
-    .unwrap()
-    .wait()
     .unwrap();
 }
 
