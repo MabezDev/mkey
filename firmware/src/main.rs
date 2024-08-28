@@ -26,10 +26,8 @@ use esp_hal::cpu_control::CpuControl;
 use esp_hal::cpu_control::Stack;
 use esp_hal::dma::DmaRxBuf;
 use esp_hal::dma::DmaTxBuf;
-use esp_hal::spi::master::HalfDuplexReadWrite;
 use esp_hal::dma::{Dma, DmaPriority};
 use esp_hal::dma_buffers;
-use esp_hal::dma_descriptors;
 use esp_hal::gpio::Level;
 use esp_hal::interrupt;
 use esp_hal::interrupt::Priority;
@@ -37,6 +35,7 @@ use esp_hal::otg_fs;
 use esp_hal::otg_fs::asynch::{Config, Driver};
 use esp_hal::otg_fs::Usb;
 use esp_hal::peripherals::Interrupt;
+use esp_hal::spi::master::HalfDuplexReadWrite;
 use esp_hal::system::SystemControl;
 use esp_hal::timer::systimer::SystemTimer;
 use esp_hal::timer::systimer::Target;
@@ -45,11 +44,11 @@ use esp_hal::{
     clock::ClockControl,
     delay::Delay,
     gpio::Io,
-    gpio::{any_pin::AnyPin, Input, Output, Pull},
+    gpio::{AnyPin, Input, Output, Pull},
     peripherals::Peripherals,
     prelude::*,
     spi::{
-        master::{prelude::*, Address, Command, Spi},
+        master::{Address, Command, Spi},
         HalfDuplexMode, SpiDataMode, SpiMode,
     },
 };
@@ -65,7 +64,7 @@ use usbd_hid::descriptor::SerializedDescriptor;
 // MUST be the first module so other modules see the macros
 pub mod fmt;
 
-type QSpiDisplay<'a> = esp_hal::spi::master::dma::SpiDmaBus<
+type QSpiDisplay<'a> = esp_hal::spi::master::SpiDmaBus<
     'a,
     esp_hal::peripherals::SPI2,
     esp_hal::dma::DmaChannel0,
@@ -81,7 +80,7 @@ static TE: Mutex<RefCell<Option<Input<'static, esp_hal::gpio::Gpio17>>>> =
     Mutex::new(RefCell::new(None));
 
 static TE_READY: AtomicBool = AtomicBool::new(false);
-static mut APP_CORE_STACK: Stack<16384> = Stack::new();
+static mut APP_CORE_STACK: Stack<8192> = Stack::new();
 static mut FRAME_BUFFER: Framebuffer<
     Rgb565,
     RawU16,
@@ -141,8 +140,8 @@ fn main() -> ! {
 
     let dma = Dma::new(peripherals.DMA);
 
-    let (tx_buffer, tx_descriptors, _, _) =
-        dma_buffers!(MAX_DMA_TRANSFER, 0);
+    let (tx_buffer, tx_descriptors, rx_buffer, rx_descriptors) =
+        dma_buffers!(MAX_DMA_TRANSFER / 2, 1);
 
     // Half-Duplex because the display will only send a response once the master has finished
     let mut spi = Spi::new_half_duplex(peripherals.SPI2, 80u32.MHz(), SpiMode::Mode3, &clocks)
@@ -157,7 +156,7 @@ fn main() -> ! {
         .with_dma(dma.channel0.configure(false, DmaPriority::Priority0))
         .with_buffers(
             DmaTxBuf::new(tx_descriptors, tx_buffer).unwrap(),
-            DmaRxBuf::empty(),
+            DmaRxBuf::new(rx_descriptors, rx_buffer).unwrap(),
         );
 
     reset.set_low();
@@ -206,7 +205,7 @@ fn main() -> ! {
             let executor = make_static!(Executor::new());
             executor.run(|spawner| {
                 spawner.must_spawn(matrix(columns, rows, signal));
-                // spawner.must_spawn(usb(device, signal));
+                spawner.must_spawn(usb(device, signal));
             });
         })
         .unwrap();
@@ -226,7 +225,7 @@ fn main() -> ! {
             // TE_READY won't get set until we mark that we're ready to flush a buffer
             critical_section::with(|cs| {
                 TE_READY.store(false, Ordering::SeqCst);
-                // TE.borrow_ref_mut(cs).as_mut().unwrap().clear_interrupt();
+                TE.borrow_ref_mut(cs).as_mut().unwrap().clear_interrupt();
             });
             // wait for next sync
             while !TE_READY.load(Ordering::SeqCst) {}
@@ -314,22 +313,22 @@ async fn usb(usb: otg_fs::Usb<'static>, signal: &'static Signal<NoopRawMutex, u8
                 modifier: 0,
                 reserved: 0,
             };
-            // // Send the report.
-            // match writer.write_serialize(&report).await {
-            //     Ok(()) => {}
-            //     Err(e) => warn!("Failed to send report: {:?}", e),
-            // };
-            // Timer::after_micros(500).await; // simulate a release
-            // let report = KeyboardReport {
-            //     keycodes: [0, 0, 0, 0, 0, 0],
-            //     leds: 0,
-            //     modifier: 0,
-            //     reserved: 0,
-            // };
-            // match writer.write_serialize(&report).await {
-            //     Ok(()) => {}
-            //     Err(e) => warn!("Failed to send report: {:?}", e),
-            // };
+            // Send the report.
+            match writer.write_serialize(&report).await {
+                Ok(()) => {}
+                Err(e) => warn!("Failed to send report: {:?}", e),
+            };
+            Timer::after_micros(500).await; // simulate a release
+            let report = KeyboardReport {
+                keycodes: [0, 0, 0, 0, 0, 0],
+                leds: 0,
+                modifier: 0,
+                reserved: 0,
+            };
+            match writer.write_serialize(&report).await {
+                Ok(()) => {}
+                Err(e) => warn!("Failed to send report: {:?}", e),
+            };
         }
     };
 
@@ -347,7 +346,6 @@ async fn matrix(
     rows: &'static mut [Output<'static, AnyPin<'static>>],
     signal: &'static Signal<NoopRawMutex, u8>,
 ) -> ! {
-    info!("Matrix scanning starting...");
     let mut last = (usize::MAX, usize::MAX);
     loop {
         for (y, row) in rows.iter_mut().enumerate() {

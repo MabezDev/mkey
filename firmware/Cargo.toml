@@ -21,7 +21,7 @@ embedded-hal = "1"
 embassy-time = { version = "0.3", features = ["generic-queue-8"] }
 embassy-executor = { version = "0.6" }
 embassy-usb = { version = "0.3.0", default-features = false, features = ["usbd-hid"] }
-usbd-hid = "0.7.0"
+usbd-hid = "0.8.0"
 embassy-futures = "0.1"
 embassy-sync = "0.5"
 
@@ -29,11 +29,8 @@ tinygif = "0.0.4"
 embedded-graphics = "0.8.1"
 
 [patch.crates-io]
-esp-hal =         { path = "/home/mabez/development/rust/embedded/hal/esp-hal/esp-hal" }
-esp-hal-embassy = { path = "/home/mabez/development/rust/embedded/hal/esp-hal/esp-hal-embassy" }
-# esp-hal =         { git = "https://github.com/esp-rs/esp-hal", rev = "69cf454" }
-# esp-hal-embassy = { git = "https://github.com/esp-rs/esp-hal", rev = "69cf454" }
-usbd-hid = { git = "https://github.com/twitchyliquid64/usbd-hid" }
+esp-hal =         { git = "https://github.com/esp-rs/esp-hal", rev = "61bb24016651425e1535e71860973fb0097605eb" }
+esp-hal-embassy = { git = "https://github.com/esp-rs/esp-hal", rev = "61bb24016651425e1535e71860973fb0097605eb" }
 
 [features]
 # usb-pin-exchange is enabled by default for now, until we have a new revision of the hardware
