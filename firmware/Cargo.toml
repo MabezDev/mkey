@@ -33,6 +33,7 @@ embedded-graphics = "0.8.1"
 # In the future we may wish to auto detect this based on either fw metadata
 default = ["usb-pin-exchange", "log"]
 usb-pin-exchange = []
+debug-matrix = []
 log = []
 defmt = []
 

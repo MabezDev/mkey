@@ -115,6 +115,15 @@ pub async fn matrix(
                         key_state[y][x] = pressed;
                         debounce[y][x] = 0;
                         state_changed = true;
+                        #[cfg(feature = "debug-matrix")]
+                        {
+                            let (mod_bits, keycode) = KEYMAP[y][x];
+                            if pressed {
+                                info!("PRESS   row={} col={} modifier={:#04x} keycode={:#04x}", y, x, mod_bits, keycode);
+                            } else {
+                                info!("RELEASE row={} col={}", y, x);
+                            }
+                        }
                     }
                 } else {
                     debounce[y][x] = 0;
@@ -186,6 +195,22 @@ impl MyDeviceHandler {
         MyDeviceHandler {
             configured: AtomicBool::new(false),
         }
+    }
+}
+
+#[cfg(feature = "debug-matrix")]
+#[embassy_executor::task]
+pub async fn debug_consumer(
+    signal: &'static Signal<CriticalSectionRawMutex, KeyboardReport>,
+) -> ! {
+    loop {
+        let report = signal.wait().await;
+        info!(
+            "HID Report: modifier={:#04x} keycodes=[{:#04x}, {:#04x}, {:#04x}, {:#04x}, {:#04x}, {:#04x}]",
+            report.modifier,
+            report.keycodes[0], report.keycodes[1], report.keycodes[2],
+            report.keycodes[3], report.keycodes[4], report.keycodes[5],
+        );
     }
 }
 
