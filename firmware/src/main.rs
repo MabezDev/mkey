@@ -92,6 +92,36 @@ static mut FRAME_BUFFER: Framebuffer<
     { buffer_size::<Rgb565>(WIDTH, HEIGHT) },
 > = Framebuffer::new();
 
+/// Key definition: (modifier_bits, keycode)
+/// Regular keys: (0, hid_keycode), Modifiers: (mod_bit, 0), Unused: (0, 0)
+type KeyDef = (u8, u8);
+
+const fn k(code: u8) -> KeyDef {
+    (0, code)
+}
+const fn m(modifier: u8) -> KeyDef {
+    (modifier, 0)
+}
+const __: KeyDef = (0, 0);
+
+/// Keymap for 5×14 matrix — UK ISO layout
+/// HID Usage IDs: https://usb.org/sites/default/files/hut1_4.pdf (Chapter 10)
+#[rustfmt::skip]
+const KEYMAP: [[KeyDef; 14]; 5] = [
+    // Row 0: Esc     1       2       3       4       5       6       7       8       9       0       -       =       Bksp
+    [k(0x29), k(0x1E), k(0x1F), k(0x20), k(0x21), k(0x22), k(0x23), k(0x24), k(0x25), k(0x26), k(0x27), k(0x2D), k(0x2E), k(0x2A)],
+    // Row 1: Tab     Q       W       E       R       T       Y       U       I       O       P       [{      ]}      (ISO Enter top)
+    [k(0x2B), k(0x14), k(0x1A), k(0x08), k(0x15), k(0x17), k(0x1C), k(0x18), k(0x0C), k(0x12), k(0x13), k(0x2F), k(0x30), __     ],
+    // Row 2: Caps    A       S       D       F       G       H       J       K       L       ;:      '@      #~      Enter
+    [k(0x39), k(0x04), k(0x16), k(0x07), k(0x09), k(0x0A), k(0x0B), k(0x0D), k(0x0E), k(0x0F), k(0x33), k(0x34), k(0x32), k(0x28)],
+    // Row 3: LShift  \|      Z       X       C       V       B       N       M       ,<      .>      /?      RShift  Up
+    [m(0x02), k(0x64), k(0x1D), k(0x1B), k(0x06), k(0x19), k(0x05), k(0x11), k(0x10), k(0x36), k(0x37), k(0x38), m(0x20), k(0x52)],
+    // Row 4: LCtrl   LGui    LAlt    --      --      --      Space   --      --      RGui    RCtrl   Left    Down    Right
+    [m(0x01), m(0x08), m(0x04), __,     __,     __,     k(0x2C), __,    __,     m(0x80), m(0x10), k(0x50), k(0x51), k(0x4F)],
+];
+
+const DEBOUNCE_SCANS: u8 = 5;
+
 #[main]
 fn main() -> ! {
     let peripherals = esp_hal::init(esp_hal::Config::default().with_cpu_clock(CpuClock::max()));
@@ -212,7 +242,7 @@ fn main() -> ! {
         unsafe { &mut *addr_of_mut!(APP_CORE_STACK) },
         || {
             let device = Usb::new(peripherals.USB0, peripherals.GPIO20, peripherals.GPIO19);
-            let signal = &*make_static!(Signal<CriticalSectionRawMutex, u8>, Signal::new());
+            let signal = &*make_static!(Signal<CriticalSectionRawMutex, KeyboardReport>, Signal::new());
             let executor = make_static!(Executor, Executor::new());
             executor.run(|spawner| {
                 spawner.must_spawn(matrix(columns, rows, signal));
@@ -266,7 +296,7 @@ fn main() -> ! {
 }
 
 #[embassy_executor::task]
-async fn usb(usb: otg_fs::Usb<'static>, signal: &'static Signal<CriticalSectionRawMutex, u8>) {
+async fn usb(usb: otg_fs::Usb<'static>, signal: &'static Signal<CriticalSectionRawMutex, KeyboardReport>) {
     // Create the driver, from the HAL.
     let mut ep_out_buffer = [0u8; 1024];
     let driver = Driver::new(usb, &mut ep_out_buffer, Config::default());
@@ -317,26 +347,7 @@ async fn usb(usb: otg_fs::Usb<'static>, signal: &'static Signal<CriticalSectionR
 
     let in_fut = async {
         loop {
-            let code = signal.wait().await;
-            // Create a report with the A key pressed. (no shift modifier)
-            let report = KeyboardReport {
-                keycodes: [code, 0, 0, 0, 0, 0],
-                leds: 0,
-                modifier: 0,
-                reserved: 0,
-            };
-            // Send the report.
-            match writer.write_serialize(&report).await {
-                Ok(()) => {}
-                Err(e) => warn!("Failed to send report: {:?}", e),
-            };
-            Timer::after_micros(500).await; // simulate a release
-            let report = KeyboardReport {
-                keycodes: [0, 0, 0, 0, 0, 0],
-                leds: 0,
-                modifier: 0,
-                reserved: 0,
-            };
+            let report = signal.wait().await;
             match writer.write_serialize(&report).await {
                 Ok(()) => {}
                 Err(e) => warn!("Failed to send report: {:?}", e),
@@ -356,25 +367,63 @@ async fn usb(usb: otg_fs::Usb<'static>, signal: &'static Signal<CriticalSectionR
 async fn matrix(
     columns: &'static mut [Input<'static>],
     rows: &'static mut [Output<'static>],
-    signal: &'static Signal<CriticalSectionRawMutex, u8>,
+    signal: &'static Signal<CriticalSectionRawMutex, KeyboardReport>,
 ) -> ! {
-    let mut last = (usize::MAX, usize::MAX);
+    let mut key_state = [[false; 14]; 5];
+    let mut debounce = [[0u8; 14]; 5];
+
     loop {
+        let mut state_changed = false;
+
         for (y, row) in rows.iter_mut().enumerate() {
             row.set_low();
-            Timer::after(Duration::from_micros(1)).await;
+            Timer::after(Duration::from_micros(5)).await;
+
             for (x, col) in columns.iter_mut().enumerate() {
-                if col.is_low() {
-                    let current = (x, y);
-                    if current != last {
-                        last = current;
-                        log::info!("({x}, {y}) is pressed!");
-                        signal.signal(4); // always send "a" for now
+                let pressed = col.is_low();
+
+                if pressed != key_state[y][x] {
+                    debounce[y][x] = debounce[y][x].saturating_add(1);
+                    if debounce[y][x] >= DEBOUNCE_SCANS {
+                        key_state[y][x] = pressed;
+                        debounce[y][x] = 0;
+                        state_changed = true;
+                    }
+                } else {
+                    debounce[y][x] = 0;
+                }
+            }
+
+            row.set_high();
+        }
+
+        if state_changed {
+            let mut modifier = 0u8;
+            let mut keycodes = [0u8; 6];
+            let mut keycode_idx = 0usize;
+
+            for y in 0..5 {
+                for x in 0..14 {
+                    if key_state[y][x] {
+                        let (mod_bits, keycode) = KEYMAP[y][x];
+                        modifier |= mod_bits;
+                        if keycode != 0 && keycode_idx < 6 {
+                            keycodes[keycode_idx] = keycode;
+                            keycode_idx += 1;
+                        }
                     }
                 }
             }
-            row.set_high();
+
+            signal.signal(KeyboardReport {
+                modifier,
+                reserved: 0,
+                leds: 0,
+                keycodes,
+            });
         }
+
+        Timer::after(Duration::from_millis(1)).await;
     }
 }
 
