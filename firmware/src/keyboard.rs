@@ -84,10 +84,13 @@ pub async fn usb(
     signal: &'static Signal<CriticalSectionRawMutex, KeyboardReport>,
 ) {
     // All logs before builder.build() go to JTAG serial (PHY hasn't switched yet)
+    // block_for() flushes the JTAG serial FIFO before continuing
     log::info!("[USB] Creating driver...");
+    embassy_time::block_for(Duration::from_millis(10));
     let mut ep_out_buffer = [0u8; 1024];
     let driver = Driver::new(usb, &mut ep_out_buffer, Config::default());
     log::info!("[USB] Driver created");
+    embassy_time::block_for(Duration::from_millis(10));
 
     let mut config_descriptor = [0; 256];
     let mut bos_descriptor = [0; 256];
@@ -127,8 +130,9 @@ pub async fn usb(
     // This calls Bus::init() which enables USB PHY and does hardware init.
     // JTAG serial will die after this point.
     log::info!("[USB] Building device (PHY init + JTAG serial ends here)...");
+    embassy_time::block_for(Duration::from_millis(10));
     let mut usb = builder.build();
-    // If we get here, Bus::init() completed (AHB ready, core reset done)
+    // If we get past here, Bus::init() completed (AHB ready, core reset done)
 
     let (reader, mut writer) = hid.split();
 
