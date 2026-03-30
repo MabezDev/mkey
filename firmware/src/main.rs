@@ -193,9 +193,7 @@ fn main() -> ! {
                     spawner.must_spawn(keyboard::debug_consumer(signal));
                 });
             } else {
-                log::info!("Initializing USB OTG...");
                 let device = Usb::new(peripherals.USB0, peripherals.GPIO20, peripherals.GPIO19);
-                log::info!("USB OTG device created, starting executor...");
                 executor.run(|spawner| {
                     spawner.must_spawn(keyboard::matrix(columns, rows, signal));
                     spawner.must_spawn(keyboard::usb(device, signal));
