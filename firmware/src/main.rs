@@ -72,15 +72,8 @@ fn main() -> ! {
 
     let debug = cfg!(feature = "debug-matrix") || keyboard::is_debug_mode();
 
-    // Early JTAG serial for panic dump (direct write, before logger or USB OTG)
-    let mut usb_serial = esp_hal::usb_serial_jtag::UsbSerialJtag::new(peripherals.USB_DEVICE);
-    if panic::check_previous_panic() {
-        if let Some(msg) = panic::take_panic_message() {
-            let _ = usb_serial.write(b"\r\n=== PREVIOUS PANIC ===\r\n");
-            let _ = usb_serial.write(msg.as_bytes());
-            let _ = usb_serial.write(b"\r\n======================\r\n");
-        }
-    }
+    // Check for panic from previous boot — message will be sent over CDC once USB enumerates
+    panic::check_previous_panic();
 
     // Logger just pushes to a pipe — consumer (CDC or JTAG) is set up later on core 1
     log::init();
@@ -184,13 +177,13 @@ fn main() -> ! {
             let executor = make_static!(Executor, Executor::new());
 
             if debug {
+                let usb_serial = esp_hal::usb_serial_jtag::UsbSerialJtag::new(peripherals.USB_DEVICE);
                 let (_rx, tx) = usb_serial.split();
                 executor.run(|spawner| {
                     spawner.must_spawn(keyboard::matrix(columns, rows, signal));
                     spawner.must_spawn(keyboard::jtag_drain(tx));
                 });
             } else {
-                drop(usb_serial);
                 let device = Usb::new(peripherals.USB0, peripherals.GPIO20, peripherals.GPIO19);
                 executor.run(|spawner| {
                     spawner.must_spawn(keyboard::matrix(columns, rows, signal));
