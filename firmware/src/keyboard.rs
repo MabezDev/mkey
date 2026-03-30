@@ -83,15 +83,14 @@ pub async fn usb(
     usb: otg_fs::Usb<'static>,
     signal: &'static Signal<CriticalSectionRawMutex, KeyboardReport>,
 ) {
-    // Create the driver, from the HAL.
+    // All logs before builder.build() go to JTAG serial (PHY hasn't switched yet)
+    log::info!("[USB] Creating driver...");
     let mut ep_out_buffer = [0u8; 1024];
     let driver = Driver::new(usb, &mut ep_out_buffer, Config::default());
+    log::info!("[USB] Driver created");
 
-    // Create embassy-usb DeviceBuilder using the driver and config.
-    // It needs some buffers for building the descriptors.
     let mut config_descriptor = [0; 256];
     let mut bos_descriptor = [0; 256];
-    // You can also add a Microsoft OS descriptor.
     let mut msos_descriptor = [0; 256];
     let mut control_buf = [0; 64];
     let mut request_handler = MyRequestHandler {};
@@ -99,7 +98,6 @@ pub async fn usb(
 
     let mut state = State::new();
 
-    // Create embassy-usb Config
     let mut config = embassy_usb::Config::new(0x16c0, 0x27dd);
     config.max_power = 100;
     config.max_packet_size_0 = 64;
@@ -118,7 +116,6 @@ pub async fn usb(
 
     builder.handler(&mut device_handler);
 
-    // Create classes on the builder.
     let config = embassy_usb::class::hid::Config {
         report_descriptor: KeyboardReport::desc(),
         request_handler: None,
@@ -127,7 +124,11 @@ pub async fn usb(
     };
     let hid = HidReaderWriter::<_, 1, 8>::new(&mut builder, &mut state, config);
 
+    // This calls Bus::init() which enables USB PHY and does hardware init.
+    // JTAG serial will die after this point.
+    log::info!("[USB] Building device (PHY init + JTAG serial ends here)...");
     let mut usb = builder.build();
+    // If we get here, Bus::init() completed (AHB ready, core reset done)
 
     let (reader, mut writer) = hid.split();
 
