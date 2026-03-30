@@ -61,6 +61,7 @@ pub mod fmt;
 mod display;
 mod keyboard;
 mod keymap;
+mod log;
 mod panic;
 
 static mut APP_CORE_STACK: Stack<8192> = Stack::new();
@@ -69,10 +70,13 @@ static mut APP_CORE_STACK: Stack<8192> = Stack::new();
 fn main() -> ! {
     let peripherals = esp_hal::init(esp_hal::Config::default().with_cpu_clock(CpuClock::max()));
 
-    esp_println::logger::init_logger_from_env();
+    let debug = cfg!(feature = "debug-matrix") || keyboard::is_debug_mode();
+    log::init(debug);
 
-    // Dump any panic message from a previous boot (before USB takes over JTAG serial)
-    panic::check_previous_panic();
+    // Dump any panic message from a previous boot (over JTAG serial before USB takes over)
+    if panic::check_previous_panic() {
+        ::log::warn!("Previous panic detected — details above and via USB CDC");
+    }
 
     // V1.0 of the mKey has the USB DM and DP swapped.. oops. There is an EFUSE to swap the pins, yay! However,
     // it is bugged, and doesn't swap the pullups too. We can work around this by correcting the pullups early in the program,
@@ -144,7 +148,7 @@ fn main() -> ! {
     for (cmd, data) in WEA2012_INIT_CMDS {
         lcd_write_cmd(&mut spi, *cmd, data);
     }
-    log::info!("Finished initializing display!");
+    ::log::info!("Finished initializing display!");
 
     let pixels = unsafe { &mut *addr_of_mut!(FRAME_BUFFER) };
     /*
@@ -186,13 +190,12 @@ fn main() -> ! {
         sw_ints.software_interrupt0,
         sw_ints.software_interrupt1,
         unsafe { &mut *addr_of_mut!(APP_CORE_STACK) },
-        || {
-            let debug = cfg!(feature = "debug-matrix") || keyboard::is_debug_mode();
+        move || {
             let signal = &*make_static!(Signal<CriticalSectionRawMutex, KeyboardReport>, Signal::new());
             let executor = make_static!(Executor, Executor::new());
 
             if debug {
-                log::info!("Booting in debug mode (Fn+D to switch back)");
+                ::log::info!("Booting in debug mode (Fn+D to switch back)");
                 executor.run(|spawner| {
                     spawner.must_spawn(keyboard::matrix(columns, rows, signal));
                     spawner.must_spawn(keyboard::debug_consumer(signal));
@@ -235,7 +238,7 @@ fn main() -> ! {
             };
             let now = SystemTimer::unit_value(esp_hal::timer::systimer::Unit::Unit0);
             lcd_fill(&mut spi, pixels);
-            log::trace!(
+            ::log::trace!(
                 "Time to fill display: {}ms",
                 (SystemTimer::unit_value(esp_hal::timer::systimer::Unit::Unit0) - now)
                     / (SystemTimer::ticks_per_second() / 1024)
@@ -244,7 +247,7 @@ fn main() -> ! {
             let now = SystemTimer::unit_value(esp_hal::timer::systimer::Unit::Unit0);
             if now.wrapping_sub(start) > SystemTimer::ticks_per_second() {
                 start = now;
-                log::info!("FPS: {}", frames);
+                ::log::info!("FPS: {}", frames);
                 frames = 0;
             }
         }

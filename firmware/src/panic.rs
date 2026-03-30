@@ -1,5 +1,6 @@
 use core::fmt::Write;
 use core::panic::PanicInfo;
+use core::sync::atomic::{AtomicBool, Ordering};
 
 const PANIC_MAGIC: u32 = 0x50414E43; // "PANC"
 const MAX_MSG_LEN: usize = 250;
@@ -12,6 +13,11 @@ const BUF_SIZE: usize = 4 + 2 + MAX_MSG_LEN;
 #[used]
 #[link_section = ".noinit"]
 static mut PANIC_BUF: [u8; BUF_SIZE] = [0u8; BUF_SIZE];
+
+/// Copy of the panic message for deferred CDC output.
+static PANIC_AVAILABLE: AtomicBool = AtomicBool::new(false);
+static mut PANIC_MSG_COPY: [u8; MAX_MSG_LEN] = [0u8; MAX_MSG_LEN];
+static mut PANIC_MSG_LEN: usize = 0;
 
 struct PanicWriter {
     offset: usize,
@@ -46,27 +52,48 @@ fn panic(info: &PanicInfo) -> ! {
 }
 
 /// Check for a stored panic message from a previous boot.
-/// If found, prints it over JTAG serial and clears it.
-/// Call this early in main(), before USB OTG takes over the serial pins.
-pub fn check_previous_panic() {
+/// If found, copies the message for later CDC output and prints over JTAG serial.
+/// Returns `true` if a panic was found.
+pub fn check_previous_panic() -> bool {
     let buf = unsafe { &mut *core::ptr::addr_of_mut!(PANIC_BUF) };
 
     let magic = u32::from_le_bytes(buf[0..4].try_into().unwrap());
     if magic != PANIC_MAGIC {
-        return;
+        return false;
     }
 
     let len = u16::from_le_bytes(buf[4..6].try_into().unwrap()) as usize;
     let len = len.min(MAX_MSG_LEN);
 
-    // Clear magic before printing (in case printing itself panics)
+    // Clear magic early (safety: prevents recursive panic from re-reading this)
     buf[0..4].fill(0);
 
+    // Copy message for deferred CDC output
+    unsafe {
+        PANIC_MSG_COPY[..len].copy_from_slice(&buf[6..6 + len]);
+        PANIC_MSG_LEN = len;
+    }
+    PANIC_AVAILABLE.store(true, Ordering::Release);
+
+    // Also print over JTAG serial (works in debug mode / early boot)
     if let Ok(msg) = core::str::from_utf8(&buf[6..6 + len]) {
-        log::error!("========== PREVIOUS PANIC ==========");
-        log::error!("{}", msg);
-        log::error!("====================================");
-        // JTAG serial FIFO is small — give it time to drain before USB OTG takes over
+        // Use the JTAG serial writer directly (logger may not be initialized yet)
+        crate::log::jtag_serial_write(b"========== PREVIOUS PANIC ==========\r\n");
+        crate::log::jtag_serial_write(msg.as_bytes());
+        crate::log::jtag_serial_write(b"\r\n====================================\r\n");
         esp_hal::delay::Delay::new().delay_millis(100u32);
     }
+
+    true
+}
+
+/// Take the saved panic message (one-shot). Returns `None` if no panic or already taken.
+/// Used by the CDC writer to send the message over USB after enumeration.
+pub fn take_panic_message() -> Option<&'static str> {
+    if !PANIC_AVAILABLE.swap(false, Ordering::Acquire) {
+        return None;
+    }
+    let len = unsafe { PANIC_MSG_LEN };
+    let buf = unsafe { &*core::ptr::addr_of!(PANIC_MSG_COPY) };
+    core::str::from_utf8(&buf[..len]).ok()
 }

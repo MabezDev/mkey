@@ -10,6 +10,7 @@ use esp_hal::gpio::{Input, Output};
 use esp_hal::otg_fs;
 use esp_hal::otg_fs::asynch::{Config, Driver};
 
+use embassy_usb::class::cdc_acm::CdcAcmClass;
 use embassy_usb::class::hid::{HidReaderWriter, ReportId, RequestHandler, State};
 use embassy_usb::control::OutResponse;
 use embassy_usb::{Builder, Handler};
@@ -86,14 +87,15 @@ pub async fn usb(
     let mut ep_out_buffer = [0u8; 1024];
     let driver = Driver::new(usb, &mut ep_out_buffer, Config::default());
 
-    let mut config_descriptor = [0; 256];
+    let mut config_descriptor = [0; 384];
     let mut bos_descriptor = [0; 256];
     let mut msos_descriptor = [0; 256];
     let mut control_buf = [0; 64];
     let mut request_handler = MyRequestHandler {};
     let mut device_handler = MyDeviceHandler::new();
 
-    let mut state = State::new();
+    let mut hid_state = State::new();
+    let mut cdc_state = embassy_usb::class::cdc_acm::State::new();
 
     let mut config = embassy_usb::Config::new(0x16c0, 0x27dd);
     config.max_power = 100;
@@ -113,19 +115,24 @@ pub async fn usb(
 
     builder.handler(&mut device_handler);
 
-    let config = embassy_usb::class::hid::Config {
+    // HID keyboard class
+    let hid_config = embassy_usb::class::hid::Config {
         report_descriptor: KeyboardReport::desc(),
         request_handler: None,
         poll_ms: 60,
         max_packet_size: 64,
     };
-    let hid = HidReaderWriter::<_, 1, 8>::new(&mut builder, &mut state, config);
+    let hid = HidReaderWriter::<_, 1, 8>::new(&mut builder, &mut hid_state, hid_config);
+
+    // CDC ACM serial class (for log output)
+    let cdc = CdcAcmClass::new(&mut builder, &mut cdc_state, 64);
+    let (mut cdc_sender, _cdc_receiver) = cdc.split();
 
     let mut usb = builder.build();
 
     let (reader, mut writer) = hid.split();
 
-    let in_fut = async {
+    let hid_in_fut = async {
         loop {
             let report = signal.wait().await;
             match writer.write_serialize(&report).await {
@@ -135,13 +142,30 @@ pub async fn usb(
         }
     };
 
-    let out_fut = async {
+    let hid_out_fut = async {
         reader.run(false, &mut request_handler).await;
     };
 
-    // Run everything concurrently.
-    // If we had made everything `'static` above instead, we could do this using separate tasks instead.
-    join(usb.run(), join(in_fut, out_fut)).await;
+    let cdc_fut = async {
+        // Send saved panic message if there was one
+        if let Some(msg) = crate::panic::take_panic_message() {
+            let _ = cdc_sender.write_packet(b"\r\n========== PREVIOUS PANIC ==========\r\n").await;
+            for chunk in msg.as_bytes().chunks(64) {
+                let _ = cdc_sender.write_packet(chunk).await;
+            }
+            let _ = cdc_sender.write_packet(b"\r\n====================================\r\n").await;
+        }
+
+        // Drain log pipe forever
+        let mut buf = [0u8; 64];
+        loop {
+            let n = crate::log::LOG_PIPE.read(&mut buf).await;
+            let _ = cdc_sender.write_packet(&buf[..n]).await;
+        }
+    };
+
+    // Run everything concurrently
+    join(usb.run(), join(hid_in_fut, join(hid_out_fut, cdc_fut))).await;
 }
 
 #[embassy_executor::task]

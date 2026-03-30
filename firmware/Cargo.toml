@@ -8,8 +8,6 @@ license = "MIT OR Apache-2.0"
 [dependencies]
 esp-hal = { version = "1.0.0", features = ["esp32s3", "log-04", "unstable"] }
 esp-rtos  = { version = "0.2",  features = ["esp32s3", "embassy"] }
-esp-backtrace = { version = "0.18", features = ["esp32s3", "println"] }
-esp-println = { version = "0.16", default-features = false, features = ["esp32s3", "log-04", "jtag-serial"] }
 esp-bootloader-esp-idf = { version = "0.4.0", features = ["esp32s3"] }
 
 log = { version = "0.4" }
