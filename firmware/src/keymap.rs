@@ -33,4 +33,3 @@ pub const DEBOUNCE_SCANS: u8 = 5;
 /// Fn key position in the matrix (row 4, col 9)
 pub const FN_ROW: usize = 4;
 pub const FN_COL: usize = 9;
-

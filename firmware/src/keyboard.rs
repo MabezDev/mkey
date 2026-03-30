@@ -36,7 +36,11 @@ pub fn is_debug_mode() -> bool {
 
 fn toggle_debug_mode() -> ! {
     let current = rtc_cntl().store6().read().bits();
-    let new = if current == DEBUG_MODE_MAGIC { 0 } else { DEBUG_MODE_MAGIC };
+    let new = if current == DEBUG_MODE_MAGIC {
+        0
+    } else {
+        DEBUG_MODE_MAGIC
+    };
     rtc_cntl().store6().write(|w| unsafe { w.bits(new) });
     if new == DEBUG_MODE_MAGIC {
         info!("Switching to debug mode...");
@@ -147,13 +151,23 @@ pub async fn usb(
     };
 
     let cdc_fut = async {
-        // Send saved panic message if there was one
+        // Wait for host to open the serial port before sending anything
+        cdc_sender.wait_connection().await;
+        Timer::after(Duration::from_millis(500)).await; // Give host a moment to be ready to receive
+
+        // Send saved panic message from previous boot (if any)
         if let Some(msg) = crate::panic::take_panic_message() {
-            let _ = cdc_sender.write_packet(b"\r\n========== PREVIOUS PANIC ==========\r\n").await;
+            let _ = cdc_sender
+                .write_packet(b"\r\n========== PREVIOUS PANIC ==========\r\n")
+                .await;
             for chunk in msg.as_bytes().chunks(64) {
                 let _ = cdc_sender.write_packet(chunk).await;
             }
-            let _ = cdc_sender.write_packet(b"\r\n====================================\r\n").await;
+            let _ = cdc_sender.write_packet(b"======================\r\n").await;
+        } else {
+            let _ = cdc_sender
+                .write_packet(b"mKey keyboard starting up...\r\n")
+                .await;
         }
 
         // Drain log pipe forever
@@ -197,7 +211,10 @@ pub async fn matrix(
                         {
                             let (mod_bits, keycode) = KEYMAP[y][x];
                             if pressed {
-                                info!("PRESS   row={} col={} modifier={:#04x} keycode={:#04x}", y, x, mod_bits, keycode);
+                                info!(
+                                    "PRESS   row={} col={} modifier={:#04x} keycode={:#04x}",
+                                    y, x, mod_bits, keycode
+                                );
                             } else {
                                 info!("RELEASE row={} col={}", y, x);
                             }
@@ -284,7 +301,9 @@ impl MyDeviceHandler {
 
 /// Debug mode: drain the log pipe to USB-SERIAL-JTAG.
 #[embassy_executor::task]
-pub async fn jtag_drain(mut tx: esp_hal::usb_serial_jtag::UsbSerialJtagTx<'static, esp_hal::Blocking>) -> ! {
+pub async fn jtag_drain(
+    mut tx: esp_hal::usb_serial_jtag::UsbSerialJtagTx<'static, esp_hal::Blocking>,
+) -> ! {
     let mut buf = [0u8; 64];
     loop {
         let n = crate::logger::LOG_PIPE.read(&mut buf).await;

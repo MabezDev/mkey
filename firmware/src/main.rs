@@ -95,12 +95,14 @@ fn main() -> ! {
     let cs = peripherals.GPIO16;
     let mut reset = Output::new(peripherals.GPIO3, Level::Low, Default::default());
 
-    let mut te_pin = Input::new(peripherals.GPIO17, InputConfig::default().with_pull(Pull::Down));
+    let mut te_pin = Input::new(
+        peripherals.GPIO17,
+        InputConfig::default().with_pull(Pull::Down),
+    );
     te_pin.listen(esp_hal::gpio::Event::RisingEdge);
     critical_section::with(|cs| TE.borrow_ref_mut(cs).replace(te_pin));
 
-    let (tx_buffer, tx_descriptors, rx_buffer, rx_descriptors) =
-        dma_buffers!(MAX_DMA_TRANSFER, 1);
+    let (tx_buffer, tx_descriptors, rx_buffer, rx_descriptors) = dma_buffers!(MAX_DMA_TRANSFER, 1);
 
     let mut spi = Spi::new(
         peripherals.SPI2,
@@ -139,20 +141,62 @@ fn main() -> ! {
     let columns = make_static!(
         [Input<'static>; 14],
         [
-            Input::new(peripherals.GPIO2,  InputConfig::default().with_pull(Pull::Up)), // 0
-            Input::new(peripherals.GPIO43, InputConfig::default().with_pull(Pull::Up)), // 1
-            Input::new(peripherals.GPIO44, InputConfig::default().with_pull(Pull::Up)), // 2
-            Input::new(peripherals.GPIO38, InputConfig::default().with_pull(Pull::Up)), // 3
-            Input::new(peripherals.GPIO37, InputConfig::default().with_pull(Pull::Up)), // 4
-            Input::new(peripherals.GPIO36, InputConfig::default().with_pull(Pull::Up)), // 5
-            Input::new(peripherals.GPIO48, InputConfig::default().with_pull(Pull::Up)), // 6
-            Input::new(peripherals.GPIO47, InputConfig::default().with_pull(Pull::Up)), // 7
-            Input::new(peripherals.GPIO21, InputConfig::default().with_pull(Pull::Up)), // 8
-            Input::new(peripherals.GPIO14, InputConfig::default().with_pull(Pull::Up)), // 9
-            Input::new(peripherals.GPIO13, InputConfig::default().with_pull(Pull::Up)), // 10
-            Input::new(peripherals.GPIO12, InputConfig::default().with_pull(Pull::Up)), // 11
-            Input::new(peripherals.GPIO11, InputConfig::default().with_pull(Pull::Up)), // 12
-            Input::new(peripherals.GPIO10, InputConfig::default().with_pull(Pull::Up)), // 13
+            Input::new(
+                peripherals.GPIO2,
+                InputConfig::default().with_pull(Pull::Up)
+            ), // 0
+            Input::new(
+                peripherals.GPIO43,
+                InputConfig::default().with_pull(Pull::Up)
+            ), // 1
+            Input::new(
+                peripherals.GPIO44,
+                InputConfig::default().with_pull(Pull::Up)
+            ), // 2
+            Input::new(
+                peripherals.GPIO38,
+                InputConfig::default().with_pull(Pull::Up)
+            ), // 3
+            Input::new(
+                peripherals.GPIO37,
+                InputConfig::default().with_pull(Pull::Up)
+            ), // 4
+            Input::new(
+                peripherals.GPIO36,
+                InputConfig::default().with_pull(Pull::Up)
+            ), // 5
+            Input::new(
+                peripherals.GPIO48,
+                InputConfig::default().with_pull(Pull::Up)
+            ), // 6
+            Input::new(
+                peripherals.GPIO47,
+                InputConfig::default().with_pull(Pull::Up)
+            ), // 7
+            Input::new(
+                peripherals.GPIO21,
+                InputConfig::default().with_pull(Pull::Up)
+            ), // 8
+            Input::new(
+                peripherals.GPIO14,
+                InputConfig::default().with_pull(Pull::Up)
+            ), // 9
+            Input::new(
+                peripherals.GPIO13,
+                InputConfig::default().with_pull(Pull::Up)
+            ), // 10
+            Input::new(
+                peripherals.GPIO12,
+                InputConfig::default().with_pull(Pull::Up)
+            ), // 11
+            Input::new(
+                peripherals.GPIO11,
+                InputConfig::default().with_pull(Pull::Up)
+            ), // 12
+            Input::new(
+                peripherals.GPIO10,
+                InputConfig::default().with_pull(Pull::Up)
+            ), // 13
         ]
     );
     let rows = make_static!(
@@ -173,11 +217,13 @@ fn main() -> ! {
         sw_ints.software_interrupt1,
         unsafe { &mut *addr_of_mut!(APP_CORE_STACK) },
         move || {
-            let signal = &*make_static!(Signal<CriticalSectionRawMutex, KeyboardReport>, Signal::new());
+            let signal =
+                &*make_static!(Signal<CriticalSectionRawMutex, KeyboardReport>, Signal::new());
             let executor = make_static!(Executor, Executor::new());
 
             if debug {
-                let usb_serial = esp_hal::usb_serial_jtag::UsbSerialJtag::new(peripherals.USB_DEVICE);
+                let usb_serial =
+                    esp_hal::usb_serial_jtag::UsbSerialJtag::new(peripherals.USB_DEVICE);
                 let (_rx, tx) = usb_serial.split();
                 executor.run(|spawner| {
                     spawner.must_spawn(keyboard::matrix(columns, rows, signal));
