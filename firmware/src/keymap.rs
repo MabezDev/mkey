@@ -22,8 +22,8 @@ pub const KEYMAP: [[KeyDef; NUM_COLS]; NUM_ROWS] = [
     [k(0x39), k(0x04), k(0x16), k(0x07), k(0x09), k(0x0A), k(0x0B), k(0x0D), k(0x0E), k(0x0F), k(0x33), k(0x34), k(0x32), __     ],
     // Row 3: LShift  \|      Z       X       C       V       B       N       M       ,<      .>      /?      RShift  Up
     [m(0x02), k(0x64), k(0x1D), k(0x1B), k(0x06), k(0x19), k(0x05), k(0x11), k(0x10), k(0x36), k(0x37), k(0x38), m(0x20), k(0x52)],
-    // Row 4: LCtrl   LGui    LAlt    --      Space   --      --      RAlt    Fn      RGui    RCtrl   Left    Down    Right
-    [m(0x01), m(0x08), m(0x04), __,     k(0x2C), __,     __,     m(0x40), __,     m(0x80), m(0x10), k(0x50), k(0x51), k(0x4F)],
+    // Row 4: LCtrl   LGui    LAlt    Space   Space   Space   Space   Space   Fn      RGui    RCtrl   Left    Down    Right
+    [m(0x01), m(0x08), m(0x04), k(0x2C), k(0x2C), k(0x2C), k(0x2C), k(0x2C), __,     m(0x80), m(0x10), k(0x50), k(0x51), k(0x4F)],
 ];
 
 pub const NUM_ROWS: usize = 5;
@@ -34,7 +34,3 @@ pub const DEBOUNCE_SCANS: u8 = 5;
 pub const FN_ROW: usize = 4;
 pub const FN_COL: usize = 8;
 
-// HID keycodes used for Fn combo detection
-pub const KEY_ESC: u8 = 0x29;
-pub const KEY_BACKSPACE: u8 = 0x2A;
-pub const KEY_D: u8 = 0x07;

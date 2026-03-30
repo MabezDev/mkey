@@ -16,9 +16,7 @@ use embassy_usb::{Builder, Handler};
 use usbd_hid::descriptor::KeyboardReport;
 use usbd_hid::descriptor::SerializedDescriptor;
 
-use crate::keymap::{
-    DEBOUNCE_SCANS, FN_COL, FN_ROW, KEY_BACKSPACE, KEY_D, KEY_ESC, KEYMAP, NUM_COLS, NUM_ROWS,
-};
+use crate::keymap::{DEBOUNCE_SCANS, FN_COL, FN_ROW, KEYMAP, NUM_COLS, NUM_ROWS};
 
 const DEBUG_MODE_MAGIC: u32 = 0xDBE6_F1A6;
 
@@ -51,29 +49,25 @@ fn reset_to_download_mode() -> ! {
     esp_hal::system::software_reset();
 }
 
+// Combo positions (row, col) — matched directly rather than via keycode lookup
+const COMBO_ESC: (usize, usize) = (0, 0);
+const COMBO_BACKSPACE: (usize, usize) = (0, 13);
+const COMBO_D: (usize, usize) = (2, 3);
+
 /// Check pressed keys for Fn combos. Returns true if Fn is held (suppresses HID report).
 fn handle_fn_combos(key_state: &[[bool; NUM_COLS]; NUM_ROWS]) -> bool {
     if !key_state[FN_ROW][FN_COL] {
         return false;
     }
 
-    // Scan for combo keys by checking keycodes in the keymap
-    for y in 0..NUM_ROWS {
-        for x in 0..NUM_COLS {
-            if (y, x) == (FN_ROW, FN_COL) {
-                continue;
-            }
-            if !key_state[y][x] {
-                continue;
-            }
-            let (_mod_bits, keycode) = KEYMAP[y][x];
-            match keycode {
-                KEY_ESC => esp_hal::system::software_reset(),
-                KEY_BACKSPACE => reset_to_download_mode(),
-                KEY_D => toggle_debug_mode(),
-                _ => {}
-            }
-        }
+    if key_state[COMBO_ESC.0][COMBO_ESC.1] {
+        esp_hal::system::software_reset();
+    }
+    if key_state[COMBO_BACKSPACE.0][COMBO_BACKSPACE.1] {
+        reset_to_download_mode();
+    }
+    if key_state[COMBO_D.0][COMBO_D.1] {
+        toggle_debug_mode();
     }
 
     // Fn held but no recognized combo — still suppress HID output
