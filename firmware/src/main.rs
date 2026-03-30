@@ -79,7 +79,7 @@ fn main() -> ! {
 
     // Check for panic from previous boot — message will be sent over USB CDC once enumerated
     if panic::check_previous_panic() {
-        ::log::warn!("Previous panic detected — will send details over USB CDC");
+        warn!("Previous panic detected — will send details over USB CDC");
     }
 
     // Note: the USB_EXCHG_PINS efuse pullup workaround is handled automatically
@@ -135,7 +135,7 @@ fn main() -> ! {
     for (cmd, data) in WEA2012_INIT_CMDS {
         lcd_write_cmd(&mut spi, *cmd, data);
     }
-    ::log::info!("Finished initializing display!");
+    info!("Finished initializing display!");
 
     let pixels = unsafe { &mut *addr_of_mut!(FRAME_BUFFER) };
     /*
@@ -182,7 +182,7 @@ fn main() -> ! {
             let executor = make_static!(Executor, Executor::new());
 
             if debug {
-                ::log::info!("Booting in debug mode (Fn+D to switch back)");
+                info!("Booting in debug mode (Fn+D to switch back)");
                 executor.run(|spawner| {
                     spawner.must_spawn(keyboard::matrix(columns, rows, signal));
                     spawner.must_spawn(keyboard::debug_consumer(signal));
@@ -225,7 +225,7 @@ fn main() -> ! {
             };
             let now = SystemTimer::unit_value(esp_hal::timer::systimer::Unit::Unit0);
             lcd_fill(&mut spi, pixels);
-            ::log::trace!(
+            trace!(
                 "Time to fill display: {}ms",
                 (SystemTimer::unit_value(esp_hal::timer::systimer::Unit::Unit0) - now)
                     / (SystemTimer::ticks_per_second() / 1024)
@@ -234,7 +234,7 @@ fn main() -> ! {
             let now = SystemTimer::unit_value(esp_hal::timer::systimer::Unit::Unit0);
             if now.wrapping_sub(start) > SystemTimer::ticks_per_second() {
                 start = now;
-                ::log::info!("FPS: {}", frames);
+                info!("FPS: {}", frames);
                 frames = 0;
             }
         }
