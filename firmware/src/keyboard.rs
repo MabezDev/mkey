@@ -282,18 +282,13 @@ impl MyDeviceHandler {
     }
 }
 
+/// Debug mode: drain the log pipe to USB-SERIAL-JTAG.
 #[embassy_executor::task]
-pub async fn debug_consumer(
-    signal: &'static Signal<CriticalSectionRawMutex, KeyboardReport>,
-) -> ! {
+pub async fn jtag_drain(mut tx: esp_hal::usb_serial_jtag::UsbSerialJtagTx<'static, esp_hal::Blocking>) -> ! {
+    let mut buf = [0u8; 64];
     loop {
-        let report = signal.wait().await;
-        info!(
-            "HID Report: modifier={:#04x} keycodes=[{:#04x}, {:#04x}, {:#04x}, {:#04x}, {:#04x}, {:#04x}]",
-            report.modifier,
-            report.keycodes[0], report.keycodes[1], report.keycodes[2],
-            report.keycodes[3], report.keycodes[4], report.keycodes[5],
-        );
+        let n = crate::log::LOG_PIPE.read(&mut buf).await;
+        let _ = tx.write(&buf[..n]);
     }
 }
 

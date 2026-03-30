@@ -71,19 +71,21 @@ fn main() -> ! {
     let peripherals = esp_hal::init(esp_hal::Config::default().with_cpu_clock(CpuClock::max()));
 
     let debug = cfg!(feature = "debug-matrix") || keyboard::is_debug_mode();
-    let usb_serial = esp_hal::usb_serial_jtag::UsbSerialJtag::new(peripherals.USB_DEVICE);
-    let (_rx, tx) = usb_serial.split();
-    log::init(debug, tx);
 
-    let delay = Delay::new();
-
-    // Check for panic from previous boot — message will be sent over USB CDC once enumerated
+    // Early JTAG serial for panic dump (direct write, before logger or USB OTG)
+    let mut usb_serial = esp_hal::usb_serial_jtag::UsbSerialJtag::new(peripherals.USB_DEVICE);
     if panic::check_previous_panic() {
-        warn!("Previous panic detected — will send details over USB CDC");
+        if let Some(msg) = panic::take_panic_message() {
+            let _ = usb_serial.write(b"\r\n=== PREVIOUS PANIC ===\r\n");
+            let _ = usb_serial.write(msg.as_bytes());
+            let _ = usb_serial.write(b"\r\n======================\r\n");
+        }
     }
 
-    // Note: the USB_EXCHG_PINS efuse pullup workaround is handled automatically
-    // by UsbSerialJtag::new() above (checks efuse and fixes pullups if needed).
+    // Logger just pushes to a pipe — consumer (CDC or JTAG) is set up later on core 1
+    log::init();
+
+    let delay = Delay::new();
 
     let timg0 = TimerGroup::new(peripherals.TIMG0);
     esp_rtos::start(timg0.timer0);
@@ -182,12 +184,13 @@ fn main() -> ! {
             let executor = make_static!(Executor, Executor::new());
 
             if debug {
-                info!("Booting in debug mode (Fn+D to switch back)");
+                let (_rx, tx) = usb_serial.split();
                 executor.run(|spawner| {
                     spawner.must_spawn(keyboard::matrix(columns, rows, signal));
-                    spawner.must_spawn(keyboard::debug_consumer(signal));
+                    spawner.must_spawn(keyboard::jtag_drain(tx));
                 });
             } else {
+                drop(usb_serial);
                 let device = Usb::new(peripherals.USB0, peripherals.GPIO20, peripherals.GPIO19);
                 executor.run(|spawner| {
                     spawner.must_spawn(keyboard::matrix(columns, rows, signal));
