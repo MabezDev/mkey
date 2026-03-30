@@ -71,35 +71,23 @@ fn main() -> ! {
     let peripherals = esp_hal::init(esp_hal::Config::default().with_cpu_clock(CpuClock::max()));
 
     let debug = cfg!(feature = "debug-matrix") || keyboard::is_debug_mode();
-    log::init(debug);
+    let usb_serial = esp_hal::usb_serial_jtag::UsbSerialJtag::new(peripherals.USB_DEVICE);
+    let (_rx, tx) = usb_serial.split();
+    log::init(debug, tx);
+
+    let delay = Delay::new();
 
     // Dump any panic message from a previous boot (over JTAG serial before USB takes over)
     if panic::check_previous_panic() {
         ::log::warn!("Previous panic detected — details above and via USB CDC");
+        delay.delay_millis(10_000);
     }
 
-    // V1.0 of the mKey has the USB DM and DP swapped.. oops. There is an EFUSE to swap the pins, yay! However,
-    // it is bugged, and doesn't swap the pullups too. We can work around this by correcting the pullups early in the program,
-    // as they are only used for signally to the host that we are a full speed device.
-    // If flash is fully erased without programming again, the USB-SERIAL-JTAG will cease to work, firmware
-    // will have to be flashed via UART0, at which point you can switch back.
-    #[cfg(feature = "usb-pin-exchange")]
-    {
-        let usj = unsafe { &*esp_hal::peripherals::USB_DEVICE::PTR };
-        usj.conf0().modify(|_, w| {
-            w.pad_pull_override()
-                .set_bit()
-                .dm_pullup()
-                .clear_bit()
-                .dp_pullup()
-                .set_bit()
-        });
-    }
+    // Note: the USB_EXCHG_PINS efuse pullup workaround is handled automatically
+    // by UsbSerialJtag::new() above (checks efuse and fixes pullups if needed).
 
     let timg0 = TimerGroup::new(peripherals.TIMG0);
     esp_rtos::start(timg0.timer0);
-
-    let delay = Delay::new();
 
     let mut io = Io::new(peripherals.IO_MUX);
     io.set_interrupt_handler(display::te);
