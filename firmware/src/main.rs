@@ -64,7 +64,7 @@ mod keymap;
 mod logger;
 mod panic;
 
-static mut APP_CORE_STACK: Stack<8192> = Stack::new();
+static mut APP_CORE_STACK: Stack<4096> = Stack::new();
 
 #[main]
 fn main() -> ! {
@@ -72,11 +72,11 @@ fn main() -> ! {
 
     let debug = cfg!(feature = "debug-matrix") || keyboard::is_debug_mode();
 
-    // Check for panic from previous boot — message will be sent over CDC once USB enumerates
-    panic::check_previous_panic();
-
     // Logger just pushes to a pipe — consumer (CDC or JTAG) is set up later on core 1
     logger::init();
+
+    // Check for panic from previous boot — CDC task sends it on host connect
+    panic::check_previous_panic();
 
     let delay = Delay::new();
 

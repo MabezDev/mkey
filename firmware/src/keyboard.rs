@@ -147,16 +147,19 @@ pub async fn usb(
     };
 
     let cdc_fut = async {
-        // Send saved panic message if there was one
+        // Wait for host to open the serial port before sending anything
+        cdc_sender.wait_connection().await;
+
+        // Send saved panic message from previous boot (if any)
         if let Some(msg) = crate::panic::take_panic_message() {
-            let _ = cdc_sender.write_packet(b"\r\n========== PREVIOUS PANIC ==========\r\n").await;
+            let _ = cdc_sender.write_packet(b"=== PREVIOUS PANIC ===\r\n").await;
             for chunk in msg.as_bytes().chunks(64) {
                 let _ = cdc_sender.write_packet(chunk).await;
             }
-            let _ = cdc_sender.write_packet(b"\r\n====================================\r\n").await;
+            let _ = cdc_sender.write_packet(b"======================\r\n").await;
         }
 
-        // Drain log pipe forever
+        // Drain log pipe
         let mut buf = [0u8; 64];
         loop {
             let n = crate::logger::LOG_PIPE.read(&mut buf).await;
