@@ -159,7 +159,7 @@ pub async fn usb(
         // Drain log pipe forever
         let mut buf = [0u8; 64];
         loop {
-            let n = crate::log::LOG_PIPE.read(&mut buf).await;
+            let n = crate::logger::LOG_PIPE.read(&mut buf).await;
             let _ = cdc_sender.write_packet(&buf[..n]).await;
         }
     };
@@ -287,7 +287,7 @@ impl MyDeviceHandler {
 pub async fn jtag_drain(mut tx: esp_hal::usb_serial_jtag::UsbSerialJtagTx<'static, esp_hal::Blocking>) -> ! {
     let mut buf = [0u8; 64];
     loop {
-        let n = crate::log::LOG_PIPE.read(&mut buf).await;
+        let n = crate::logger::LOG_PIPE.read(&mut buf).await;
         let _ = tx.write(&buf[..n]);
     }
 }

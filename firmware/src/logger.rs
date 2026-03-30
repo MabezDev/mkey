@@ -13,19 +13,19 @@ static LOGGER: MkeyLogger = MkeyLogger;
 /// Set the global logger. No HAL types, no mode — just hooks up the `log` facade to the pipe.
 pub fn init() {
     unsafe {
-        ::log::set_logger_racy(&LOGGER).ok();
-        ::log::set_max_level_racy(::log::LevelFilter::Info);
+        log::set_logger_racy(&LOGGER).ok();
+        log::set_max_level_racy(log::LevelFilter::Info);
     }
 }
 
 struct MkeyLogger;
 
-impl ::log::Log for MkeyLogger {
-    fn enabled(&self, _metadata: &::log::Metadata) -> bool {
+impl log::Log for MkeyLogger {
+    fn enabled(&self, _metadata: &log::Metadata) -> bool {
         true
     }
 
-    fn log(&self, record: &::log::Record) {
+    fn log(&self, record: &log::Record) {
         let mut buf = [0u8; 128];
         let mut w = BufWriter::new(&mut buf);
         let _ = write!(w, "[{}] {}\r\n", record.level(), record.args());

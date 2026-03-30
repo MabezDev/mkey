@@ -61,7 +61,7 @@ pub mod fmt;
 mod display;
 mod keyboard;
 mod keymap;
-mod log;
+mod logger;
 mod panic;
 
 static mut APP_CORE_STACK: Stack<8192> = Stack::new();
@@ -76,7 +76,7 @@ fn main() -> ! {
     panic::check_previous_panic();
 
     // Logger just pushes to a pipe — consumer (CDC or JTAG) is set up later on core 1
-    log::init();
+    logger::init();
 
     let delay = Delay::new();
 
