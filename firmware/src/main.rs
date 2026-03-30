@@ -2,72 +2,71 @@
 #![no_main]
 #![feature(type_alias_impl_trait)]
 
-use core::cell::RefCell;
 use core::ptr::addr_of_mut;
-use core::sync::atomic::AtomicBool;
-
 use core::sync::atomic::Ordering;
-use critical_section::Mutex;
-use embedded_graphics::framebuffer::buffer_size;
-use embedded_graphics::framebuffer::Framebuffer;
+
+use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
+use embassy_sync::signal::Signal;
 use embedded_graphics::geometry::Point;
 use embedded_graphics::image::Image;
-use embedded_graphics::pixelcolor::raw::BigEndian;
-use embedded_graphics::pixelcolor::raw::RawU16;
 use embedded_graphics::Drawable;
 use embedded_graphics_core::pixelcolor::Rgb565;
 use esp_backtrace as _;
-use esp_hal::cpu_control::CpuControl;
-use esp_hal::cpu_control::Stack;
-use esp_hal::dma::{Dma, DmaPriority};
-use esp_hal::dma_descriptors;
+use esp_hal::clock::CpuClock;
+use esp_hal::dma::DmaRxBuf;
+use esp_hal::dma::DmaTxBuf;
+use esp_hal::dma_buffers;
+use esp_hal::gpio::InputConfig;
+use esp_hal::gpio::Level;
 use esp_hal::interrupt;
+use esp_hal::interrupt::software::SoftwareInterruptControl;
 use esp_hal::interrupt::Priority;
+#[cfg(not(feature = "debug-matrix"))]
+use esp_hal::otg_fs::Usb;
 use esp_hal::peripherals::Interrupt;
-use esp_hal::systimer::SystemTimer;
-use esp_hal::Blocking;
+use esp_hal::system::Stack;
+use esp_hal::time::Rate;
+use esp_hal::timer::systimer::SystemTimer;
+use esp_hal::timer::timg::TimerGroup;
 use esp_hal::{
-    clock::ClockControl,
     delay::Delay,
-    gpio::IO,
-    gpio::{AnyPin, Input, Output, PullDown, PushPull},
-    peripherals::Peripherals,
-    prelude::*,
-    spi::{
-        master::{prelude::*, Address, Command, Spi},
-        HalfDuplexMode, SpiDataMode, SpiMode,
-    },
+    gpio::Io,
+    gpio::{Input, Output, Pull},
+    main,
+    spi::{master::Spi, Mode},
+};
+use esp_rtos::{self, embassy::Executor};
+use usbd_hid::descriptor::KeyboardReport;
+
+use display::{
+    lcd_fill, lcd_write_cmd, FRAME_BUFFER, HEIGHT, MAX_DMA_TRANSFER, TE, TE_READY,
+    WEA2012_INIT_CMDS, WIDTH,
 };
 
-type QSpiDisplay<'a> = esp_hal::spi::master::dma::SpiDma<
-    'a,
-    esp_hal::peripherals::SPI2,
-    esp_hal::dma::Channel0,
-    HalfDuplexMode,
-    Blocking
->;
+#[macro_export]
+macro_rules! make_static {
+    ($t:ty, $val:expr) => ($crate::make_static!($t, $val,));
+    ($t:ty, $val:expr, $(#[$m:meta])*) => {{
+        $(#[$m])*
+        static STATIC_CELL: static_cell::StaticCell<$t> = static_cell::StaticCell::new();
+        STATIC_CELL.init_with(|| $val)
+    }};
+}
 
-const MAX_DMA_TRANSFER: usize = 32736;
-const WIDTH: usize = 356;
-const HEIGHT: usize = 400;
+esp_bootloader_esp_idf::esp_app_desc!();
 
-static TE: Mutex<RefCell<Option<esp_hal::gpio::Gpio17<Input<PullDown>>>>> =
-    Mutex::new(RefCell::new(None));
+// MUST be the first module so other modules see the macros
+pub mod fmt;
 
-static TE_READY: AtomicBool = AtomicBool::new(false);
-static mut APP_CORE_STACK: Stack<16384> = Stack::new();
-static mut FRAME_BUFFER: Framebuffer<
-    Rgb565,
-    RawU16,
-    BigEndian,
-    WIDTH,
-    HEIGHT,
-    { buffer_size::<Rgb565>(WIDTH, HEIGHT) },
-> = Framebuffer::new();
+mod display;
+mod keyboard;
+mod keymap;
 
-#[entry]
+static mut APP_CORE_STACK: Stack<4096> = Stack::new();
+
+#[main]
 fn main() -> ! {
-    let peripherals = Peripherals::take();
+    let peripherals = esp_hal::init(esp_hal::Config::default().with_cpu_clock(CpuClock::max()));
 
     esp_println::logger::init_logger_from_env();
 
@@ -89,50 +88,49 @@ fn main() -> ! {
         });
     }
 
-    let system = peripherals.SYSTEM.split();
+    let timg0 = TimerGroup::new(peripherals.TIMG0);
+    esp_rtos::start(timg0.timer0);
 
-    let clocks = ClockControl::max(system.clock_control).freeze();
-    let mut cpu_control = CpuControl::new(system.cpu_control);
+    let delay = Delay::new();
 
-    let delay = Delay::new(&clocks);
-
-    let mut io = IO::new(peripherals.GPIO, peripherals.IO_MUX);
-    io.set_interrupt_handler(te);
+    let mut io = Io::new(peripherals.IO_MUX);
+    io.set_interrupt_handler(display::te);
     interrupt::enable(Interrupt::GPIO, Priority::Priority2).unwrap();
 
-    let sclk = io.pins.gpio4;
-    let sio0 = io.pins.gpio6;
-    let sio1 = io.pins.gpio5;
-    let sio2 = io.pins.gpio15;
-    let sio3 = io.pins.gpio7;
-    let cs = io.pins.gpio16.into_push_pull_output();
-    let mut reset = io.pins.gpio3.into_push_pull_output();
+    let sclk = peripherals.GPIO4;
+    let sio0 = peripherals.GPIO6;
+    let sio1 = peripherals.GPIO5;
+    let sio2 = peripherals.GPIO15;
+    let sio3 = peripherals.GPIO7;
+    let cs = peripherals.GPIO16;
+    let mut reset = Output::new(peripherals.GPIO3, Level::Low, Default::default());
 
-    let mut te_pin = io.pins.gpio17.into_pull_down_input();
+    let mut te_pin = Input::new(peripherals.GPIO17, InputConfig::default().with_pull(Pull::Down));
     te_pin.listen(esp_hal::gpio::Event::RisingEdge);
     critical_section::with(|cs| TE.borrow_ref_mut(cs).replace(te_pin));
 
-    let dma = Dma::new(peripherals.DMA);
+    let (tx_buffer, tx_descriptors, rx_buffer, rx_descriptors) =
+        dma_buffers!(MAX_DMA_TRANSFER, 1);
 
-    let (mut tx_descriptors, mut rx_descriptors) =
-        dma_descriptors!(MAX_DMA_TRANSFER, MAX_DMA_TRANSFER);
+    let mut spi = Spi::new(
+        peripherals.SPI2,
+        esp_hal::spi::master::Config::default()
+            .with_frequency(Rate::from_mhz(80))
+            .with_mode(Mode::_3),
+    )
+    .unwrap()
+    .with_sck(sclk)
+    .with_mosi(sio0)
+    .with_miso(sio1)
+    .with_sio2(sio2)
+    .with_sio3(sio3)
+    .with_cs(cs)
+    .with_dma(peripherals.DMA_CH0)
+    .with_buffers(
+        DmaRxBuf::new(rx_descriptors, rx_buffer).unwrap(),
+        DmaTxBuf::new(tx_descriptors, tx_buffer).unwrap(),
+    );
 
-    // Half-Duplex because the display will only send a response once the master has finished
-    let mut spi = Spi::new_half_duplex(peripherals.SPI2, 80u32.MHz(), SpiMode::Mode3, &clocks)
-        .with_pins(
-            Some(sclk),
-            Some(sio0),
-            Some(sio1),
-            Some(sio2),
-            Some(sio3),
-            Some(cs),
-        )
-        .with_dma(dma.channel0.configure(
-            false,
-            &mut tx_descriptors,
-            &mut rx_descriptors,
-            DmaPriority::Priority0,
-        ));
     reset.set_low();
     delay.delay_millis(300u32);
     reset.set_high();
@@ -148,58 +146,60 @@ fn main() -> ! {
     /*
        Matrix
     */
-    let columns: &mut [AnyPin<Output<PushPull>>] = &mut [
-        io.pins.gpio2.into_push_pull_output().into(),  // 0
-        io.pins.gpio43.into_push_pull_output().into(), // 1
-        io.pins.gpio44.into_push_pull_output().into(), // 2
-        io.pins.gpio38.into_push_pull_output().into(), // 3
-        io.pins.gpio37.into_push_pull_output().into(), // 4
-        io.pins.gpio36.into_push_pull_output().into(), // 5
-        io.pins.gpio48.into_push_pull_output().into(), // 6
-        io.pins.gpio47.into_push_pull_output().into(), // 7
-        io.pins.gpio21.into_push_pull_output().into(), // 8
-        io.pins.gpio14.into_push_pull_output().into(), // 9
-        io.pins.gpio13.into_push_pull_output().into(), // 10
-        io.pins.gpio12.into_push_pull_output().into(), // 11
-        io.pins.gpio11.into_push_pull_output().into(), // 12
-        io.pins.gpio10.into_push_pull_output().into(), // 13
-    ];
-    let rows: &mut [AnyPin<Input<PullDown>>] = &mut [
-        io.pins.gpio1.into_pull_down_input().into(),  // 0
-        io.pins.gpio35.into_pull_down_input().into(), // 1
-        io.pins.gpio45.into_pull_down_input().into(), // 2
-        io.pins.gpio9.into_pull_down_input().into(),  // 3
-        io.pins.gpio46.into_pull_down_input().into(), // 4
-    ];
+    let columns = make_static!(
+        [Input<'static>; 14],
+        [
+            Input::new(peripherals.GPIO2,  InputConfig::default().with_pull(Pull::Up)), // 0
+            Input::new(peripherals.GPIO43, InputConfig::default().with_pull(Pull::Up)), // 1
+            Input::new(peripherals.GPIO44, InputConfig::default().with_pull(Pull::Up)), // 2
+            Input::new(peripherals.GPIO38, InputConfig::default().with_pull(Pull::Up)), // 3
+            Input::new(peripherals.GPIO37, InputConfig::default().with_pull(Pull::Up)), // 4
+            Input::new(peripherals.GPIO36, InputConfig::default().with_pull(Pull::Up)), // 5
+            Input::new(peripherals.GPIO48, InputConfig::default().with_pull(Pull::Up)), // 6
+            Input::new(peripherals.GPIO47, InputConfig::default().with_pull(Pull::Up)), // 7
+            Input::new(peripherals.GPIO21, InputConfig::default().with_pull(Pull::Up)), // 8
+            Input::new(peripherals.GPIO14, InputConfig::default().with_pull(Pull::Up)), // 9
+            Input::new(peripherals.GPIO13, InputConfig::default().with_pull(Pull::Up)), // 10
+            Input::new(peripherals.GPIO12, InputConfig::default().with_pull(Pull::Up)), // 11
+            Input::new(peripherals.GPIO11, InputConfig::default().with_pull(Pull::Up)), // 12
+            Input::new(peripherals.GPIO10, InputConfig::default().with_pull(Pull::Up)), // 13
+        ]
+    );
+    let rows = make_static!(
+        [Output<'static>; 5],
+        [
+            Output::new(peripherals.GPIO1, Level::Low, Default::default()), // 0
+            Output::new(peripherals.GPIO35, Level::Low, Default::default()), // 1
+            Output::new(peripherals.GPIO45, Level::Low, Default::default()), // 2
+            Output::new(peripherals.GPIO9, Level::Low, Default::default()), // 3
+            Output::new(peripherals.GPIO46, Level::Low, Default::default()), // 4
+        ]
+    );
 
-    let _guard = cpu_control
-        .start_app_core(unsafe { &mut *addr_of_mut!(APP_CORE_STACK) }, move || {
-            let mut last = (usize::MAX, usize::MAX);
-            loop {
-                for (x, c) in columns.iter_mut().enumerate() {
-                    for (y, r) in rows.iter_mut().enumerate() {
-                        c.set_high();
-                        if r.is_high() {
-                            let current = (x, y);
-                            if current != last {
-                                last = current;
-                                log::info!("({x}, {y}) is pressed!");
-                            }
-                        }
-                        c.set_low();
-                        // small debounce - is this needed?
-                        // perhaps polling at too high of a rate we run into
-                        // gpio switching frequency issues, or maybe even capacitance in the trace
-                        delay.delay_micros(50);
-                    }
-                }
-            }
-        })
-        .unwrap();
+    let sw_ints = SoftwareInterruptControl::new(peripherals.SW_INTERRUPT);
+    esp_rtos::start_second_core(
+        peripherals.CPU_CTRL,
+        sw_ints.software_interrupt0,
+        sw_ints.software_interrupt1,
+        unsafe { &mut *addr_of_mut!(APP_CORE_STACK) },
+        || {
+            #[cfg(not(feature = "debug-matrix"))]
+            let device = Usb::new(peripherals.USB0, peripherals.GPIO20, peripherals.GPIO19);
+            let signal = &*make_static!(Signal<CriticalSectionRawMutex, KeyboardReport>, Signal::new());
+            let executor = make_static!(Executor, Executor::new());
+            executor.run(|spawner| {
+                spawner.must_spawn(keyboard::matrix(columns, rows, signal));
+                #[cfg(not(feature = "debug-matrix"))]
+                spawner.must_spawn(keyboard::usb(device, signal));
+                #[cfg(feature = "debug-matrix")]
+                spawner.must_spawn(keyboard::debug_consumer(signal));
+            });
+        },
+    );
 
     let image =
         tinygif::Gif::<Rgb565>::from_slice(include_bytes!("../Ferris-240x240.gif")).unwrap();
-    let mut start = SystemTimer::now();
+    let mut start = SystemTimer::unit_value(esp_hal::timer::systimer::Unit::Unit0);
     let mut frames = 0;
     loop {
         for frame in image.frames() {
@@ -223,15 +223,16 @@ fn main() -> ! {
                     pixels.data().len(),
                 )
             };
-            let now = SystemTimer::now();
+            let now = SystemTimer::unit_value(esp_hal::timer::systimer::Unit::Unit0);
             lcd_fill(&mut spi, pixels);
             log::trace!(
                 "Time to fill display: {}ms",
-                (SystemTimer::now() - now) / (SystemTimer::TICKS_PER_SECOND / 1024)
+                (SystemTimer::unit_value(esp_hal::timer::systimer::Unit::Unit0) - now)
+                    / (SystemTimer::ticks_per_second() / 1024)
             );
             frames += 1;
-            let now = SystemTimer::now();
-            if now.wrapping_sub(start) > SystemTimer::TICKS_PER_SECOND {
+            let now = SystemTimer::unit_value(esp_hal::timer::systimer::Unit::Unit0);
+            if now.wrapping_sub(start) > SystemTimer::ticks_per_second() {
                 start = now;
                 log::info!("FPS: {}", frames);
                 frames = 0;
@@ -239,379 +240,3 @@ fn main() -> ! {
         }
     }
 }
-
-#[ram]
-#[handler]
-fn te() {
-    unsafe {
-        static mut LAST: u64 = 0;
-        let now = SystemTimer::now();
-        log::trace!(
-            "TE fired! Interval: {}ms",
-            (now - LAST) / (SystemTimer::TICKS_PER_SECOND / 1024)
-        );
-        LAST = now;
-    }
-    critical_section::with(|cs| TE.borrow_ref_mut(cs).as_mut().unwrap().clear_interrupt());
-    TE_READY.store(true, Ordering::SeqCst);
-}
-
-fn lcd_fill<'a>(spi: &mut QSpiDisplay<'a>, pixels: &'static [u8]) {
-    set_draw_area(spi, 0, 0, WIDTH as u16 - 1, HEIGHT as u16 - 1);
-    for (i, pixels) in pixels.chunks(MAX_DMA_TRANSFER).enumerate() {
-        // fifo size
-        spi.write(
-            SpiDataMode::Quad,
-            Command::Command8(0x32, SpiDataMode::Single),
-            Address::Address24(if i > 0 { 0x002C00 } else { 0x003C00 }, SpiDataMode::Single),
-            0,
-            &pixels,
-        )
-        .unwrap()
-        .wait()
-        .unwrap();
-    }
-}
-fn lcd_write_cmd<'a>(spi: &mut QSpiDisplay<'a>, cmd: u32, data: &[u8]) {
-    static mut BUF: [u8; 4] = [0u8; 4];
-    let buf = unsafe { &mut *addr_of_mut!(BUF) };
-    if data.len() > 0 {
-        buf[..data.len()].copy_from_slice(&data);
-    }
-    log::trace!("Sending: {} => {:?}", cmd, &buf[..data.len()]);
-    spi.write(
-        SpiDataMode::Single,
-        Command::Command8(0x02, SpiDataMode::Single),
-        Address::Address24(cmd << 8, SpiDataMode::Single),
-        0,
-        &&buf[..data.len()],
-    )
-    .unwrap()
-    .wait()
-    .unwrap();
-}
-
-fn set_draw_area<'a>(spi: &mut QSpiDisplay<'a>, x1: u16, y1: u16, x2: u16, y2: u16) {
-    let cmds = [
-        (
-            0x2a,
-            &[(x1 >> 8) as u8, x1 as u8, (x2 >> 8) as u8, x2 as u8][..],
-        ),
-        (
-            0x2b,
-            &[(y1 >> 8) as u8, y1 as u8, (y2 >> 8) as u8, y2 as u8][..],
-        ),
-    ];
-
-    for (cmd, data) in cmds {
-        lcd_write_cmd(spi, cmd, data);
-    }
-}
-
-// CMD, data
-const WEA2012_INIT_CMDS: &[(u32, &[u8])] = &[
-    (0xFF, &[0x20, 0x10, 0x43]),
-    (0x04, &[0x70]),
-    (0xFF, &[0x20, 0x10, 0x10]),
-    (0x0C, &[0x11]),
-    (0x10, &[0x02]),
-    (0x11, &[0x11]),
-    (0x15, &[0x42]),
-    (0x16, &[0x11]),
-    (0x1A, &[0x02]),
-    (0x1B, &[0x11]),
-    (0x61, &[0x80]),
-    (0x62, &[0x80]),
-    (0x54, &[0x44]),
-    (0x58, &[0x88]),
-    (0x5C, &[0xcc]),
-    (0x20, &[0x80]),
-    (0x21, &[0x81]),
-    (0x22, &[0x31]),
-    (0x23, &[0x20]),
-    (0x24, &[0x11]),
-    (0x25, &[0x11]),
-    (0x26, &[0x12]),
-    (0x27, &[0x12]),
-    (0x30, &[0x80]),
-    (0x31, &[0x81]),
-    (0x32, &[0x31]),
-    (0x33, &[0x20]),
-    (0x34, &[0x11]),
-    (0x35, &[0x11]),
-    (0x36, &[0x12]),
-    (0x37, &[0x12]),
-    (0x41, &[0x11]),
-    (0x42, &[0x22]),
-    (0x43, &[0x33]),
-    (0x49, &[0x11]),
-    (0x4A, &[0x22]),
-    (0x4B, &[0x33]),
-    (0xFF, &[0x20, 0x10, 0x15]),
-    (0x00, &[0x00]),
-    (0x01, &[0x00]),
-    (0x02, &[0x00]),
-    (0x03, &[0x00]),
-    (0x04, &[0x10]),
-    (0x05, &[0x0C]),
-    (0x06, &[0x23]),
-    (0x07, &[0x22]),
-    (0x08, &[0x21]),
-    (0x09, &[0x20]),
-    (0x0A, &[0x33]),
-    (0x0B, &[0x32]),
-    (0x0C, &[0x34]),
-    (0x0D, &[0x35]),
-    (0x0E, &[0x01]),
-    (0x0F, &[0x01]),
-    (0x20, &[0x00]),
-    (0x21, &[0x00]),
-    (0x22, &[0x00]),
-    (0x23, &[0x00]),
-    (0x24, &[0x0C]),
-    (0x25, &[0x10]),
-    (0x26, &[0x20]),
-    (0x27, &[0x21]),
-    (0x28, &[0x22]),
-    (0x29, &[0x23]),
-    (0x2A, &[0x33]),
-    (0x2B, &[0x32]),
-    (0x2C, &[0x34]),
-    (0x2D, &[0x35]),
-    (0x2E, &[0x01]),
-    (0x2F, &[0x01]),
-    (0xFF, &[0x20, 0x10, 0x16]),
-    (0x00, &[0x00]),
-    (0x01, &[0x00]),
-    (0x02, &[0x00]),
-    (0x03, &[0x00]),
-    (0x04, &[0x08]),
-    (0x05, &[0x04]),
-    (0x06, &[0x19]),
-    (0x07, &[0x18]),
-    (0x08, &[0x17]),
-    (0x09, &[0x16]),
-    (0x0A, &[0x33]),
-    (0x0B, &[0x32]),
-    (0x0C, &[0x34]),
-    (0x0D, &[0x35]),
-    (0x0E, &[0x01]),
-    (0x0F, &[0x01]),
-    (0x20, &[0x00]),
-    (0x21, &[0x00]),
-    (0x22, &[0x00]),
-    (0x23, &[0x00]),
-    (0x24, &[0x04]),
-    (0x25, &[0x08]),
-    (0x26, &[0x16]),
-    (0x27, &[0x17]),
-    (0x28, &[0x18]),
-    (0x29, &[0x19]),
-    (0x2A, &[0x33]),
-    (0x2B, &[0x32]),
-    (0x2C, &[0x34]),
-    (0x2D, &[0x35]),
-    (0x2E, &[0x01]),
-    (0x2F, &[0x01]),
-    (0xFF, &[0x20, 0x10, 0x12]),
-    (0x00, &[0x99]),
-    (0x2A, &[0x28]),
-    (0x2B, &[0x0f]),
-    (0x2C, &[0x16]),
-    (0x2D, &[0x28]),
-    (0x2E, &[0x0f]),
-    (0xFF, &[0x20, 0x10, 0xA0]),
-    (0x08, &[0xdc]),
-    (0xFF, &[0x20, 0x10, 0x45]),
-    (0x03, &[0x64]),
-    (0xFF, &[0x20, 0x10, 0x40]),
-    (0x86, &[0x00]),
-    (0xFF, &[0x20, 0x10, 0x00]),
-    (0x2A, &[0x00, 0x00, 0x01, 0x63]),
-    (0xFF, &[0x20, 0x10, 0x42]),
-    (0x05, &[0x2c]),
-    (0xFF, &[0x20, 0x10, 0x11]),
-    (0x50, &[0x01]),
-    (0xFF, &[0x20, 0x10, 0x12]),
-    (0x0D, &[0x66]),
-    (0xFF, &[0x20, 0x10, 0x17]),
-    (0x39, &[0x3c]),
-    (0xFF, &[0x20, 0x10, 0x31]),
-    (0x00, &[0x00]),
-    (0x01, &[0x00]),
-    (0x02, &[0x00]),
-    (0x03, &[0x09]),
-    (0x04, &[0x00]),
-    (0x05, &[0x1c]),
-    (0x06, &[0x00]),
-    (0x07, &[0x36]),
-    (0x08, &[0x00]),
-    (0x09, &[0x3d]),
-    (0x0a, &[0x00]),
-    (0x0b, &[0x54]),
-    (0x0c, &[0x00]),
-    (0x0d, &[0x62]),
-    (0x0e, &[0x00]),
-    (0x0f, &[0x72]),
-    (0x10, &[0x00]),
-    (0x11, &[0x79]),
-    (0x12, &[0x00]),
-    (0x13, &[0xa6]),
-    (0x14, &[0x00]),
-    (0x15, &[0xd0]),
-    (0x16, &[0x01]),
-    (0x17, &[0x0e]),
-    (0x18, &[0x01]),
-    (0x19, &[0x3d]),
-    (0x1a, &[0x01]),
-    (0x1b, &[0x7b]),
-    (0x1c, &[0x01]),
-    (0x1d, &[0xcf]),
-    (0x1e, &[0x02]),
-    (0x1f, &[0x0E]),
-    (0x20, &[0x02]),
-    (0x21, &[0x53]),
-    (0x22, &[0x02]),
-    (0x23, &[0x80]),
-    (0x24, &[0x02]),
-    (0x25, &[0xC2]),
-    (0x26, &[0x02]),
-    (0x27, &[0xFA]),
-    (0x28, &[0x03]),
-    (0x29, &[0x3E]),
-    (0x2a, &[0x03]),
-    (0x2b, &[0x52]),
-    (0x2c, &[0x03]),
-    (0x2d, &[0x70]),
-    (0x2e, &[0x03]),
-    (0x2f, &[0x8E]),
-    (0x30, &[0x03]),
-    (0x31, &[0xA2]),
-    (0x32, &[0x03]),
-    (0x33, &[0xBA]),
-    (0x34, &[0x03]),
-    (0x35, &[0xCF]),
-    (0x36, &[0x03]),
-    (0x37, &[0xe8]),
-    (0x38, &[0x03]),
-    (0x39, &[0xf0]),
-    (0xFF, &[0x20, 0x10, 0x32]),
-    (0x00, &[0x00]),
-    (0x01, &[0x00]),
-    (0x02, &[0x00]),
-    (0x03, &[0x09]),
-    (0x04, &[0x00]),
-    (0x05, &[0x1c]),
-    (0x06, &[0x00]),
-    (0x07, &[0x36]),
-    (0x08, &[0x00]),
-    (0x09, &[0x3d]),
-    (0x0a, &[0x00]),
-    (0x0b, &[0x54]),
-    (0x0c, &[0x00]),
-    (0x0d, &[0x62]),
-    (0x0e, &[0x00]),
-    (0x0f, &[0x72]),
-    (0x10, &[0x00]),
-    (0x11, &[0x79]),
-    (0x12, &[0x00]),
-    (0x13, &[0xa6]),
-    (0x14, &[0x00]),
-    (0x15, &[0xd0]),
-    (0x16, &[0x01]),
-    (0x17, &[0x0e]),
-    (0x18, &[0x01]),
-    (0x19, &[0x3d]),
-    (0x1a, &[0x01]),
-    (0x1b, &[0x7b]),
-    (0x1c, &[0x01]),
-    (0x1d, &[0xcf]),
-    (0x1e, &[0x02]),
-    (0x1f, &[0x0E]),
-    (0x20, &[0x02]),
-    (0x21, &[0x53]),
-    (0x22, &[0x02]),
-    (0x23, &[0x80]),
-    (0x24, &[0x02]),
-    (0x25, &[0xC2]),
-    (0x26, &[0x02]),
-    (0x27, &[0xFA]),
-    (0x28, &[0x03]),
-    (0x29, &[0x3E]),
-    (0x2a, &[0x03]),
-    (0x2b, &[0x52]),
-    (0x2c, &[0x03]),
-    (0x2d, &[0x70]),
-    (0x2e, &[0x03]),
-    (0x2f, &[0x8E]),
-    (0x30, &[0x03]),
-    (0x31, &[0xA2]),
-    (0x32, &[0x03]),
-    (0x33, &[0xBA]),
-    (0x34, &[0x03]),
-    (0x35, &[0xCF]),
-    (0x36, &[0x03]),
-    (0x37, &[0xe8]),
-    (0x38, &[0x03]),
-    (0x39, &[0xf0]),
-    (0xFF, &[0x20, 0x10, 0x11]),
-    (0x60, &[0x01]),
-    (0x65, &[0x03]),
-    (0x66, &[0x38]),
-    (0x67, &[0x04]),
-    (0x68, &[0x34]),
-    (0x69, &[0x03]),
-    (0x61, &[0x03]),
-    (0x62, &[0x38]),
-    (0x63, &[0x04]),
-    (0x64, &[0x34]),
-    (0x0A, &[0x11]),
-    (0x0B, &[0x14]),
-    (0x0c, &[0x14]),
-    (0x55, &[0x06]),
-    (0xFF, &[0x20, 0x10, 0x42]),
-    (0x05, &[0x3D]),
-    (0x06, &[0x03]),
-    (0xFF, &[0x20, 0x10, 0x12]),
-    (0x1f, &[0xdc]),
-    (0xFF, &[0x20, 0x10, 0x17]),
-    (0x11, &[0xAA]),
-    (0x16, &[0x12]),
-    (0x0B, &[0xC3]),
-    (0x10, &[0x0E]),
-    (0x14, &[0xAA]),
-    (0x18, &[0xA0]),
-    (0x1A, &[0x80]),
-    (0x1F, &[0x80]),
-    (0xFF, &[0x20, 0x10, 0x11]),
-    (0x30, &[0xEE]),
-    (0xFF, &[0x20, 0x10, 0x12]),
-    (0x15, &[0x0F]),
-    (0x10, &[0x0F]),
-    (0xFF, &[0x20, 0x10, 0x40]),
-    (0x83, &[0xC4]),
-    (0xFF, &[0x20, 0x10, 0x2d]),
-    (0x01, &[0x3e]),
-    (0xFF, &[0x20, 0x10, 0x12]),
-    (0x2B, &[0x1e]),
-    (0x2C, &[0x26]),
-    (0x2E, &[0x1e]),
-    (0xFF, &[0x20, 0x10, 0x18]),
-    (0x01, &[0x01]),
-    (0x00, &[0x1E]),
-    (0xFF, &[0x20, 0x10, 0x43]),
-    (0x03, &[0x04]),
-    // touch For I2C
-    (0xFF, &[0x20, 0x10, 0x50]),
-    (0x05, &[0x00]),
-    (0x00, &[0xA6]),
-    (0x01, &[0xA6]),
-    (0x08, &[0x55]),
-    (0xFF, &[0x20, 0x10, 0x12]),
-    (0x21, &[0xB4]), // set vcom
-    (0xFF, &[0x20, 0x10, 0x00]),
-    // ADD FOR QSPI/TP TEST
-    (0x3A, &[0x05]), // Set 65K colour mode
-    (0x11, &[0x00]),
-    (0x29, &[0x00]),
-];

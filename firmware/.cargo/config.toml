@@ -3,7 +3,8 @@
 runner = "espflash flash --monitor"
 
 [env]
-ESP_LOGLEVEL="INFO"
+ESP_LOG="info"
+ESP_HAL_PLACE_SPI_DRIVER_IN_RAM="true"
 
 [build]
 rustflags = [
