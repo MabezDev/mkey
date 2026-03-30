@@ -16,7 +16,69 @@ use embassy_usb::{Builder, Handler};
 use usbd_hid::descriptor::KeyboardReport;
 use usbd_hid::descriptor::SerializedDescriptor;
 
-use crate::keymap::{DEBOUNCE_SCANS, KEYMAP, NUM_COLS, NUM_ROWS};
+use crate::keymap::{
+    DEBOUNCE_SCANS, FN_COL, FN_ROW, KEY_BACKSPACE, KEY_D, KEY_ESC, KEYMAP, NUM_COLS, NUM_ROWS,
+};
+
+const DEBUG_MODE_MAGIC: u32 = 0xDBE6_F1A6;
+
+fn rtc_cntl() -> &'static esp32s3::rtc_cntl::RegisterBlock {
+    unsafe { &*esp32s3::RTC_CNTL::PTR }
+}
+
+/// Check if debug mode was requested (persisted in RTC store register across resets).
+pub fn is_debug_mode() -> bool {
+    rtc_cntl().store6().read().bits() == DEBUG_MODE_MAGIC
+}
+
+fn toggle_debug_mode() -> ! {
+    let current = rtc_cntl().store6().read().bits();
+    let new = if current == DEBUG_MODE_MAGIC { 0 } else { DEBUG_MODE_MAGIC };
+    rtc_cntl().store6().write(|w| unsafe { w.bits(new) });
+    if new == DEBUG_MODE_MAGIC {
+        info!("Switching to debug mode...");
+    } else {
+        info!("Switching to normal mode...");
+    }
+    esp_hal::system::software_reset();
+}
+
+fn reset_to_download_mode() -> ! {
+    info!("Resetting to download mode...");
+    rtc_cntl()
+        .option1()
+        .modify(|_, w| w.force_download_boot().set_bit());
+    esp_hal::system::software_reset();
+}
+
+/// Check pressed keys for Fn combos. Returns true if Fn is held (suppresses HID report).
+fn handle_fn_combos(key_state: &[[bool; NUM_COLS]; NUM_ROWS]) -> bool {
+    if !key_state[FN_ROW][FN_COL] {
+        return false;
+    }
+
+    // Scan for combo keys by checking keycodes in the keymap
+    for y in 0..NUM_ROWS {
+        for x in 0..NUM_COLS {
+            if (y, x) == (FN_ROW, FN_COL) {
+                continue;
+            }
+            if !key_state[y][x] {
+                continue;
+            }
+            let (_mod_bits, keycode) = KEYMAP[y][x];
+            match keycode {
+                KEY_ESC => esp_hal::system::software_reset(),
+                KEY_BACKSPACE => reset_to_download_mode(),
+                KEY_D => toggle_debug_mode(),
+                _ => {}
+            }
+        }
+    }
+
+    // Fn held but no recognized combo — still suppress HID output
+    true
+}
 
 #[embassy_executor::task]
 pub async fn usb(
@@ -134,6 +196,12 @@ pub async fn matrix(
         }
 
         if state_changed {
+            // Check Fn combos first — resets never return, other combos suppress HID
+            if handle_fn_combos(&key_state) {
+                Timer::after(Duration::from_millis(1)).await;
+                continue;
+            }
+
             let mut modifier = 0u8;
             let mut keycodes = [0u8; 6];
             let mut keycode_idx = 0usize;
@@ -198,7 +266,6 @@ impl MyDeviceHandler {
     }
 }
 
-#[cfg(feature = "debug-matrix")]
 #[embassy_executor::task]
 pub async fn debug_consumer(
     signal: &'static Signal<CriticalSectionRawMutex, KeyboardReport>,

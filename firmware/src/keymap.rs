@@ -29,3 +29,12 @@ pub const KEYMAP: [[KeyDef; NUM_COLS]; NUM_ROWS] = [
 pub const NUM_ROWS: usize = 5;
 pub const NUM_COLS: usize = 14;
 pub const DEBOUNCE_SCANS: u8 = 5;
+
+/// Fn key position in the matrix (row 4, col 8)
+pub const FN_ROW: usize = 4;
+pub const FN_COL: usize = 8;
+
+// HID keycodes used for Fn combo detection
+pub const KEY_ESC: u8 = 0x29;
+pub const KEY_BACKSPACE: u8 = 0x2A;
+pub const KEY_D: u8 = 0x07;

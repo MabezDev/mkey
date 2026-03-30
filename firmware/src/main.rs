@@ -21,7 +21,6 @@ use esp_hal::gpio::Level;
 use esp_hal::interrupt;
 use esp_hal::interrupt::software::SoftwareInterruptControl;
 use esp_hal::interrupt::Priority;
-#[cfg(not(feature = "debug-matrix"))]
 use esp_hal::otg_fs::Usb;
 use esp_hal::peripherals::Interrupt;
 use esp_hal::system::Stack;
@@ -183,17 +182,23 @@ fn main() -> ! {
         sw_ints.software_interrupt1,
         unsafe { &mut *addr_of_mut!(APP_CORE_STACK) },
         || {
-            #[cfg(not(feature = "debug-matrix"))]
-            let device = Usb::new(peripherals.USB0, peripherals.GPIO20, peripherals.GPIO19);
+            let debug = cfg!(feature = "debug-matrix") || keyboard::is_debug_mode();
             let signal = &*make_static!(Signal<CriticalSectionRawMutex, KeyboardReport>, Signal::new());
             let executor = make_static!(Executor, Executor::new());
-            executor.run(|spawner| {
-                spawner.must_spawn(keyboard::matrix(columns, rows, signal));
-                #[cfg(not(feature = "debug-matrix"))]
-                spawner.must_spawn(keyboard::usb(device, signal));
-                #[cfg(feature = "debug-matrix")]
-                spawner.must_spawn(keyboard::debug_consumer(signal));
-            });
+
+            if debug {
+                log::info!("Booting in debug mode (Fn+D to switch back)");
+                executor.run(|spawner| {
+                    spawner.must_spawn(keyboard::matrix(columns, rows, signal));
+                    spawner.must_spawn(keyboard::debug_consumer(signal));
+                });
+            } else {
+                let device = Usb::new(peripherals.USB0, peripherals.GPIO20, peripherals.GPIO19);
+                executor.run(|spawner| {
+                    spawner.must_spawn(keyboard::matrix(columns, rows, signal));
+                    spawner.must_spawn(keyboard::usb(device, signal));
+                });
+            }
         },
     );
 
