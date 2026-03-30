@@ -479,23 +479,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
 
 [[package]]
-name = "esp-backtrace"
-version = "0.18.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3318413fb566c7227387f67736cf70cd74d80a11f2bb31c7b95a9eb48d079669"
-dependencies = [
- "cfg-if",
- "document-features",
- "esp-config",
- "esp-metadata-generated",
- "esp-println",
- "heapless 0.9.1",
- "riscv",
- "semihosting",
- "xtensa-lx",
-]
-
-[[package]]
 name = "esp-bootloader-esp-idf"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -601,19 +584,6 @@ name = "esp-metadata-generated"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9a93e39c8ad8d390d248dc7b9f4b59a873f313bf535218b8e2351356972399e3"
-
-[[package]]
-name = "esp-println"
-version = "0.16.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5a30e6c9fbcc01c348d46706fef8131c7775ab84c254a3cd65d0cd3f6414d592"
-dependencies = [
- "document-features",
- "esp-metadata-generated",
- "esp-sync",
- "log",
- "portable-atomic",
-]
 
 [[package]]
 name = "esp-riscv-rt"
@@ -768,10 +738,8 @@ dependencies = [
  "embedded-graphics",
  "embedded-graphics-core",
  "embedded-hal 1.0.0",
- "esp-backtrace",
  "esp-bootloader-esp-idf",
  "esp-hal",
- "esp-println",
  "esp-rtos",
  "esp32s3",
  "log",
@@ -901,16 +869,6 @@ name = "heapless"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0bfb9eb618601c89945a70e254898da93b13be0388091d42117462b265bb3fad"
-dependencies = [
- "hash32 0.3.1",
- "stable_deref_trait",
-]
-
-[[package]]
-name = "heapless"
-version = "0.9.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b1edcd5a338e64688fbdcb7531a846cfd3476a54784dcb918a0844682bc7ada5"
 dependencies = [
  "hash32 0.3.1",
  "stable_deref_trait",
@@ -1220,12 +1178,6 @@ name = "scopeguard"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
-
-[[package]]
-name = "semihosting"
-version = "0.1.20"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c3e1c7d2b77d80283c750a39c52f1ab4d17234e8f30bca43550f5b2375f41d5f"
 
 [[package]]
 name = "semver"
