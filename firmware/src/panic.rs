@@ -67,5 +67,7 @@ pub fn check_previous_panic() {
         log::error!("========== PREVIOUS PANIC ==========");
         log::error!("{}", msg);
         log::error!("====================================");
+        // JTAG serial FIFO is small — give it time to drain before USB OTG takes over
+        esp_hal::delay::Delay::new().delay_millis(100u32);
     }
 }

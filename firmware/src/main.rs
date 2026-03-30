@@ -73,8 +73,6 @@ fn main() -> ! {
 
     // Dump any panic message from a previous boot (before USB takes over JTAG serial)
     panic::check_previous_panic();
-    // Give JTAG serial time to flush the panic message if there was one
-    esp_hal::delay::Delay::new().delay_millis(50u32);
 
     // V1.0 of the mKey has the USB DM and DP swapped.. oops. There is an EFUSE to swap the pins, yay! However,
     // it is bugged, and doesn't swap the pullups too. We can work around this by correcting the pullups early in the program,
