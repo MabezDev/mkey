@@ -11,7 +11,8 @@ use embedded_graphics::geometry::Point;
 use embedded_graphics::image::Image;
 use embedded_graphics::Drawable;
 use embedded_graphics_core::pixelcolor::Rgb565;
-use esp_backtrace as _;
+// esp-backtrace still linked for backtrace support, but our own panic handler
+// in panic.rs saves the message to RTC memory before resetting.
 use esp_hal::clock::CpuClock;
 use esp_hal::dma::DmaRxBuf;
 use esp_hal::dma::DmaTxBuf;
@@ -60,6 +61,7 @@ pub mod fmt;
 mod display;
 mod keyboard;
 mod keymap;
+mod panic;
 
 static mut APP_CORE_STACK: Stack<8192> = Stack::new();
 
@@ -68,6 +70,11 @@ fn main() -> ! {
     let peripherals = esp_hal::init(esp_hal::Config::default().with_cpu_clock(CpuClock::max()));
 
     esp_println::logger::init_logger_from_env();
+
+    // Dump any panic message from a previous boot (before USB takes over JTAG serial)
+    panic::check_previous_panic();
+    // Give JTAG serial time to flush the panic message if there was one
+    esp_hal::delay::Delay::new().delay_millis(50u32);
 
     // V1.0 of the mKey has the USB DM and DP swapped.. oops. There is an EFUSE to swap the pins, yay! However,
     // it is bugged, and doesn't swap the pullups too. We can work around this by correcting the pullups early in the program,

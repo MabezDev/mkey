@@ -8,7 +8,7 @@ license = "MIT OR Apache-2.0"
 [dependencies]
 esp-hal = { version = "1.0.0", features = ["esp32s3", "log-04", "unstable"] }
 esp-rtos  = { version = "0.2",  features = ["esp32s3", "embassy"] }
-esp-backtrace = { version = "0.18", features = ["esp32s3", "panic-handler", "println"] }
+esp-backtrace = { version = "0.18", features = ["esp32s3", "println"] }
 esp-println = { version = "0.16", default-features = false, features = ["esp32s3", "log-04", "jtag-serial"] }
 esp-bootloader-esp-idf = { version = "0.4.0", features = ["esp32s3"] }
 
@@ -30,9 +30,7 @@ tinygif = "0.0.4"
 embedded-graphics = "0.8.1"
 
 [features]
-# usb-pin-exchange is enabled by default for now, until we have a new revision of the hardware
-# In the future we may wish to auto detect this based on either fw metadata
-default = ["usb-pin-exchange", "log"]
+default = ["log"]
 usb-pin-exchange = []
 debug-matrix = []
 log = []
