@@ -77,10 +77,9 @@ fn main() -> ! {
 
     let delay = Delay::new();
 
-    // Dump any panic message from a previous boot (over JTAG serial before USB takes over)
+    // Check for panic from previous boot — message will be sent over USB CDC once enumerated
     if panic::check_previous_panic() {
-        ::log::warn!("Previous panic detected — details above and via USB CDC");
-        delay.delay_millis(10_000);
+        ::log::warn!("Previous panic detected — will send details over USB CDC");
     }
 
     // Note: the USB_EXCHG_PINS efuse pullup workaround is handled automatically

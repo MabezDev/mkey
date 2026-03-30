@@ -75,15 +75,6 @@ pub fn check_previous_panic() -> bool {
     }
     PANIC_AVAILABLE.store(true, Ordering::Release);
 
-    // Also print over JTAG serial (works in debug mode / early boot)
-    if let Ok(msg) = core::str::from_utf8(&buf[6..6 + len]) {
-        // Use the JTAG serial writer directly (logger may not be initialized yet)
-        crate::log::jtag_serial_write(b"========== PREVIOUS PANIC ==========\r\n");
-        crate::log::jtag_serial_write(msg.as_bytes());
-        crate::log::jtag_serial_write(b"\r\n====================================\r\n");
-        esp_hal::delay::Delay::new().delay_millis(100u32);
-    }
-
     true
 }
 

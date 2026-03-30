@@ -29,11 +29,16 @@ pub fn init(debug: bool, jtag_tx: UsbSerialJtagTx<'static, Blocking>) {
     }
 }
 
-/// Write directly to USB-SERIAL-JTAG. Used by panic handler for early output.
+/// Write to USB-SERIAL-JTAG (best-effort, non-blocking).
+/// Drops bytes if the FIFO is full rather than blocking.
 pub fn jtag_serial_write(data: &[u8]) {
     critical_section::with(|_| unsafe {
         if let Some(tx) = (*core::ptr::addr_of_mut!(JTAG_TX)).as_mut() {
-            let _ = tx.write(data);
+            for &byte in data {
+                // write_byte_nb returns WouldBlock if FIFO full — just skip
+                let _ = tx.write_byte_nb(byte);
+            }
+            let _ = tx.flush_tx_nb();
         }
     });
 }
