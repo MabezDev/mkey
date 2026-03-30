@@ -25,8 +25,12 @@ fn rtc_cntl() -> &'static esp32s3::rtc_cntl::RegisterBlock {
 }
 
 /// Check if debug mode was requested (persisted in RTC store register across resets).
+/// Clears the flag immediately so debug mode is one-shot — prevents getting stuck
+/// if the register contains garbage or the user can't toggle back.
 pub fn is_debug_mode() -> bool {
-    rtc_cntl().store6().read().bits() == DEBUG_MODE_MAGIC
+    let val = rtc_cntl().store6().read().bits();
+    rtc_cntl().store6().write(|w| unsafe { w.bits(0) });
+    val == DEBUG_MODE_MAGIC
 }
 
 fn toggle_debug_mode() -> ! {
