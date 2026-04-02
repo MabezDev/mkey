@@ -109,8 +109,30 @@ disp_cut_y1 = 58.746 - 7.416;    // 51.330   (front/closer to user)
 disp_cut_y2 = 95.946 - 7.416;    // 88.530   (back/further from user)
 
 // Display center in plate-local coords
-disp_cx = (disp_cut_x1 + disp_cut_x2) / 2;   // ~320.962
-disp_cy = (disp_cut_y1 + disp_cut_y2) / 2;    // ~69.884
+disp_cx = (disp_cut_x1 + disp_cut_x2) / 2;   // ~321.008
+disp_cy = (disp_cut_y1 + disp_cut_y2) / 2;    // ~69.930
+
+// =============================================================================
+// SECTION 2b: ARROW KEY POSITIONS (from mkey.kicad_pcb)
+// =============================================================================
+// Board→plate mapping: plate_local_x = Board_X - 31.473
+//                      plate_local_y = |Board_Y - 150.195| - 7.416
+//
+// Arrow keys form inverted-T, all at standard 19.05mm MX spacing.
+// Display X center (321.0) already aligns with arrow cluster X center (321.6)
+// within 0.6mm — well within tolerance.
+
+arrow_up_px    = 353.060 - 31.473;   // = 321.587  (plate-local X)
+arrow_up_py    = 150.195 - 111.729 - 7.416;  // = 31.050  (plate-local Y)
+arrow_down_px  = 353.060 - 31.473;   // = 321.587
+arrow_down_py  = 150.195 - 130.779 - 7.416;  // = 12.000
+arrow_left_px  = 334.010 - 31.473;   // = 302.537
+arrow_left_py  = 150.195 - 130.779 - 7.416;  // = 12.000
+arrow_right_px = 372.110 - 31.473;   // = 340.637
+arrow_right_py = 150.195 - 130.779 - 7.416;  // = 12.000
+
+mx_cutout = 14.0;    // MX switch cutout size (mm)
+mx_cut_tol = 0.15;   // cutout tolerance per side
 
 // =============================================================================
 // SECTION 3: USB-C CONNECTOR
@@ -224,10 +246,20 @@ disp_win_h = disp_active_h + 2 * disp_win_tol;   // = 31.116
 disp_pkt_w = disp_module_w + 2 * disp_pkt_tol;   // = 32.208
 disp_pkt_h = disp_module_h + 2 * disp_pkt_tol;   // = 39.000
 
-// Display housing solid area (back-right corner of overlay, not cut by key opening)
+// Display housing (back-right corner of overlay, not cut by key opening).
+// Two small tabs extend from the housing front edge down to just above
+// the UP arrow, filling the plate-visible gaps on either side.
 disp_housing_border = 3.0;
+arrow_gap_clearance = 1.0;
+
+// Main housing boundaries (display-based, same as original)
 disp_housing_x1 = p2c_x(disp_cx) - disp_pkt_w/2 - disp_housing_border;
 disp_housing_y1 = p2c_y(disp_cy) - disp_pkt_h/2 - disp_housing_border;
+
+// Tab boundaries — fill gaps beside the UP arrow between arrows and display
+arrow_tab_front   = arrow_up_py + mx_cutout/2 + arrow_gap_clearance;   // ~38.1 plate-local
+arrow_up_col_left  = arrow_up_px - mx_cutout/2 - arrow_gap_clearance;  // ~313.6
+arrow_up_col_right = arrow_up_px + mx_cutout/2 + arrow_gap_clearance;  // ~329.6
 
 // Overlay overhang dimensions
 overlay_w       = outer_w + 2 * overhang;
@@ -342,7 +374,7 @@ module case_overlay() {
         // (overlay sits in the rabbet, lip provides lateral registration).
         // The CAD overlap is intentional and represents the assembly fit.
 
-        // Key opening (full rectangle minus display housing)
+        // Key opening (full rectangle minus display/arrow housing)
         key_opening();
 
         // Display viewing window
@@ -382,24 +414,54 @@ module key_opening() {
     }
 }
 
-// 2D profile of display housing area with rounded front-left corner
+// ─── Arrow key individual cutouts ───────────────────────────────────────────
+// 4 MX switch holes in the overlay so the plate is hidden around the arrows.
+module arrow_key_cutouts() {
+    sz = mx_cutout + 2 * mx_cut_tol;  // cutout size with tolerance
+    z0 = bottom_t - 0.01;
+    zh = back_h + 2;
+
+    positions = [
+        [p2c_x(arrow_up_px),    p2c_y(arrow_up_py)],
+        [p2c_x(arrow_down_px),  p2c_y(arrow_down_py)],
+        [p2c_x(arrow_left_px),  p2c_y(arrow_left_py)],
+        [p2c_x(arrow_right_px), p2c_y(arrow_right_py)]
+    ];
+
+    for (pos = positions) {
+        translate([pos[0] - sz/2, pos[1] - sz/2, z0])
+            cube([sz, sz, zh]);
+    }
+}
+
+// 2D profile of display housing with tabs filling the gaps beside the UP arrow.
+// Shape: main rectangle (display) + left tab + right tab, rounded at outermost corner.
 module display_housing_2d() {
-    r  = disp_housing_r;
-    x2 = outer_w;   // extend past inner wall for clean boolean
-    y2 = outer_d;
+    r   = disp_housing_r;
+    x2  = outer_w;
+    y2  = outer_d;
     hx1 = disp_housing_x1;
-    hy1 = disp_housing_y1;
+    hy1 = disp_housing_y1;                         // main body front edge
+    tab_y = p2c_y(arrow_tab_front);                // tab bottom edge
+    up_l  = p2c_x(arrow_up_col_left);             // UP column left edge
+    up_r  = p2c_x(arrow_up_col_right);            // UP column right edge
 
     union() {
-        // Right portion (past the rounded corner)
-        translate([hx1 + r, hy1])
-            square([x2 - hx1 - r, y2 - hy1]);
-        // Lower portion (past the rounded corner)
-        translate([hx1, hy1 + r])
-            square([x2 - hx1, y2 - hy1 - r]);
-        // Quarter circle at front-left corner
-        translate([hx1 + r, hy1 + r])
+        // Main body (display area) — simple rectangle, no corner rounding here
+        translate([hx1, hy1])
+            square([x2 - hx1, y2 - hy1]);
+
+        // Left tab with rounded front-left corner (outermost corner of shape)
+        translate([hx1 + r, tab_y])
+            square([up_l - hx1 - r, hy1 - tab_y]);
+        translate([hx1, tab_y + r])
+            square([up_l - hx1, hy1 - tab_y - r]);
+        translate([hx1 + r, tab_y + r])
             circle(r=r);
+
+        // Right tab — square corners (meets right wall)
+        translate([up_r, tab_y])
+            square([x2 - up_r, hy1 - tab_y]);
     }
 }
 
