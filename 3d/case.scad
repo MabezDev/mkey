@@ -667,19 +667,10 @@ module case_tray_finished() {
 }
 
 module case_overlay_finished() {
-    difference() {
-        case_overlay();
-        // Top edge chamfers on the overhanging overlay
-        // Front top edge (at y = -overhang)
-        translate([-overhang - 0.1, -overhang - 0.1, overlay_front_h])
-            rotate([45, 0, 0])
-                cube([overlay_w + 0.2, chamfer * 1.42, chamfer * 1.42]);
-        // Back top edge (at y = outer_d + overhang)
-        translate([-overhang - 0.1, outer_d + overhang + 0.1, overlay_back_h])
-            rotate([45, 0, 0])
-                translate([0, -chamfer * 1.42, 0])
-                    cube([overlay_w + 0.2, chamfer * 1.42, chamfer * 1.42]);
-    }
+    // No CAD chamfers — the rounded corners make simple planar cuts
+    // produce artifacts at the corners. Chamfers/edge breaks will be
+    // applied during finishing (sanding/routing) on the physical piece.
+    case_overlay();
 }
 
 // =============================================================================
