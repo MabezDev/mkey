@@ -25,7 +25,7 @@ SHOW_OVERLAY    = true;    // piece 2: top surface
 SHOW_PLATE      = false;   // ghost plate for fit check
 SHOW_DISPLAY    = false;   // ghost display for fit check
 SHOW_SECTION    = false;   // cross-section cut for inspection
-EXPLODE         = 0;       // set >0 to separate overlay from tray (mm)
+EXPLODE         = 2;       // set >0 to separate overlay from tray (mm)
 
 // =============================================================================
 // SECTION 1: PLATE DIMENSIONS (from plate.kicad_pcb)
@@ -97,6 +97,8 @@ disp_active_h   = 32.700;   // viewable/active area height
 disp_active_ox  = 1.200;    // active area offset from module left edge (centered)
 disp_active_oy  = 2.260;    // active area offset from module top edge (centered)
 disp_glass_t    = 1.560;    // module + glass stack thickness
+disp_module_r   = 2.200;    // module corner radius (matches plate cutout)
+disp_active_r   = 1.000;    // active area corner radius (typical for small AMOLED)
 
 // Display cutout in the plate (from plate.kicad_pcb, VERIFIED by safety officer)
 // KiCad bbox: X 305.846..337.346, Y -95.946..-58.746 (corner radius 2.200mm)
@@ -138,8 +140,10 @@ tilt_angle = 5;   // degrees, back raised
 
 // ─── Tolerances ──────────────────────────────────────────────────────────────
 plate_gap     = 0.3;    // clearance between plate edge and inner wall (per side)
-disp_win_tol  = 0.15;   // display window oversize (per side)
-disp_pkt_tol  = 0.15;   // display pocket oversize (per side)
+disp_win_tol  = 0.15;   // display window oversize vs active area (per side)
+disp_pkt_tol  = 0.15;   // display pocket oversize vs module (per side)
+disp_lip_t    = 1.2;    // lip thickness (Z) holding display flush against overlay
+fpc_channel_w = 14.0;   // FPC ribbon channel width
 
 // ─── Walls ───────────────────────────────────────────────────────────────────
 wall_t    = 4.8;    // wall thickness = bezel (4.5mm visible + 0.3mm plate gap)
@@ -177,6 +181,13 @@ y_split = 41.0;   // plate-local Y for the L-shape horizontal step
 // With clearance:
 x_split = 290.0;  // plate-local X where narrow section right edge is
 
+// ─── Overhang ────────────────────────────────────────────────────────────────
+overhang = 4.0;   // top overlay overhang beyond tray walls (mm)
+
+// ─── Corner rounding ─────────────────────────────────────────────────────────
+overlay_corner_r = 3.0;    // outer corner radius of overlay
+disp_housing_r   = 3.0;    // internal corner radius at display housing
+
 // =============================================================================
 // SECTION 5: DERIVED DIMENSIONS
 // =============================================================================
@@ -213,6 +224,17 @@ disp_win_h = disp_active_h + 2 * disp_win_tol;   // = 31.116
 disp_pkt_w = disp_module_w + 2 * disp_pkt_tol;   // = 32.208
 disp_pkt_h = disp_module_h + 2 * disp_pkt_tol;   // = 39.000
 
+// Display housing solid area (back-right corner of overlay, not cut by key opening)
+disp_housing_border = 3.0;
+disp_housing_x1 = p2c_x(disp_cx) - disp_pkt_w/2 - disp_housing_border;
+disp_housing_y1 = p2c_y(disp_cy) - disp_pkt_h/2 - disp_housing_border;
+
+// Overlay overhang dimensions
+overlay_w       = outer_w + 2 * overhang;
+overlay_d       = outer_d + 2 * overhang;
+overlay_front_h = front_h - tilt_rise * overhang / outer_d;
+overlay_back_h  = back_h  + tilt_rise * overhang / outer_d;
+
 // =============================================================================
 // SECTION 6: HELPER FUNCTIONS
 // =============================================================================
@@ -235,6 +257,17 @@ module wedge_box(w, d, h_front, h_back) {
             [5,6,2,1]   // right  (X=w, normal -X inward)
         ]
     );
+}
+
+// Rounded wedge box: wedge_box with rounded vertical corners.
+// Uses intersection of exact wedge tilt with rounded extrusion — no tilt distortion.
+module rounded_wedge_box(w, d, h_front, h_back, r) {
+    intersection() {
+        wedge_box(w, d, h_front, h_back);
+        linear_extrude(height = max(h_front, h_back) + 0.1)
+            offset(r=r) offset(delta=-r)
+                square([w, d]);
+    }
 }
 
 // Z height of case top surface at a given case Y coordinate
@@ -260,48 +293,25 @@ function p2c_y(py) = plate_oy + py;
 // Assembly: place gasket strips in slots → drop plate in → place overlay on top.
 // =============================================================================
 
-// Rabbet dimensions: step cut into the inner top of each wall for the overlay
-// to sit flush. The overlay rests in this rabbet.
-rabbet_depth = wall_t - 2.0;   // 2.8mm inward, leaving 2mm outer lip
+// Wall step: top top_t of all walls is removed (full width, no lip).
+// The overlay sits flush on the shortened wall tops and overhangs on all sides.
+// Plate and gaskets provide lateral registration.
+rabbet_depth = wall_t;          // full wall width — no lip
 rabbet_height = top_t;          // 3mm, matches overlay thickness
 
 // ─── PIECE 1: TRAY (bottom + walls) ─────────────────────────────────────────
 module case_tray() {
     difference() {
-        // Outer shell
-        wedge_box(outer_w, outer_d, front_h, back_h);
+        // Outer shell — shortened by top_t so overlay sits flush on wall tops
+        wedge_box(outer_w, outer_d, front_h - top_t, back_h - top_t);
 
-        // Inner cavity (fully open top - no top surface)
+        // Inner cavity (fully open top)
         translate([wall_t, wall_t, bottom_t])
             wedge_box(inner_w, inner_d,
                       front_h + 10,
                       back_h  + 10);
 
-        // Rabbet: step around the inner top of the walls for the overlay
-        // The overlay sits in this step, flush with the wall tops.
-        // Cut inward from the inner wall face, at the top of each wall.
-        // Front wall rabbet
-        translate([wall_t - 0.01, wall_t - rabbet_depth, 0])
-            wedge_box(inner_w + 0.02, rabbet_depth + 0.01,
-                      front_h - rabbet_height,
-                      front_h - rabbet_height + (back_h - front_h) * (wall_t / outer_d));
-        // Back wall rabbet
-        translate([wall_t - 0.01, outer_d - wall_t, 0])
-            wedge_box(inner_w + 0.02, rabbet_depth + 0.01,
-                      back_h - rabbet_height - (back_h - front_h) * (wall_t / outer_d),
-                      back_h - rabbet_height);
-        // Left wall rabbet
-        translate([wall_t - rabbet_depth, wall_t, 0])
-            wedge_box(rabbet_depth + 0.01, inner_d,
-                      front_h - rabbet_height,
-                      back_h  - rabbet_height);
-        // Right wall rabbet
-        translate([outer_w - wall_t, wall_t, 0])
-            wedge_box(rabbet_depth + 0.01, inner_d,
-                      front_h - rabbet_height,
-                      back_h  - rabbet_height);
-
-        // Gasket tab slots (cut into the walls below the rabbet)
+        // Gasket tab slots (cut into the walls)
         gasket_slots();
 
         // USB-C cutout through back wall
@@ -310,26 +320,29 @@ module case_tray() {
 }
 
 // ─── PIECE 2: TOP OVERLAY ───────────────────────────────────────────────────
-// Sits in the wall rabbet. Has the key opening and display features.
+// Overhangs the tray walls. Sits in the wall rabbet for registration.
+// Has the key opening and display features.
 module case_overlay() {
     difference() {
-        // Full top panel following the tilt, sized to fit in the rabbet
-        // Top face flush with wall tops, bottom face rests on rabbet ledge
-        translate([wall_t - rabbet_depth, wall_t - rabbet_depth, 0])
-            wedge_box(inner_w + 2 * rabbet_depth,
-                      inner_d + 2 * rabbet_depth,
-                      front_h,
-                      back_h);
+        // Full overlay with overhang and rounded corners
+        translate([-overhang, -overhang, 0])
+            rounded_wedge_box(overlay_w, overlay_d,
+                              overlay_front_h, overlay_back_h,
+                              overlay_corner_r);
 
-        // Remove everything below the overlay (keep only top_t of material)
-        translate([wall_t - rabbet_depth - 0.01,
-                   wall_t - rabbet_depth - 0.01, 0])
-            wedge_box(inner_w + 2 * rabbet_depth + 0.02,
-                      inner_d + 2 * rabbet_depth + 0.02,
-                      front_h - top_t,
-                      back_h  - top_t);
+        // Remove everything below top_t (keep only the top slab)
+        translate([-overhang - 0.01, -overhang - 0.01, 0])
+            rounded_wedge_box(overlay_w + 0.02, overlay_d + 0.02,
+                              overlay_front_h - top_t,
+                              overlay_back_h  - top_t,
+                              overlay_corner_r + 0.01);
 
-        // L-shaped key opening (through the overlay)
+        // Note: the overlay and tray outer wall lip occupy the same Z range
+        // where they meet. This is correct — they nest together physically
+        // (overlay sits in the rabbet, lip provides lateral registration).
+        // The CAD overlap is intentional and represents the assembly fit.
+
+        // Key opening (full rectangle minus display housing)
         key_opening();
 
         // Display viewing window
@@ -347,82 +360,106 @@ module case_complete() {
 }
 
 // ─── 7c. Key opening ────────────────────────────────────────────────────────
-// L-shaped cut: front section full width, back section narrower on right
+// Full inner rectangle with display housing preserved in the back-right corner.
+// The display housing connects to the right wall and back wall — no thin strips.
 module key_opening() {
-    // Boundaries in case coords
-    x1 = wall_t;                          // left
-    x2 = outer_w - wall_t;               // right (full width)
-    y1 = wall_t;                          // front
-    y2 = outer_d - wall_t;               // back
-    ys = p2c_y(y_split);                  // Y where the step occurs
-    xs = p2c_x(x_split);                 // X right edge of narrow section
-
-    // Cut volumes start at cavity floor to avoid cutting the bottom plate
+    x1 = wall_t;
+    x2 = outer_w - wall_t;
+    y1 = wall_t;
+    y2 = outer_d - wall_t;
     z0 = bottom_t - 0.01;
-    zh = back_h + 2;  // extend well above top
+    zh = back_h + 2;
 
-    // Front section: full width, from y1 to ys
-    translate([x1, y1, z0])
-        cube([x2 - x1, ys - y1, zh]);
+    difference() {
+        // Full inner rectangle
+        translate([x1, y1, z0])
+            cube([x2 - x1, y2 - y1, zh]);
 
-    // Back section: left portion only, from ys to y2
-    translate([x1, ys, z0])
-        cube([xs - x1, y2 - ys, zh]);
+        // Preserve display housing area (back-right corner, rounded inner corner)
+        translate([0, 0, z0 - 0.01])
+            linear_extrude(height = zh + 0.02)
+                display_housing_2d();
+    }
+}
+
+// 2D profile of display housing area with rounded front-left corner
+module display_housing_2d() {
+    r  = disp_housing_r;
+    x2 = outer_w;   // extend past inner wall for clean boolean
+    y2 = outer_d;
+    hx1 = disp_housing_x1;
+    hy1 = disp_housing_y1;
+
+    union() {
+        // Right portion (past the rounded corner)
+        translate([hx1 + r, hy1])
+            square([x2 - hx1 - r, y2 - hy1]);
+        // Lower portion (past the rounded corner)
+        translate([hx1, hy1 + r])
+            square([x2 - hx1, y2 - hy1 - r]);
+        // Quarter circle at front-left corner
+        translate([hx1 + r, hy1 + r])
+            circle(r=r);
+    }
 }
 
 // ─── 7d. Display viewing window ─────────────────────────────────────────────
-// Precisely sized to the display active area + tight tolerance.
-// Window is centered on the ACTIVE AREA center, not the plate cutout center,
-// to handle any asymmetry in the display module (e.g. FPC side has wider bezel).
+// Through-cut in the overlay sized to the active area + tight tolerance.
+// Rounded corners match the AMOLED active area shape.
 module display_window() {
-    // Active area center relative to module center:
-    // Module center is at plate cutout center (module fills cutout)
-    // Active area center offset from module center:
-    aa_offset_x = disp_active_ox + disp_active_w/2 - disp_module_w/2;  // 0 if centered
-    aa_offset_y = disp_active_oy + disp_active_h/2 - disp_module_h/2;  // 0 if centered
+    wcx = p2c_x(disp_cx);
+    wcy = p2c_y(disp_cy);
+    wx  = wcx - disp_win_w / 2;
+    wy  = wcy - disp_win_h / 2;
+    wr  = disp_active_r;
 
-    // Window center in plate-local coords
-    // Note: plate-local Y increases toward BACK, but display oy is from module TOP
-    // (which is the BACK side when installed). So aa_offset_y maps directly.
-    win_cx = disp_cx + aa_offset_x;
-    win_cy = disp_cy - aa_offset_y;  // subtract: oy from top → negative = toward front
-
-    wx = p2c_x(win_cx) - disp_win_w / 2;
-    wy = p2c_y(win_cy) - disp_win_h / 2;
-
-    // Cut through the top surface only (not the bottom panel)
+    // Through-cut with rounded corners
     translate([wx, wy, bottom_t])
-        cube([disp_win_w, disp_win_h, back_h]);
+        linear_extrude(height = back_h)
+            offset(r=wr) offset(delta=-wr)
+                square([disp_win_w, disp_win_h]);
 }
 
 // ─── 7e. Display module pocket ──────────────────────────────────────────────
-// Recessed pocket in the underside of the top surface to seat the display module
+// Pocket in the overlay underside for bottom-insertion assembly.
+// The pocket ceiling follows the tilt via wedge_box, giving uniform lip
+// thickness. Display inserts from below, glass face up against lip.
 module display_pocket() {
-    px = p2c_x(disp_cx) - disp_pkt_w / 2;
-    py = p2c_y(disp_cy) - disp_pkt_h / 2;
+    pcx = p2c_x(disp_cx);
+    pcy = p2c_y(disp_cy);
+    px  = pcx - disp_pkt_w / 2;
+    py  = pcy - disp_pkt_h / 2;
+    py_back = py + disp_pkt_h;
+    pr  = disp_module_r + disp_pkt_tol;
 
-    // The pocket needs to accommodate the display glass thickness
-    // below the top surface. It must follow the tilt approximately.
-    // Use a generous cube that covers the tilt variation.
-    // Tilt across pocket height: pocket_h/outer_d * tilt_rise ≈ 3.4mm
-    // So we cut from well below to the top surface.
+    // Tilted pocket ceiling — leaves uniform disp_lip_t lip following the tilt.
+    intersection() {
+        translate([px, py, 0])
+            wedge_box(disp_pkt_w, disp_pkt_h,
+                      top_z(py) - disp_lip_t,
+                      top_z(py_back) - disp_lip_t);
+        // Rounded corners matching module shape
+        translate([px, py, -0.1])
+            linear_extrude(height = back_h + 1)
+                offset(r=pr) offset(delta=-pr)
+                    square([disp_pkt_w, disp_pkt_h]);
+    }
 
-    // Z of top surface underside at pocket center
-    z_top_under = top_z(p2c_y(disp_cy)) - top_t;
+    // FPC ribbon channel — routes from pocket front edge through the
+    // housing border to the key opening cavity, hidden from above.
+    fpc_x = pcx - fpc_channel_w / 2;
+    fpc_y_start = disp_housing_y1 - 1;  // extend into key opening
+    fpc_y_end   = py + 2;               // overlap into pocket
 
-    // Cut deep enough to seat the module at any Y across the pocket
-    pocket_depth = disp_glass_t + 1.0;  // extra clearance for tilt + tolerance
-    translate([px, py, z_top_under - pocket_depth])
-        cube([disp_pkt_w, disp_pkt_h, pocket_depth + 0.1]);
-
-    // FPC ribbon routing slot (exits toward the PCB connector)
-    // The FPC exits from the display module bottom edge (front side in our coords)
-    // Route toward the FPC connector on the PCB
-    fpc_w = 12.0;
-    fpc_x = p2c_x(disp_cx) - fpc_w / 2;
-    fpc_y = py - 5;  // extends 5mm past the pocket front edge
-    translate([fpc_x, fpc_y, z_top_under - pocket_depth - 1])
-        cube([fpc_w, disp_pkt_h / 2 + 5, pocket_depth + 2]);
+    intersection() {
+        translate([fpc_x, fpc_y_start, 0])
+            wedge_box(fpc_channel_w, fpc_y_end - fpc_y_start,
+                      top_z(fpc_y_start) - disp_lip_t,
+                      top_z(fpc_y_end) - disp_lip_t);
+        translate([fpc_x, fpc_y_start, -0.1])
+            linear_extrude(height = back_h + 1)
+                square([fpc_channel_w, fpc_y_end - fpc_y_start]);
+    }
 }
 
 // ─── 7f. USB-C cutout ───────────────────────────────────────────────────────
@@ -632,16 +669,16 @@ module case_tray_finished() {
 module case_overlay_finished() {
     difference() {
         case_overlay();
-        // Top edge chamfers apply to overlay
-        // Front top edge
-        translate([-0.1, -0.1, front_h])
+        // Top edge chamfers on the overhanging overlay
+        // Front top edge (at y = -overhang)
+        translate([-overhang - 0.1, -overhang - 0.1, overlay_front_h])
             rotate([45, 0, 0])
-                cube([outer_w + 0.2, chamfer * 1.42, chamfer * 1.42]);
-        // Back top edge
-        translate([-0.1, outer_d + 0.1, back_h])
+                cube([overlay_w + 0.2, chamfer * 1.42, chamfer * 1.42]);
+        // Back top edge (at y = outer_d + overhang)
+        translate([-overhang - 0.1, outer_d + overhang + 0.1, overlay_back_h])
             rotate([45, 0, 0])
                 translate([0, -chamfer * 1.42, 0])
-                    cube([outer_w + 0.2, chamfer * 1.42, chamfer * 1.42]);
+                    cube([overlay_w + 0.2, chamfer * 1.42, chamfer * 1.42]);
     }
 }
 
