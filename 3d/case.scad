@@ -47,7 +47,7 @@ plate_t = 1.6;       // FR4 thickness
 // ─── Mounting tabs ───────────────────────────────────────────────────────────
 // Tabs extend beyond the inner boundary for gasket mounting.
 // All positions in plate-local coordinates.
-tab_len = 20.0;       // each tab is 20mm along its edge
+tab_len = 19.80;      // each tab is 19.80mm along its edge (measured in plate.kicad_pcb)
 
 // Back edge tabs (3) - at plate_local Y = plate_d (back of keyboard)
 // KiCad Y = -107.641 side; tabs extend toward more negative Y (further back)
@@ -56,7 +56,9 @@ back_tab_cx = [   // center X positions
     176.130 - 0.588,   // = 175.542
     264.380 - 0.588    // = 263.792
 ];
-back_tab_ext = 1.780;  // perpendicular extension beyond plate edge
+back_tab_ext = 1.749;  // perpendicular extension beyond plate edge (from corner y=-107.6406)
+                       // Note: KiCad back edge tapers 0.031mm between corner and interior.
+                       // plate_d uses the corner (more conservative); keep this consistent.
 
 // Front edge tabs (4) - at plate_local Y = 0 (front of keyboard)
 // KiCad Y = -7.416 side; tabs extend toward less negative Y (further front)
@@ -87,11 +89,15 @@ right_tab_ext = 1.764;
 // Dimensions CORRECTED by safety officer from two independent web suppliers:
 //   - lcdtftdisplays.com (1.72" 356x400 QSPI module spec)
 //   - toppoplcd.com (TT172LMN10A datasheet)
-// Cross-validated: module width 31.500mm matches plate cutout width EXACTLY.
-// Module height 37.220mm matches plate cutout 37.200mm within 0.02mm.
+//
+// ACTION REQUIRED ON PLATE.KICAD_PCB: the plate cutout is currently 31.500 × 37.200
+// (X matches the module exactly; Y is 0.020 mm SMALLER than the 37.220 datasheet
+// height). Before sending to the manufacturer, enlarge the plate display cutout
+// to at least 31.700 × 37.400 mm (≥0.10 mm margin per side). Until that is done,
+// the module physically cannot drop through the plate cutout.
 
-disp_module_w   = 31.500;   // module outline width (matches plate cutout)
-disp_module_h   = 37.220;   // module outline height
+disp_module_w   = 31.500;   // module outline width  (plate cutout must be ≥ 31.700)
+disp_module_h   = 37.220;   // module outline height (plate cutout must be ≥ 37.400)
 disp_active_w   = 29.100;   // viewable/active area width
 disp_active_h   = 32.700;   // viewable/active area height
 disp_active_ox  = 1.200;    // active area offset from module left edge (centered)
@@ -246,26 +252,56 @@ disp_win_h = disp_active_h + 2 * disp_win_tol;   // = 31.116
 disp_pkt_w = disp_module_w + 2 * disp_pkt_tol;   // = 32.208
 disp_pkt_h = disp_module_h + 2 * disp_pkt_tol;   // = 39.000
 
-// Display housing (back-right corner of overlay, not cut by key opening).
-// Two small tabs extend from the housing front edge down to just above
-// the UP arrow, filling the plate-visible gaps on either side.
+// Display housing (back-right corner of overlay, solid rectangle that contains
+// the display pocket and viewing window). The new per-keycap key_opening never
+// intrudes into this area, so no tabs or arrow-gap carve-outs are needed here.
 disp_housing_border = 3.0;
-arrow_gap_clearance = 1.0;
 
-// Main housing boundaries (display-based, same as original)
+// Main housing boundaries (display-based)
 disp_housing_x1 = p2c_x(disp_cx) - disp_pkt_w/2 - disp_housing_border;
 disp_housing_y1 = p2c_y(disp_cy) - disp_pkt_h/2 - disp_housing_border;
-
-// Tab boundaries — fill gaps beside the UP arrow between arrows and display
-arrow_tab_front   = arrow_up_py + mx_cutout/2 + arrow_gap_clearance;   // ~38.1 plate-local
-arrow_up_col_left  = arrow_up_px - mx_cutout/2 - arrow_gap_clearance;  // ~313.6
-arrow_up_col_right = arrow_up_px + mx_cutout/2 + arrow_gap_clearance;  // ~329.6
 
 // Overlay overhang dimensions
 overlay_w       = outer_w + 2 * overhang;
 overlay_d       = outer_d + 2 * overhang;
 overlay_front_h = front_h - tilt_rise * overhang / outer_d;
 overlay_back_h  = back_h  + tilt_rise * overhang / outer_d;
+
+// ─── Keycap footprint rectangles (plate-local) ──────────────────────────────
+// The key opening is cut as the UNION of these rectangles. Each rectangle is a
+// per-row or per-cluster keycap footprint derived directly from mkey.kicad_pcb
+// switch positions + their unit sizes. Where same-row caps touch at unit
+// boundaries, their rectangles merge into a continuous strip; where there are
+// real gaps in the layout (between R-shift and arrow UP, between MX63 and
+// arrow LEFT), the gap stays as solid overlay material, hiding the plate.
+//
+// Unit = 19.05 mm. Format: [x1, y1, x2, y2] in plate-local coords.
+key_rects = [
+    // Row 0 (number row, Y=88.200, 13×1u + 2u backspace)
+    [  2.500, 78.675, 288.250, 97.725],
+    // Row 1 (Tab row, Y=69.150, 1.5u Tab + 12×1u). Extended right to 264.437
+    // to touch the ISO Enter rect — otherwise the 4.76×19.05 mm strip between
+    // MX27 and the ISO Enter would be isolated on all four sides by cutouts
+    // (Row 0 above, Row 2 below, Row 1 left, ISO Enter right) and CGAL would
+    // carve it out as a floating block. Keys in this X range exist on every
+    // other row (backspace, R-shift, MX62, MX41) so exposing the natural
+    // row-1 bezel here is unavoidable.
+    [  2.499, 59.625, 264.437, 78.675],
+    // Row 2 (Home row, Y=50.100, 1.75u Caps + 12×1u)
+    [  2.499, 40.575, 264.437, 59.625],
+    // ISO Enter MX28 (1.25u × 2u, cx=276.343, cy=59.625 — bridges rows 1 & 2)
+    [264.437, 40.575, 288.249, 78.675],
+    // Row 3 main (Shift row, Y=31.050, 1.25u + 11×1u + 2.75u R-shift)
+    [  2.500, 21.525, 288.250, 40.575],
+    // Row 4 main (Front row, Y=12.000, 3×1.25u + 6.25u space + 4×1.25u)
+    [  2.500,  2.475, 288.249, 21.525],
+    // Arrow UP (MX55 1u, isolated from R-shift by 23.81 mm gap)
+    [312.062, 21.525, 331.112, 40.575],
+    // Arrow cluster L/D/R (three 1u caps, isolated from main field by 4.76 mm gap)
+    [293.012,  2.475, 350.162, 21.525],
+];
+key_cap_clearance = 0.25;   // mm added to every side of each rect for finishing slop
+
 
 // =============================================================================
 // SECTION 6: HELPER FUNCTIONS
@@ -374,7 +410,8 @@ module case_overlay() {
         // (overlay sits in the rabbet, lip provides lateral registration).
         // The CAD overlap is intentional and represents the assembly fit.
 
-        // Key opening (full rectangle minus display/arrow housing)
+        // Key opening: union of per-keycap rectangles (plate hidden everywhere
+        // except where a key needs to pass through)
         key_opening();
 
         // Display viewing window
@@ -392,78 +429,26 @@ module case_complete() {
 }
 
 // ─── 7c. Key opening ────────────────────────────────────────────────────────
-// Full inner rectangle with display housing preserved in the back-right corner.
-// The display housing connects to the right wall and back wall — no thin strips.
+// UNION of per-row / per-cluster keycap rectangles from `key_rects`.
+// Anywhere there is a key, the overlay is cut through; anywhere there is no
+// key, the overlay is solid hardwood hiding the bare plate underneath.
+// The natural gaps in the layout become real bezels:
+//   • 4.76 mm bezel between the main field and the arrow L/D/R row
+//   • 23.81 mm bezel between R-shift and the UP arrow column
+//   • ≥13.86 mm bezel between the main field right edge and the display housing
 module key_opening() {
-    x1 = wall_t;
-    x2 = outer_w - wall_t;
-    y1 = wall_t;
-    y2 = outer_d - wall_t;
     z0 = bottom_t - 0.01;
     zh = back_h + 2;
+    t  = key_cap_clearance;
 
-    difference() {
-        // Full inner rectangle
-        translate([x1, y1, z0])
+    for (r = key_rects) {
+        x1 = r[0] - t;  y1 = r[1] - t;
+        x2 = r[2] + t;  y2 = r[3] + t;
+        translate([p2c_x(x1), p2c_y(y1), z0])
             cube([x2 - x1, y2 - y1, zh]);
-
-        // Preserve display housing area (back-right corner, rounded inner corner)
-        translate([0, 0, z0 - 0.01])
-            linear_extrude(height = zh + 0.02)
-                display_housing_2d();
     }
 }
 
-// ─── Arrow key individual cutouts ───────────────────────────────────────────
-// 4 MX switch holes in the overlay so the plate is hidden around the arrows.
-module arrow_key_cutouts() {
-    sz = mx_cutout + 2 * mx_cut_tol;  // cutout size with tolerance
-    z0 = bottom_t - 0.01;
-    zh = back_h + 2;
-
-    positions = [
-        [p2c_x(arrow_up_px),    p2c_y(arrow_up_py)],
-        [p2c_x(arrow_down_px),  p2c_y(arrow_down_py)],
-        [p2c_x(arrow_left_px),  p2c_y(arrow_left_py)],
-        [p2c_x(arrow_right_px), p2c_y(arrow_right_py)]
-    ];
-
-    for (pos = positions) {
-        translate([pos[0] - sz/2, pos[1] - sz/2, z0])
-            cube([sz, sz, zh]);
-    }
-}
-
-// 2D profile of display housing with tabs filling the gaps beside the UP arrow.
-// Shape: main rectangle (display) + left tab + right tab, rounded at outermost corner.
-module display_housing_2d() {
-    r   = disp_housing_r;
-    x2  = outer_w;
-    y2  = outer_d;
-    hx1 = disp_housing_x1;
-    hy1 = disp_housing_y1;                         // main body front edge
-    tab_y = p2c_y(arrow_tab_front);                // tab bottom edge
-    up_l  = p2c_x(arrow_up_col_left);             // UP column left edge
-    up_r  = p2c_x(arrow_up_col_right);            // UP column right edge
-
-    union() {
-        // Main body (display area) — simple rectangle, no corner rounding here
-        translate([hx1, hy1])
-            square([x2 - hx1, y2 - hy1]);
-
-        // Left tab with rounded front-left corner (outermost corner of shape)
-        translate([hx1 + r, tab_y])
-            square([up_l - hx1 - r, hy1 - tab_y]);
-        translate([hx1, tab_y + r])
-            square([up_l - hx1, hy1 - tab_y - r]);
-        translate([hx1 + r, tab_y + r])
-            circle(r=r);
-
-        // Right tab — square corners (meets right wall)
-        translate([up_r, tab_y])
-            square([x2 - up_r, hy1 - tab_y]);
-    }
-}
 
 // ─── 7d. Display viewing window ─────────────────────────────────────────────
 // Through-cut in the overlay sized to the active area + tight tolerance.
@@ -495,6 +480,9 @@ module display_pocket() {
     pr  = disp_module_r + disp_pkt_tol;
 
     // Tilted pocket ceiling — leaves uniform disp_lip_t lip following the tilt.
+    // No FPC channel is needed: J2 (24-pin LCD connector) sits directly below
+    // the display inside the plate cutout, so the module's ribbon plugs
+    // straight down into the board without traversing the overlay.
     intersection() {
         translate([px, py, 0])
             wedge_box(disp_pkt_w, disp_pkt_h,
@@ -505,22 +493,6 @@ module display_pocket() {
             linear_extrude(height = back_h + 1)
                 offset(r=pr) offset(delta=-pr)
                     square([disp_pkt_w, disp_pkt_h]);
-    }
-
-    // FPC ribbon channel — routes from pocket front edge through the
-    // housing border to the key opening cavity, hidden from above.
-    fpc_x = pcx - fpc_channel_w / 2;
-    fpc_y_start = disp_housing_y1 - 1;  // extend into key opening
-    fpc_y_end   = py + 2;               // overlap into pocket
-
-    intersection() {
-        translate([fpc_x, fpc_y_start, 0])
-            wedge_box(fpc_channel_w, fpc_y_end - fpc_y_start,
-                      top_z(fpc_y_start) - disp_lip_t,
-                      top_z(fpc_y_end) - disp_lip_t);
-        translate([fpc_x, fpc_y_start, -0.1])
-            linear_extrude(height = back_h + 1)
-                square([fpc_channel_w, fpc_y_end - fpc_y_start]);
     }
 }
 
@@ -592,28 +564,27 @@ module gasket_slots() {
     }
 
     // ── Left wall slot (1) ───────────────────────────────────────────────
-    {
-        cy = p2c_y(left_tab_cy);
-        wall_inner_x = wall_t;  // inner face of left wall
-        local_pz = plate_z(cy);
-        slot_center_z = local_pz - plate_t / 2;
-
-        translate([wall_inner_x - slot_depth,
-                   cy - (tab_len + slot_tol)/2,
-                   slot_center_z - slot_height/2])
+    // (locals wrapped in `let()` so they don't clash with the right-wall slot
+    // block below — OpenSCAD does not scope locals inside bare `{}` and will
+    // abort under --hardwarnings otherwise.)
+    let(cy_L            = p2c_y(left_tab_cy),
+        wall_inner_x_L  = wall_t,
+        local_pz_L      = plate_z(p2c_y(left_tab_cy)),
+        slot_center_z_L = plate_z(p2c_y(left_tab_cy)) - plate_t / 2) {
+        translate([wall_inner_x_L - slot_depth,
+                   cy_L - (tab_len + slot_tol)/2,
+                   slot_center_z_L - slot_height/2])
             cube([slot_depth + 0.01, tab_len + slot_tol, slot_height]);
     }
 
     // ── Right wall slot (1) ──────────────────────────────────────────────
-    {
-        cy = p2c_y(right_tab_cy);
-        wall_inner_x = outer_w - wall_t;  // inner face of right wall
-        local_pz = plate_z(cy);
-        slot_center_z = local_pz - plate_t / 2;
-
-        translate([wall_inner_x - 0.01,
-                   cy - (tab_len + slot_tol)/2,
-                   slot_center_z - slot_height/2])
+    let(cy_R            = p2c_y(right_tab_cy),
+        wall_inner_x_R  = outer_w - wall_t,
+        local_pz_R      = plate_z(p2c_y(right_tab_cy)),
+        slot_center_z_R = plate_z(p2c_y(right_tab_cy)) - plate_t / 2) {
+        translate([wall_inner_x_R - 0.01,
+                   cy_R - (tab_len + slot_tol)/2,
+                   slot_center_z_R - slot_height/2])
             cube([slot_depth + 0.01, tab_len + slot_tol, slot_height]);
     }
 }
