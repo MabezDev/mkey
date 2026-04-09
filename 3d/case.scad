@@ -210,6 +210,18 @@ overhang = 4.0;   // top overlay overhang beyond tray walls (mm)
 overlay_corner_r = 3.0;    // outer corner radius of overlay
 disp_housing_r   = 3.0;    // internal corner radius at display housing
 
+// ─── Back-right corner chamfer ───────────────────────────────────────────────
+// Asymmetric diagonal cut across the back-right outer corner of the whole
+// case. Balances the off-center display and breaks the rectangular outline.
+// Hand-manufacturable with a saw + sandpaper.
+//
+// Geometry constraint: at 45° the cavity corner (at inset wall_t=4.8 from the
+// outer corner) sits (outer_w + outer_d - cavity_x - cavity_y)/√2 ≈ 6.79 mm
+// from the outer corner along the diagonal, so a leg of ~9.6 mm would just
+// touch the cavity. With a 7 mm leg the remaining minimum wall at the
+// chamfer is (9.6 − 7) / √2 ≈ 1.84 mm.
+backright_chamfer = 7.0;   // 45° chamfer leg size along each edge (mm)
+
 // =============================================================================
 // SECTION 5: DERIVED DIMENSIONS
 // =============================================================================
@@ -302,6 +314,28 @@ module rounded_wedge_box(w, d, h_front, h_back, r) {
     }
 }
 
+// 2D outline of the tray outer footprint: rectangle with back-right corner
+// chamfered. Used as a vertical clip to shape both tray and overlay.
+module tray_outline_2d() {
+    c = backright_chamfer;
+    polygon([
+        [0,            0],
+        [outer_w,      0],
+        [outer_w,      outer_d - c],
+        [outer_w - c,  outer_d],
+        [0,            outer_d]
+    ]);
+}
+
+// 2D outline of the overlay outer footprint: tray outline expanded outward
+// by `overhang` (uniform overhang, including along the chamfered edge), then
+// corners rounded via the offset(r)/offset(-r) trick.
+module overlay_outline_2d() {
+    offset(r = overlay_corner_r) offset(delta = -overlay_corner_r)
+        offset(delta = overhang)
+            tray_outline_2d();
+}
+
 // Z height of case top surface at a given case Y coordinate
 function top_z(cy) = front_h + (back_h - front_h) * cy / outer_d;
 
@@ -334,8 +368,14 @@ rabbet_height = top_t;          // 3mm, matches overlay thickness
 // ─── PIECE 1: TRAY (bottom + walls) ─────────────────────────────────────────
 module case_tray() {
     difference() {
-        // Outer shell — shortened by top_t so overlay sits flush on wall tops
-        wedge_box(outer_w, outer_d, front_h - top_t, back_h - top_t);
+        // Outer shell — shortened by top_t so overlay sits flush on wall tops.
+        // Intersection clips the rectangular wedge with the chamfered outline.
+        intersection() {
+            wedge_box(outer_w, outer_d, front_h - top_t, back_h - top_t);
+            translate([0, 0, -0.1])
+                linear_extrude(height = back_h + 1)
+                    tray_outline_2d();
+        }
 
         // Inner cavity (fully open top)
         translate([wall_t, wall_t, bottom_t])
@@ -356,18 +396,24 @@ module case_tray() {
 // Has the key opening and display features.
 module case_overlay() {
     difference() {
-        // Full overlay with overhang and rounded corners
-        translate([-overhang, -overhang, 0])
-            rounded_wedge_box(overlay_w, overlay_d,
-                              overlay_front_h, overlay_back_h,
-                              overlay_corner_r);
+        // Full overlay top slab: the overhang-extended wedge minus everything
+        // below top_t, then clipped to the chamfered + rounded outline.
+        intersection() {
+            difference() {
+                translate([-overhang, -overhang, 0])
+                    wedge_box(overlay_w, overlay_d,
+                              overlay_front_h, overlay_back_h);
 
-        // Remove everything below top_t (keep only the top slab)
-        translate([-overhang - 0.01, -overhang - 0.01, 0])
-            rounded_wedge_box(overlay_w + 0.02, overlay_d + 0.02,
+                translate([-overhang - 0.01, -overhang - 0.01, 0])
+                    wedge_box(overlay_w + 0.02, overlay_d + 0.02,
                               overlay_front_h - top_t,
-                              overlay_back_h  - top_t,
-                              overlay_corner_r + 0.01);
+                              overlay_back_h  - top_t);
+            }
+
+            translate([0, 0, -0.1])
+                linear_extrude(height = overlay_back_h + 1)
+                    overlay_outline_2d();
+        }
 
         // Note: the overlay and tray outer wall lip occupy the same Z range
         // where they meet. This is correct — they nest together physically
