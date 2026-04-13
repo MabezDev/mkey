@@ -177,15 +177,28 @@ disp_cut_tol  = 0.15;   // module-body pocket oversize vs module (per side).
                         // old 0.30 corner-binding bump is no longer needed.
                         // 0.15 per side keeps the pocket tight (worst-case
                         // ±0.2mm fab slop → +0.10/−0.05 mm; minor file fit).
-shelf_t       = 1.0;    // wood above the display glass (the visible recess).
+shelf_t        = 1.0;   // wood above the display glass (the visible recess).
                         // This is what the user sees looking down through the
                         // top window. ≤1 mm is the hard limit — any deeper and
                         // the display is occluded at typing-angle viewing.
-shelf_frame_w = 0.8;    // picture-frame wood width around the top window
-                        // (per side). Must be ≤ module bezel (1.20 mm X,
-                        // 2.26 mm Y) or the shelf covers active pixels.
-                        // 0.8 mm gives 0.40 mm X / 1.46 mm Y overlap on the
-                        // module bezel — plenty of catch, no active bite.
+shelf_frame_x  = 1.0;   // picture-frame wood width along the short (X) sides
+                        // of the window. X bezel is the tight constraint at
+                        // 1.20 mm, so this is as thick as the frame can safely
+                        // get in X without eating the ±0.2 mm fab-slop margin.
+shelf_frame_y  = 1.6;   // picture-frame wood width along the long (Y) sides.
+                        // Y bezel is 2.26 mm, so we have much more room here —
+                        // the long straight beams at x = left/right of the
+                        // window are the weakest cross-sections in the shelf,
+                        // and bumping them from 0.8 → 1.6 mm doubles the
+                        // material width on the edges that do the most work.
+shelf_corner_r = 1.2;   // radius of the curved inner corners of the window.
+                        // Blends the 1.0 mm X shelf smoothly into the 1.6 mm Y
+                        // shelf — no sharp notches at the corners where the
+                        // two widths meet. Must be ≥ disp_active_r (1.0 mm)
+                        // so the curve clears the display's own rounded
+                        // corners, and small enough that the window corner
+                        // arc stays inside the pocket arc (verified by
+                        // assertion below).
 retainer_t    = 1.2;    // separately-fabricated backing plate that clamps the
                         // module UP against the shelf from below (optional;
                         // adhesive can replace it).
@@ -290,22 +303,43 @@ disp_pocket_h = disp_module_h + 2 * disp_cut_tol;   // 37.52
 disp_pocket_r = disp_module_r + disp_cut_tol;       // 2.35
 disp_pocket_d = top_t - shelf_t;                    // 4.00 with top_t=5, shelf_t=1
 
-// Top window: visible from above, cut through the thin shelf. Sized so the
-// picture-frame of wood around it is exactly shelf_frame_w wide.
-disp_win_w = disp_pocket_w - 2 * shelf_frame_w;     // 30.20
-disp_win_h = disp_pocket_h - 2 * shelf_frame_w;     // 35.92
-disp_win_r = max(disp_active_r, disp_pocket_r - shelf_frame_w);  // keeps frame concentric
+// Top window: visible from above, cut through the thin shelf. Asymmetric X/Y
+// offsets from the pocket, blended at the corners by a `shelf_corner_r` fillet
+// via hull-of-circles (see `display_window_2d` below) so the shelf thickness
+// transitions smoothly from shelf_frame_x along the short sides to
+// shelf_frame_y along the long sides with no sharp notches.
+disp_win_w = disp_pocket_w - 2 * shelf_frame_x;     // 29.80
+disp_win_h = disp_pocket_h - 2 * shelf_frame_y;     // 34.32
 
-// Assertions: the shelf must not cover active pixels, and the module must
-// actually fit in the pocket with positive depth remaining.
-assert(shelf_frame_w <= (disp_module_w - disp_active_w) / 2,
-       "shelf_frame_w exceeds module X-bezel — shelf would cover active area");
-assert(shelf_frame_w <= (disp_module_h - disp_active_h) / 2,
-       "shelf_frame_w exceeds module Y-bezel — shelf would cover active area");
+// Assertions — stricter than before so the shelf has ±0.2 mm fab-slop margin
+// on the active-area clearance in both axes. The active area sits at
+// `disp_cut_tol + (module − active)/2` in pocket-local coordinates, so that
+// is the position the shelf inner edge must not reach even after fab slop.
+FAB_SLOP = 0.2;
+active_edge_x = disp_cut_tol + (disp_module_w - disp_active_w) / 2;   // 1.35
+active_edge_y = disp_cut_tol + (disp_module_h - disp_active_h) / 2;   // 2.41
+assert(shelf_frame_x + FAB_SLOP <= active_edge_x,
+       "shelf_frame_x too large: under ±0.2 mm fab slop the shelf would bite active pixels in X");
+assert(shelf_frame_y + FAB_SLOP <= active_edge_y,
+       "shelf_frame_y too large: under ±0.2 mm fab slop the shelf would bite active pixels in Y");
 assert(disp_pocket_d >= disp_glass_t,
        "bottom pocket too shallow for module body — reduce shelf_t or grow top_t");
 assert(disp_win_w >= disp_active_w && disp_win_h >= disp_active_h,
-       "top window smaller than active area — shelf_frame_w too large");
+       "top window smaller than active area — shelf_frame_{x,y} too large");
+assert(shelf_corner_r >= disp_active_r,
+       "shelf_corner_r must clear the display's own rounded active corner (≥ disp_active_r)");
+// Window corner arc must stay inside the pocket corner arc. Derivation:
+// window corner pivot at (shelf_frame_x + r, shelf_frame_y + r) relative to
+// the pocket bbox corner; pocket pivot at (disp_pocket_r, disp_pocket_r);
+// the max distance from the pocket pivot to any point on the window arc is
+// |Δ| + shelf_corner_r, and that must be ≤ disp_pocket_r for the arc to
+// stay inside the pocket's rounded-corner interior.
+pocket_corner_clearance =
+    sqrt(pow(disp_pocket_r - (shelf_frame_x + shelf_corner_r), 2) +
+         pow(disp_pocket_r - (shelf_frame_y + shelf_corner_r), 2))
+    + shelf_corner_r;
+assert(pocket_corner_clearance <= disp_pocket_r,
+       "window corner arc escapes the pocket corner — reduce shelf_corner_r or grow shelf_frame");
 
 // Overlay overhang dimensions
 overlay_w       = outer_w + 2 * overhang;
@@ -557,11 +591,28 @@ module display_cutout() {
 
         // Top window: cuts cleanly through the shelf, from (local z = −shelf_t − ε)
         // to (local z = +ε) — the shelf is exactly the top `shelf_t` mm of the
-        // overlay slab in the normal direction.
+        // overlay slab in the normal direction. The 2D shape is a hull of four
+        // shelf_corner_r circles sitting in the window bbox corners, giving a
+        // rounded rectangle whose inner corners are a smooth curve regardless
+        // of the shelf_frame_{x,y} asymmetry.
         translate([-disp_win_w / 2, -disp_win_h / 2, -shelf_t - 0.01])
             linear_extrude(height = shelf_t + 0.02)
-                offset(r=disp_win_r) offset(delta=-disp_win_r)
-                    square([disp_win_w, disp_win_h]);
+                display_window_2d();
+    }
+}
+
+// 2D footprint of the top window. Hull of four circles of radius
+// shelf_corner_r placed at the inner corners of the window bounding box.
+// Used by both display_cutout (overlay window) and display_retainer (backing
+// clamp inner opening) so the two always match.
+module display_window_2d() {
+    for_x = [shelf_corner_r, disp_win_w - shelf_corner_r];
+    for_y = [shelf_corner_r, disp_win_h - shelf_corner_r];
+    hull() {
+        for (cx = for_x)
+            for (cy = for_y)
+                translate([cx, cy])
+                    circle(r = shelf_corner_r);
     }
 }
 
@@ -573,23 +624,18 @@ module display_cutout() {
 // module is seated. Optional — adhesive on the module glass / shelf can do
 // the same job if you prefer.
 module display_retainer() {
-    ow = disp_pocket_w;
-    oh = disp_pocket_h;
-    or_ = disp_pocket_r;
-    // Inner window sized to pass the FPC ribbon with margin. Use the top
-    // window dimensions so the clamp doesn't cover any useful area.
-    iw = disp_win_w;
-    ih = disp_win_h;
-    ir = disp_win_r;
-
     difference() {
+        // Outer outline matches the pocket footprint.
         linear_extrude(height = retainer_t)
-            offset(r=or_) offset(delta=-or_)
-                square([ow, oh]);
-        translate([(ow - iw) / 2, (oh - ih) / 2, -0.1])
+            offset(r=disp_pocket_r) offset(delta=-disp_pocket_r)
+                square([disp_pocket_w, disp_pocket_h]);
+        // Inner opening matches the overlay's top window exactly, so the
+        // clamp never encroaches on any part that would be visible or
+        // block the FPC ribbon.
+        translate([(disp_pocket_w - disp_win_w) / 2,
+                   (disp_pocket_h - disp_win_h) / 2, -0.1])
             linear_extrude(height = retainer_t + 0.2)
-                offset(r=ir) offset(delta=-ir)
-                    square([iw, ih]);
+                display_window_2d();
     }
 }
 
@@ -927,7 +973,7 @@ echo(str("Outer: ", outer_w, " x ", outer_d, " x ", front_h, "-", back_h, " mm")
 echo(str("Wall: ", wall_t, " mm, Bottom: ", bottom_t, " mm, Top surface: ", top_t, " mm"));
 echo(str("Tilt rise: ", tilt_rise, " mm over ", outer_d, " mm depth"));
 echo(str("Display bottom pocket: ", disp_pocket_w, " x ", disp_pocket_h, " mm (r=", disp_pocket_r, ", depth=", disp_pocket_d, ")"));
-echo(str("Display top window: ", disp_win_w, " x ", disp_win_h, " mm (r=", disp_win_r, "), shelf_t=", shelf_t, " mm"));
+echo(str("Display top window: ", disp_win_w, " x ", disp_win_h, " mm (corner r=", shelf_corner_r, "), shelf X=", shelf_frame_x, " Y=", shelf_frame_y, " t=", shelf_t, " mm"));
 echo(str("USB cutout: ", usb_cut_w, " x ", usb_cut_h, " mm at back wall"));
 echo(str("Internal depth below plate: ", depth_below, " mm"));
 echo(str("Plate recess below tray wall top: ", plate_recess, " mm"));
