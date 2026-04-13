@@ -171,14 +171,41 @@ tilt_angle = 5;   // degrees, back raised
 
 // ─── Tolerances ──────────────────────────────────────────────────────────────
 plate_gap     = 0.5;    // clearance between plate edge and inner wall (per side)
-disp_win_tol  = 0.15;   // retainer active-area window oversize (per side)
-disp_cut_tol  = 0.15;   // overlay display through-cut oversize vs module (per side)
-retainer_t    = 1.2;    // thickness of the separately-fabricated display retainer
+disp_cut_tol  = 0.15;   // module-body pocket oversize vs module (per side).
+                        // The module is inserted from BELOW into a blind
+                        // pocket; it doesn't thread through anything, so the
+                        // old 0.30 corner-binding bump is no longer needed.
+                        // 0.15 per side keeps the pocket tight (worst-case
+                        // ±0.2mm fab slop → +0.10/−0.05 mm; minor file fit).
+shelf_t       = 1.0;    // wood above the display glass (the visible recess).
+                        // This is what the user sees looking down through the
+                        // top window. ≤1 mm is the hard limit — any deeper and
+                        // the display is occluded at typing-angle viewing.
+shelf_frame_w = 0.8;    // picture-frame wood width around the top window
+                        // (per side). Must be ≤ module bezel (1.20 mm X,
+                        // 2.26 mm Y) or the shelf covers active pixels.
+                        // 0.8 mm gives 0.40 mm X / 1.46 mm Y overlap on the
+                        // module bezel — plenty of catch, no active bite.
+retainer_t    = 1.2;    // separately-fabricated backing plate that clamps the
+                        // module UP against the shelf from below (optional;
+                        // adhesive can replace it).
 
 // ─── Walls ───────────────────────────────────────────────────────────────────
 wall_t    = 4.8;    // wall thickness = bezel (4.5mm visible + 0.3mm plate gap)
 bottom_t  = 3.5;    // bottom plate thickness
-top_t     = 3.0;    // top surface thickness (display cover area)
+top_t     = 5.0;    // top surface thickness (display cover area).
+                    // Bumped from 3.0 → 5.0 to stiffen the 4.16 mm main-field ↔
+                    // arrow-L/D/R rib, which is the weakest cross-section in
+                    // the overlay. Section modulus scales as thickness²:
+                    // (5/3)² = 2.78× bending stiffness on that rib at zero
+                    // layout cost. Downside: display glass recess grows from
+                    // 1.44 mm (top_t=3) to 3.44 mm (top_t=5), a deeper well.
+                    // ALSO: fabricate the overlay blank with grain running
+                    // along Y (front-to-back, ~110 mm direction), not X — the
+                    // 4.16 mm rib and the 23 mm row3↔arrow-UP bezel both run
+                    // in Y, so Y-grain makes them along-grain (~6× ⊥→∥
+                    // hardwood strength jump). Combined the rib is ~17×
+                    // stronger than the unfixed baseline.
 
 // ─── Internal ────────────────────────────────────────────────────────────────
 plate_recess     = 2.0;    // plate top sits this far below the TRAY WALL TOP
@@ -255,14 +282,30 @@ back_h   = front_h + tilt_rise;
 plate_ox = wall_t + plate_gap;
 plate_oy = wall_t + plate_gap;
 
-// Overlay display through-cut dimensions (module outline + clearance)
-disp_cut_w = disp_module_w + 2 * disp_cut_tol;
-disp_cut_h = disp_module_h + 2 * disp_cut_tol;
-disp_cut_r = disp_module_r + disp_cut_tol;
+// Bottom pocket: accepts the module body, cut from the overlay underside,
+// depth = top_t − shelf_t. Module drops in from below and is held up against
+// the shelf by adhesive or a clamping backing plate.
+disp_pocket_w = disp_module_w + 2 * disp_cut_tol;   // 31.80
+disp_pocket_h = disp_module_h + 2 * disp_cut_tol;   // 37.52
+disp_pocket_r = disp_module_r + disp_cut_tol;       // 2.35
+disp_pocket_d = top_t - shelf_t;                    // 4.00 with top_t=5, shelf_t=1
 
-// Retainer active-area window dimensions
-disp_win_w = disp_active_w + 2 * disp_win_tol;
-disp_win_h = disp_active_h + 2 * disp_win_tol;
+// Top window: visible from above, cut through the thin shelf. Sized so the
+// picture-frame of wood around it is exactly shelf_frame_w wide.
+disp_win_w = disp_pocket_w - 2 * shelf_frame_w;     // 30.20
+disp_win_h = disp_pocket_h - 2 * shelf_frame_w;     // 35.92
+disp_win_r = max(disp_active_r, disp_pocket_r - shelf_frame_w);  // keeps frame concentric
+
+// Assertions: the shelf must not cover active pixels, and the module must
+// actually fit in the pocket with positive depth remaining.
+assert(shelf_frame_w <= (disp_module_w - disp_active_w) / 2,
+       "shelf_frame_w exceeds module X-bezel — shelf would cover active area");
+assert(shelf_frame_w <= (disp_module_h - disp_active_h) / 2,
+       "shelf_frame_w exceeds module Y-bezel — shelf would cover active area");
+assert(disp_pocket_d >= disp_glass_t,
+       "bottom pocket too shallow for module body — reduce shelf_t or grow top_t");
+assert(disp_win_w >= disp_active_w && disp_win_h >= disp_active_h,
+       "top window smaller than active area — shelf_frame_w too large");
 
 // Overlay overhang dimensions
 overlay_w       = outer_w + 2 * overhang;
@@ -464,45 +507,80 @@ module key_opening() {
 }
 
 
-// ─── 7d. Display through-cut ────────────────────────────────────────────────
-// Single rectangular through-cut in the overlay, sized to the display module
-// outline + clearance. The module seats here from above, resting on the
-// retainer lip from below; its 24-pin FPC ribbon drops down through the
-// plate's display cutout to J2 on the PCB. The module body does NOT pass
-// through the plate — only the ribbon. Four corner drill holes + four
-// straight saw cuts are all that's needed to make this by hand. The
-// active-area window and the 1.2 mm lip holding the display glass are
-// provided by the separately-cut `display_retainer` piece (see below),
-// glued to the overlay underside.
+// ─── 7d. Display stepped cutout ─────────────────────────────────────────────
+// The display is bottom-loaded: the module body drops UP into a blind pocket
+// cut from the overlay underside, and is held against the thin shelf of wood
+// above it. What the user sees looking down at the keyboard is the glass
+// recessed only by shelf_t (1 mm) through a picture-frame window sized to
+// the active area.
+//
+// Cross-section at the display (case coords, looking along X):
+//
+//    ────────────────────  overlay top (case top surface)
+//      │              │    } shelf_t = 1 mm of wood (frame around window)
+//      │ ┌──────────┐ │    ← top window (active area + clearance)
+//    ──┤ │          │ ├──   overlay bottom (tray wall top)
+//      │ │   AIR    │ │    }
+//      │ │  pocket  │ │    } disp_pocket_d = 4 mm (blind, from below)
+//      └─┘          └─┘    }
+//
+// Module (1.56 mm thick) sits in the pocket with its glass face pressed up
+// against the shelf underside; active pixels are visible through the window.
+// The FPC ribbon exits the back of the module, drops through the plate's
+// display cutout (31.5 × 37.2) to J2 on the PCB — unchanged from before.
+//
+// Fabrication: the pocket is cut from the underside (blind, 4 mm deep), then
+// the top window is cut through the remaining 1 mm shelf from the top face.
+// Both are four corner drill holes + straight saw cuts; the 4 mm pocket
+// depth is controlled with a drill-press stop or a router jig.
 module display_cutout() {
-    wcx = p2c_x(disp_cx);
-    wcy = p2c_y(disp_cy);
-    wx  = wcx - disp_cut_w / 2;
-    wy  = wcy - disp_cut_h / 2;
+    cx = p2c_x(disp_cx);
+    cy = p2c_y(disp_cy);
 
-    translate([wx, wy, bottom_t])
-        linear_extrude(height = back_h + 1)
-            offset(r=disp_cut_r) offset(delta=-disp_cut_r)
-                square([disp_cut_w, disp_cut_h]);
+    // The overlay top surface is a flat wedge tilted tilt_angle° about X.
+    // Cutting vertical prisms into it produces a wrong shelf: too thin (or
+    // gone) at the front of the display and too thick at the back. We cut in
+    // a tilted frame instead so both cut volumes have their top face parallel
+    // to the overlay top surface.
+    //
+    // Tilted frame: origin at the display center ON the top surface, local
+    // +Z = top-surface normal, local Y/X unchanged apart from the tilt.
+    translate([cx, cy, top_z(cy)])
+    rotate([tilt_angle, 0, 0])
+    {
+        // Bottom pocket: module body, from slightly below the overlay bottom
+        // (local z = −top_t − ε) up to the shelf underside (local z = −shelf_t).
+        translate([-disp_pocket_w / 2, -disp_pocket_h / 2, -top_t - 0.01])
+            linear_extrude(height = disp_pocket_d + 0.01)
+                offset(r=disp_pocket_r) offset(delta=-disp_pocket_r)
+                    square([disp_pocket_w, disp_pocket_h]);
+
+        // Top window: cuts cleanly through the shelf, from (local z = −shelf_t − ε)
+        // to (local z = +ε) — the shelf is exactly the top `shelf_t` mm of the
+        // overlay slab in the normal direction.
+        translate([-disp_win_w / 2, -disp_win_h / 2, -shelf_t - 0.01])
+            linear_extrude(height = shelf_t + 0.02)
+                offset(r=disp_win_r) offset(delta=-disp_win_r)
+                    square([disp_win_w, disp_win_h]);
+    }
 }
 
-// ─── 7e. Display retainer (separately fabricated) ───────────────────────────
-// Flat piece (e.g. 1.2 mm plywood, brass, hardwood veneer, or 3D-printed)
-// whose outer outline matches the overlay's display through-cut and whose
-// inner window matches the display active area. Glued to the overlay
-// underside around the display hole. The retainer provides:
-//   • the visible active-area bezel ("picture frame")
-//   • the mechanical lip the display glass rests against
-//   • cross-grain strength if made from plywood/brass (wood overlay alone
-//     would be short-grain at 1.2 mm and crack)
-// Produced as a standalone piece when SHOW_RETAINER is true.
+// ─── 7e. Display backing clamp (optional, separately fabricated) ────────────
+// Flat picture-frame piece (1.2 mm plywood, brass, or 3D-printed) that slots
+// into the bottom of the display pocket and clamps the module UP against the
+// shelf underside. Outer outline = pocket size; inner window clears the
+// module's FPC ribbon area. Glue or screw to the overlay underside once the
+// module is seated. Optional — adhesive on the module glass / shelf can do
+// the same job if you prefer.
 module display_retainer() {
-    ow = disp_cut_w;          // matches overlay cutout
-    oh = disp_cut_h;
-    or_ = disp_cut_r;
-    iw = disp_win_w;          // active-area + window tolerance
+    ow = disp_pocket_w;
+    oh = disp_pocket_h;
+    or_ = disp_pocket_r;
+    // Inner window sized to pass the FPC ribbon with margin. Use the top
+    // window dimensions so the clamp doesn't cover any useful area.
+    iw = disp_win_w;
     ih = disp_win_h;
-    ir = disp_active_r;
+    ir = disp_win_r;
 
     difference() {
         linear_extrude(height = retainer_t)
@@ -775,24 +853,22 @@ module plate_ghost() {
 module display_ghost() {
     dcx = p2c_x(disp_cx);
     dcy = p2c_y(disp_cy);
-    overlay_bottom_z = top_z(dcy) - top_t;
 
-    // Module body sits inside the overlay through-cut, bottom face resting on
-    // the retainer (which is glued to the overlay underside). Glass top ends
-    // up (top_t - glass_t) below the overlay top surface — a slightly
-    // recessed display. With top_t=3 and glass_t=1.56 that's ~1.44 mm recess.
-    module_bottom_z = overlay_bottom_z;
-    module_top_z = overlay_bottom_z + disp_glass_t;
+    // Module rests in the tilted pocket with its top face pressed flat
+    // against the shelf underside — i.e. local z ∈ [−shelf_t − glass_t, −shelf_t]
+    // in the same tilted frame as display_cutout().
+    translate([dcx, dcy, top_z(dcy)])
+    rotate([tilt_angle, 0, 0])
+    {
+        color("black", 0.4)
+        translate([-disp_module_w/2, -disp_module_h/2, -shelf_t - disp_glass_t])
+            cube([disp_module_w, disp_module_h, disp_glass_t]);
 
-    color("black", 0.4)
-    translate([dcx - disp_module_w/2, dcy - disp_module_h/2, module_bottom_z])
-        cube([disp_module_w, disp_module_h, disp_glass_t]);
-
-    // Active area highlight (visible through overlay cutout from above)
-    color("cyan", 0.3)
-    translate([dcx - disp_active_w/2, dcy - disp_active_h/2,
-               module_top_z + 0.01])
-        cube([disp_active_w, disp_active_h, 0.1]);
+        // Active area highlight (visible through the shelf window from above)
+        color("cyan", 0.3)
+        translate([-disp_active_w/2, -disp_active_h/2, -shelf_t + 0.01])
+            cube([disp_active_w, disp_active_h, 0.1]);
+    }
 }
 
 // =============================================================================
@@ -812,13 +888,15 @@ module assembly() {
     }
 
     if (SHOW_RETAINER) {
-        // Retainer sits against the overlay underside, around the display hole.
+        // Backing clamp sits at the bottom of the (tilted) display pocket.
         rcx = p2c_x(disp_cx);
         rcy = p2c_y(disp_cy);
+        translate([rcx, rcy, top_z(rcy)])
+        rotate([tilt_angle, 0, 0])
         color("Goldenrod", 0.9)
-        translate([rcx - disp_cut_w / 2,
-                   rcy - disp_cut_h / 2,
-                   top_z(rcy) - top_t - retainer_t + EXPLODE * 0.5])
+        translate([-disp_pocket_w / 2,
+                   -disp_pocket_h / 2,
+                   -top_t - retainer_t + EXPLODE * 0.5])
             display_retainer();
     }
 
@@ -848,8 +926,8 @@ echo("=== CASE DIMENSIONS ===");
 echo(str("Outer: ", outer_w, " x ", outer_d, " x ", front_h, "-", back_h, " mm"));
 echo(str("Wall: ", wall_t, " mm, Bottom: ", bottom_t, " mm, Top surface: ", top_t, " mm"));
 echo(str("Tilt rise: ", tilt_rise, " mm over ", outer_d, " mm depth"));
-echo(str("Overlay display through-cut: ", disp_cut_w, " x ", disp_cut_h, " mm (r=", disp_cut_r, ")"));
-echo(str("Retainer outer: ", disp_cut_w, " x ", disp_cut_h, " mm, window: ", disp_win_w, " x ", disp_win_h, " mm, t=", retainer_t, " mm"));
+echo(str("Display bottom pocket: ", disp_pocket_w, " x ", disp_pocket_h, " mm (r=", disp_pocket_r, ", depth=", disp_pocket_d, ")"));
+echo(str("Display top window: ", disp_win_w, " x ", disp_win_h, " mm (r=", disp_win_r, "), shelf_t=", shelf_t, " mm"));
 echo(str("USB cutout: ", usb_cut_w, " x ", usb_cut_h, " mm at back wall"));
 echo(str("Internal depth below plate: ", depth_below, " mm"));
 echo(str("Plate recess below tray wall top: ", plate_recess, " mm"));
