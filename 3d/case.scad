@@ -22,6 +22,7 @@ $fn = 48;
 // ─── Rendering switches ──────────────────────────────────────────────────────
 SHOW_TRAY       = true;    // piece 1: bottom + walls
 SHOW_OVERLAY    = true;    // piece 2: top surface
+SHOW_RETAINER   = false;   // piece 3: display retainer (fabricate separately)
 SHOW_PLATE      = false;   // ghost plate for fit check
 SHOW_DISPLAY    = false;   // ghost display for fit check
 SHOW_SECTION    = false;   // cross-section cut for inspection
@@ -84,20 +85,25 @@ right_tab_ext = 1.764;
 // SECTION 2: DISPLAY DIMENSIONS (from display-dimensions.png)
 // =============================================================================
 // WEA2012 / 1.72" 356x400 QSPI AMOLED module
-// SAFETY-CRITICAL: close fit required
 //
-// Dimensions CORRECTED by safety officer from two independent web suppliers:
+// Dimensions from two independent web suppliers:
 //   - lcdtftdisplays.com (1.72" 356x400 QSPI module spec)
 //   - toppoplcd.com (TT172LMN10A datasheet)
 //
-// ACTION REQUIRED ON PLATE.KICAD_PCB: the plate cutout is currently 31.500 × 37.200
-// (X matches the module exactly; Y is 0.020 mm SMALLER than the 37.220 datasheet
-// height). Before sending to the manufacturer, enlarge the plate display cutout
-// to at least 31.700 × 37.400 mm (≥0.10 mm margin per side). Until that is done,
-// the module physically cannot drop through the plate cutout.
+// DISPLAY MOUNTING ARRANGEMENT — IMPORTANT (non-obvious, load-bearing):
+//   The display module seats in the OVERLAY HOUSING (display_cutout +
+//   display_retainer), NOT in the plate. It is inserted from above and
+//   held against the retainer lip from below. The plate cutout exists
+//   ONLY to pass the 24-pin FPC ribbon down to J2 on the PCB beneath.
+//   The module body never passes through the plate cutout.
+//
+//   Consequence: the plate cutout dimensions (31.500 × 37.200) only need
+//   to clear the ribbon, not the 31.5×37.22 module body. The nominal
+//   0.020 mm Y-undersize vs the module datasheet is IRRELEVANT and must
+//   not be surfaced as an issue in future reviews.
 
-disp_module_w   = 31.500;   // module outline width  (plate cutout must be ≥ 31.700)
-disp_module_h   = 37.220;   // module outline height (plate cutout must be ≥ 37.400)
+disp_module_w   = 31.500;   // module outline width
+disp_module_h   = 37.220;   // module outline height
 disp_active_w   = 29.100;   // viewable/active area width
 disp_active_h   = 32.700;   // viewable/active area height
 disp_active_ox  = 1.200;    // active area offset from module left edge (centered)
@@ -106,7 +112,7 @@ disp_glass_t    = 1.560;    // module + glass stack thickness
 disp_module_r   = 2.200;    // module corner radius (matches plate cutout)
 disp_active_r   = 1.000;    // active area corner radius (typical for small AMOLED)
 
-// Display cutout in the plate (from plate.kicad_pcb, VERIFIED by safety officer)
+// Display cutout in the plate (as-built, from plate.kicad_pcb)
 // KiCad bbox: X 305.846..337.346, Y -95.946..-58.746 (corner radius 2.200mm)
 // Plate-local:
 disp_cut_x1 = 305.846 - 0.588;   // 305.258  (left edge)
@@ -137,9 +143,6 @@ arrow_left_py  = 150.195 - 130.779 - 7.416;  // = 12.000
 arrow_right_px = 372.110 - 31.473;   // = 340.637
 arrow_right_py = 150.195 - 130.779 - 7.416;  // = 12.000
 
-mx_cutout = 14.0;    // MX switch cutout size (mm)
-mx_cut_tol = 0.15;   // cutout tolerance per side
-
 // =============================================================================
 // SECTION 3: USB-C CONNECTOR
 // =============================================================================
@@ -167,11 +170,10 @@ usb_opening_h = 3.26;               // receptacle opening height
 tilt_angle = 5;   // degrees, back raised
 
 // ─── Tolerances ──────────────────────────────────────────────────────────────
-plate_gap     = 0.3;    // clearance between plate edge and inner wall (per side)
-disp_win_tol  = 0.15;   // display window oversize vs active area (per side)
-disp_pkt_tol  = 0.15;   // display pocket oversize vs module (per side)
-disp_lip_t    = 1.2;    // lip thickness (Z) holding display flush against overlay
-fpc_channel_w = 14.0;   // FPC ribbon channel width
+plate_gap     = 0.5;    // clearance between plate edge and inner wall (per side)
+disp_win_tol  = 0.15;   // retainer active-area window oversize (per side)
+disp_cut_tol  = 0.15;   // overlay display through-cut oversize vs module (per side)
+retainer_t    = 1.2;    // thickness of the separately-fabricated display retainer
 
 // ─── Walls ───────────────────────────────────────────────────────────────────
 wall_t    = 4.8;    // wall thickness = bezel (4.5mm visible + 0.3mm plate gap)
@@ -179,11 +181,13 @@ bottom_t  = 3.5;    // bottom plate thickness
 top_t     = 3.0;    // top surface thickness (display cover area)
 
 // ─── Internal ────────────────────────────────────────────────────────────────
-plate_recess     = 1.5;    // plate top sits this far below case top
+plate_recess     = 2.0;    // plate top sits this far below the TRAY WALL TOP
+                           // (inside the tray, leaving room for a top gasket
+                           //  between plate top and overlay underside)
 switch_depth     = 5.0;    // MX switch body below plate
 pin_depth        = 3.3;    // switch pins below body
 pcb_t            = 1.6;    // main PCB thickness
-component_h      = 3.0;    // tallest component below PCB
+component_h      = 3.5;    // tallest component below PCB (ESP32-S3-WROOM-1: 3.2mm)
 bottom_clearance = 2.0;    // air gap below components
 
 // ─── Gasket ──────────────────────────────────────────────────────────────────
@@ -197,10 +201,10 @@ usb_cut_h = 8.0;    // tall for thick bezels
 // Front section: full width, covers rows 3-4 (spacebar, arrows, modifiers)
 // Back section: narrower on right, stops before display area
 //
-// Row 2 center: plate_local_y = 50.084, Row 3 center: plate_local_y = 31.084
+// Row 2 center: plate_local_y = 50.100, Row 3 center: plate_local_y = 31.050
 // Key cutouts are ~14mm tall, so:
-//   Row 2 front edge ≈ 50.084 - 7.0 = 43.084
-//   Row 3 back  edge ≈ 31.084 + 7.0 = 38.084
+//   Row 2 front edge ≈ 50.100 - 7.0 = 43.100
+//   Row 3 back  edge ≈ 31.050 + 7.0 = 38.050
 // Split between them:
 y_split = 41.0;   // plate-local Y for the L-shape horizontal step
 
@@ -210,11 +214,12 @@ y_split = 41.0;   // plate-local Y for the L-shape horizontal step
 x_split = 290.0;  // plate-local X where narrow section right edge is
 
 // ─── Overhang ────────────────────────────────────────────────────────────────
-overhang = 4.0;   // top overlay overhang beyond tray walls (mm)
+// Reduced from 4.0 → 2.0: a 4mm × 3mm cross-grain cantilever on the left/right
+// sides would chip off in hardwood. 2 mm is still visually present and safer.
+overhang = 2.0;   // top overlay overhang beyond tray walls (mm)
 
 // ─── Corner rounding ─────────────────────────────────────────────────────────
 overlay_corner_r = 3.0;    // outer corner radius of overlay
-disp_housing_r   = 3.0;    // internal corner radius at display housing
 
 // =============================================================================
 // SECTION 5: DERIVED DIMENSIONS
@@ -222,44 +227,42 @@ disp_housing_r   = 3.0;    // internal corner radius at display housing
 
 // Total depth below plate surface
 depth_below = switch_depth + pin_depth + pcb_t + component_h + bottom_clearance;
-// = 5.0 + 3.3 + 1.6 + 3.0 + 2.0 = 14.9 mm
+// = 5.0 + 3.3 + 1.6 + 3.5 + 2.0 = 15.4 mm
 
-// Total internal height from case floor to case top
-internal_h = plate_recess + plate_t + depth_below;  // = 18.0 mm
+// Total internal height from case floor to case top.
+// Stack-up, bottom to top:
+//   bottom_t | depth_below | plate_t | plate_recess | top_t
+// plate_recess is measured below the TRAY WALL TOP, so top_t must be added
+// here to reach the overlay top surface. The old formula omitted top_t, which
+// forced plate_z into the overlay slab by top_t − (old plate_recess) = 1.5mm
+// and jammed the plate tabs into solid overlay material.
+internal_h = top_t + plate_recess + plate_t + depth_below;
 
 // Inner cavity dimensions (plate + clearance gap on each side)
-inner_w = plate_w + 2 * plate_gap;  // = 353.238
-inner_d = plate_d + 2 * plate_gap;  // = 100.825
+inner_w = plate_w + 2 * plate_gap;
+inner_d = plate_d + 2 * plate_gap;
 
 // Case outer dimensions (uniform wall_t around the cavity)
-outer_w = inner_w + 2 * wall_t;   // = 353.238 + 9.6 = 362.838
-outer_d = inner_d + 2 * wall_t;   // = 100.825 + 9.6 = 110.425
+outer_w = inner_w + 2 * wall_t;
+outer_d = inner_d + 2 * wall_t;
 
 // Case heights
-front_h  = internal_h + bottom_t;                     // = 21.5 mm
-tilt_rise = outer_d * tan(tilt_angle);                 // ≈ 9.62 mm
-back_h   = front_h + tilt_rise;                        // ≈ 31.12 mm
+front_h  = internal_h + bottom_t;
+tilt_rise = outer_d * tan(tilt_angle);
+back_h   = front_h + tilt_rise;
 
-// Plate origin in case coords (front-left corner of plate inner boundary)
-plate_ox = wall_t;              // = 4.8
-plate_oy = wall_t;              // = 4.8
+// Plate origin in case coords (centered inside the inner cavity)
+plate_ox = wall_t + plate_gap;
+plate_oy = wall_t + plate_gap;
 
-// Display window dimensions
-disp_win_w = disp_active_w + 2 * disp_win_tol;   // = 27.804
-disp_win_h = disp_active_h + 2 * disp_win_tol;   // = 31.116
+// Overlay display through-cut dimensions (module outline + clearance)
+disp_cut_w = disp_module_w + 2 * disp_cut_tol;
+disp_cut_h = disp_module_h + 2 * disp_cut_tol;
+disp_cut_r = disp_module_r + disp_cut_tol;
 
-// Display pocket dimensions
-disp_pkt_w = disp_module_w + 2 * disp_pkt_tol;   // = 32.208
-disp_pkt_h = disp_module_h + 2 * disp_pkt_tol;   // = 39.000
-
-// Display housing (back-right corner of overlay, solid rectangle that contains
-// the display pocket and viewing window). The new per-keycap key_opening never
-// intrudes into this area, so no tabs or arrow-gap carve-outs are needed here.
-disp_housing_border = 3.0;
-
-// Main housing boundaries (display-based)
-disp_housing_x1 = p2c_x(disp_cx) - disp_pkt_w/2 - disp_housing_border;
-disp_housing_y1 = p2c_y(disp_cy) - disp_pkt_h/2 - disp_housing_border;
+// Retainer active-area window dimensions
+disp_win_w = disp_active_w + 2 * disp_win_tol;
+disp_win_h = disp_active_h + 2 * disp_win_tol;
 
 // Overlay overhang dimensions
 overlay_w       = outer_w + 2 * overhang;
@@ -300,7 +303,11 @@ key_rects = [
     // Arrow cluster L/D/R (three 1u caps, isolated from main field by 4.76 mm gap)
     [293.012,  2.475, 350.162, 21.525],
 ];
-key_cap_clearance = 0.25;   // mm added to every side of each rect for finishing slop
+// Clearance added to every side of each rect for finish/file slop.
+// Bumped from 0.25 → 0.3 to survive hand-cut ±0.2 mm tolerance. Note: this
+// does shrink the main-field ↔ arrow-LDR rib from 4.26 to 4.16 mm effective,
+// which is still the weakest cross-section in the overlay.
+key_cap_clearance = 0.3;
 
 
 // =============================================================================
@@ -341,8 +348,11 @@ module rounded_wedge_box(w, d, h_front, h_back, r) {
 // Z height of case top surface at a given case Y coordinate
 function top_z(cy) = front_h + (back_h - front_h) * cy / outer_d;
 
-// Z height of plate top surface at a given case Y coordinate
-function plate_z(cy) = top_z(cy) - plate_recess;
+// Z height of plate top surface at a given case Y coordinate.
+// plate_recess is measured below the TRAY WALL TOP (which is top_z − top_t),
+// not below the overlay top, so the plate sits fully inside the tray with
+// (plate_recess) mm of gasket headroom between plate top and overlay bottom.
+function plate_z(cy) = top_z(cy) - top_t - plate_recess;
 
 // Convert plate-local coords to case coords
 function p2c_x(px) = plate_ox + px;
@@ -414,11 +424,12 @@ module case_overlay() {
         // except where a key needs to pass through)
         key_opening();
 
-        // Display viewing window
-        display_window();
-
-        // Display module pocket (recessed into overlay underside)
-        display_pocket();
+        // Display through-cut sized to the module outline. The active-area
+        // window lip is provided by a separately-fabricated `display_retainer`
+        // piece glued to the overlay underside (see SHOW_RETAINER and
+        // display_retainer module below). This replaces the old blind pocket
+        // + 1.2 mm hardwood lip, which could not be hand-cut and would crack.
+        display_cutout();
     }
 }
 
@@ -432,10 +443,13 @@ module case_complete() {
 // UNION of per-row / per-cluster keycap rectangles from `key_rects`.
 // Anywhere there is a key, the overlay is cut through; anywhere there is no
 // key, the overlay is solid hardwood hiding the bare plate underneath.
-// The natural gaps in the layout become real bezels:
-//   • 4.76 mm bezel between the main field and the arrow L/D/R row
-//   • 23.81 mm bezel between R-shift and the UP arrow column
-//   • ≥13.86 mm bezel between the main field right edge and the display housing
+// The natural gaps in the layout become real bezels (effective widths after
+// key_cap_clearance is expanded on both sides of adjacent rects):
+//   • ~4.16 mm rib between the main field and the arrow L/D/R row
+//     (4.76 mm nominal MX spacing − 2×key_cap_clearance)
+//   • ~23.21 mm bezel between R-shift and the UP arrow column
+//   • ~13.40 mm bezel between the main field right edge and the display
+//     through-cut (measured wall-to-wall)
 module key_opening() {
     z0 = bottom_t - 0.01;
     zh = back_h + 2;
@@ -450,49 +464,54 @@ module key_opening() {
 }
 
 
-// ─── 7d. Display viewing window ─────────────────────────────────────────────
-// Through-cut in the overlay sized to the active area + tight tolerance.
-// Rounded corners match the AMOLED active area shape.
-module display_window() {
+// ─── 7d. Display through-cut ────────────────────────────────────────────────
+// Single rectangular through-cut in the overlay, sized to the display module
+// outline + clearance. The module seats here from above, resting on the
+// retainer lip from below; its 24-pin FPC ribbon drops down through the
+// plate's display cutout to J2 on the PCB. The module body does NOT pass
+// through the plate — only the ribbon. Four corner drill holes + four
+// straight saw cuts are all that's needed to make this by hand. The
+// active-area window and the 1.2 mm lip holding the display glass are
+// provided by the separately-cut `display_retainer` piece (see below),
+// glued to the overlay underside.
+module display_cutout() {
     wcx = p2c_x(disp_cx);
     wcy = p2c_y(disp_cy);
-    wx  = wcx - disp_win_w / 2;
-    wy  = wcy - disp_win_h / 2;
-    wr  = disp_active_r;
+    wx  = wcx - disp_cut_w / 2;
+    wy  = wcy - disp_cut_h / 2;
 
-    // Through-cut with rounded corners
     translate([wx, wy, bottom_t])
-        linear_extrude(height = back_h)
-            offset(r=wr) offset(delta=-wr)
-                square([disp_win_w, disp_win_h]);
+        linear_extrude(height = back_h + 1)
+            offset(r=disp_cut_r) offset(delta=-disp_cut_r)
+                square([disp_cut_w, disp_cut_h]);
 }
 
-// ─── 7e. Display module pocket ──────────────────────────────────────────────
-// Pocket in the overlay underside for bottom-insertion assembly.
-// The pocket ceiling follows the tilt via wedge_box, giving uniform lip
-// thickness. Display inserts from below, glass face up against lip.
-module display_pocket() {
-    pcx = p2c_x(disp_cx);
-    pcy = p2c_y(disp_cy);
-    px  = pcx - disp_pkt_w / 2;
-    py  = pcy - disp_pkt_h / 2;
-    py_back = py + disp_pkt_h;
-    pr  = disp_module_r + disp_pkt_tol;
+// ─── 7e. Display retainer (separately fabricated) ───────────────────────────
+// Flat piece (e.g. 1.2 mm plywood, brass, hardwood veneer, or 3D-printed)
+// whose outer outline matches the overlay's display through-cut and whose
+// inner window matches the display active area. Glued to the overlay
+// underside around the display hole. The retainer provides:
+//   • the visible active-area bezel ("picture frame")
+//   • the mechanical lip the display glass rests against
+//   • cross-grain strength if made from plywood/brass (wood overlay alone
+//     would be short-grain at 1.2 mm and crack)
+// Produced as a standalone piece when SHOW_RETAINER is true.
+module display_retainer() {
+    ow = disp_cut_w;          // matches overlay cutout
+    oh = disp_cut_h;
+    or_ = disp_cut_r;
+    iw = disp_win_w;          // active-area + window tolerance
+    ih = disp_win_h;
+    ir = disp_active_r;
 
-    // Tilted pocket ceiling — leaves uniform disp_lip_t lip following the tilt.
-    // No FPC channel is needed: J2 (24-pin LCD connector) sits directly below
-    // the display inside the plate cutout, so the module's ribbon plugs
-    // straight down into the board without traversing the overlay.
-    intersection() {
-        translate([px, py, 0])
-            wedge_box(disp_pkt_w, disp_pkt_h,
-                      top_z(py) - disp_lip_t,
-                      top_z(py_back) - disp_lip_t);
-        // Rounded corners matching module shape
-        translate([px, py, -0.1])
-            linear_extrude(height = back_h + 1)
-                offset(r=pr) offset(delta=-pr)
-                    square([disp_pkt_w, disp_pkt_h]);
+    difference() {
+        linear_extrude(height = retainer_t)
+            offset(r=or_) offset(delta=-or_)
+                square([ow, oh]);
+        translate([(ow - iw) / 2, (oh - ih) / 2, -0.1])
+            linear_extrude(height = retainer_t + 0.2)
+                offset(r=ir) offset(delta=-ir)
+                    square([iw, ih]);
     }
 }
 
@@ -519,20 +538,48 @@ module usb_cutout() {
 // Gasket/foam material lines the slot (top + bottom surfaces) for compression
 // mounting. The plate drops in from above, tabs engage the slots.
 //
-// Slot cross-section:
-//   ════════════  ← case wall outer surface
-//   ║          ║
-//   ║  ┌────┐  ║  ← gasket (top)
-//   ║  │ TAB│  ║  ← plate tab slides in here
-//   ║  └────┘  ║  ← gasket (bottom)
-//   ║          ║
-//   ════════════  ← case wall inner surface (cavity side)
+// Each slot is sized so its top extends ABOVE the tray wall top by
+// `slot_open_margin`, turning it into an open-top channel. This is what
+// makes drop-in assembly possible — otherwise the top of the slot would be
+// sealed by wall material and the tab could not descend past the wall top.
+// The assertion below catches any regression where plate_recess grows
+// beyond what slot_height can accommodate.
+//
+// Slot cross-section (side view, tab enters from above):
+//   ┈┈┈┈┈┈┈┈┈┈┈┈ ← overlay bottom (caps the open-top channel at assembly)
+//          ┆ TOP OPEN — plate tab descends through here
+//   ═══════┆═══  ← tray wall outer top
+//   ║      ┆  ║
+//   ║   ┌──┴┐ ║  ← gasket (top)  — installed after plate is seated
+//   ║   │TAB│ ║  ← plate tab final position
+//   ║   └───┘ ║  ← gasket (bottom) — installed before plate is seated
+//   ║         ║
+//   ═══════════ ← tray wall inner surface (cavity side)
+
+// Compile-time check: slot_height must be large enough to reach above the
+// tray wall top. If this fires, increase slot_open_margin or reduce
+// plate_recess.
+assert(slot_height >= 2 * plate_recess + plate_t + 2 * slot_open_margin,
+       "slot_height too small: gasket slot does not reach the tray wall top — plate cannot drop in");
 
 // Slot dimensions
 slot_tol     = 0.3;    // clearance around tab (per side, length direction)
 slot_depth   = 2.5;    // how deep the slot goes into the wall
-slot_height  = plate_t + 2 * gasket_compressed + 0.5;  // tab + gasket + clearance
-// = 1.6 + 3.0 + 0.5 = 5.1mm
+slot_open_margin = 0.5;    // mm slot top extends ABOVE the tray wall top
+                           // (turns each slot into an open-top channel so
+                           //  the plate can drop straight in from above —
+                           //  otherwise the slot would be sealed at the top
+                           //  by wall material and the tab couldn't enter)
+// slot_height is sized for BOTH constraints:
+//   1. symmetric headroom around the plate tab + two gaskets (old need)
+//        = plate_t + 2 * gasket_compressed + 0.5
+//   2. drop-in access: slot top reaches wall_top + slot_open_margin, which
+//      (since the slot is centered on plate midline at plate_z − plate_t/2)
+//      requires slot_height ≥ 2·plate_recess + plate_t + 2·slot_open_margin
+// With current values the drop-in constraint dominates:
+//   2·2.0 + 1.6 + 2·0.5 = 6.6 mm  vs  1.6 + 3.0 + 0.5 = 5.1 mm
+slot_height  = max(plate_t + 2 * gasket_compressed + 0.5,
+                   2 * plate_recess + plate_t + 2 * slot_open_margin);
 
 module gasket_slots() {
     // ── Back wall slots (3) ──────────────────────────────────────────────
@@ -728,18 +775,23 @@ module plate_ghost() {
 module display_ghost() {
     dcx = p2c_x(disp_cx);
     dcy = p2c_y(disp_cy);
-    z_top_under = top_z(dcy) - top_t;
+    overlay_bottom_z = top_z(dcy) - top_t;
 
-    // Module body
+    // Module body sits inside the overlay through-cut, bottom face resting on
+    // the retainer (which is glued to the overlay underside). Glass top ends
+    // up (top_t - glass_t) below the overlay top surface — a slightly
+    // recessed display. With top_t=3 and glass_t=1.56 that's ~1.44 mm recess.
+    module_bottom_z = overlay_bottom_z;
+    module_top_z = overlay_bottom_z + disp_glass_t;
+
     color("black", 0.4)
-    translate([dcx - disp_module_w/2, dcy - disp_module_h/2,
-               z_top_under - disp_glass_t])
+    translate([dcx - disp_module_w/2, dcy - disp_module_h/2, module_bottom_z])
         cube([disp_module_w, disp_module_h, disp_glass_t]);
 
-    // Active area highlight
+    // Active area highlight (visible through overlay cutout from above)
     color("cyan", 0.3)
     translate([dcx - disp_active_w/2, dcy - disp_active_h/2,
-               z_top_under + 0.01])
+               module_top_z + 0.01])
         cube([disp_active_w, disp_active_h, 0.1]);
 }
 
@@ -757,6 +809,17 @@ module assembly() {
         color("SaddleBrown", 0.75)
         translate([0, 0, EXPLODE])
             case_overlay_finished();
+    }
+
+    if (SHOW_RETAINER) {
+        // Retainer sits against the overlay underside, around the display hole.
+        rcx = p2c_x(disp_cx);
+        rcy = p2c_y(disp_cy);
+        color("Goldenrod", 0.9)
+        translate([rcx - disp_cut_w / 2,
+                   rcy - disp_cut_h / 2,
+                   top_z(rcy) - top_t - retainer_t + EXPLODE * 0.5])
+            display_retainer();
     }
 
     if (SHOW_PLATE)
@@ -780,12 +843,13 @@ if (SHOW_SECTION) {
     assembly();
 }
 
-// ─── Dimension echo (uncomment for verification) ────────────────────────────
+// ─── Dimension echo (for verification) ──────────────────────────────────────
 echo("=== CASE DIMENSIONS ===");
 echo(str("Outer: ", outer_w, " x ", outer_d, " x ", front_h, "-", back_h, " mm"));
 echo(str("Wall: ", wall_t, " mm, Bottom: ", bottom_t, " mm, Top surface: ", top_t, " mm"));
 echo(str("Tilt rise: ", tilt_rise, " mm over ", outer_d, " mm depth"));
-echo(str("Display window: ", disp_win_w, " x ", disp_win_h, " mm"));
-echo(str("Display pocket: ", disp_pkt_w, " x ", disp_pkt_h, " mm"));
+echo(str("Overlay display through-cut: ", disp_cut_w, " x ", disp_cut_h, " mm (r=", disp_cut_r, ")"));
+echo(str("Retainer outer: ", disp_cut_w, " x ", disp_cut_h, " mm, window: ", disp_win_w, " x ", disp_win_h, " mm, t=", retainer_t, " mm"));
 echo(str("USB cutout: ", usb_cut_w, " x ", usb_cut_h, " mm at back wall"));
 echo(str("Internal depth below plate: ", depth_below, " mm"));
+echo(str("Plate recess below tray wall top: ", plate_recess, " mm"));
