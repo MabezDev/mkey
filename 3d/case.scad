@@ -680,30 +680,69 @@ module usb_cutout() {
 //   ║         ║
 //   ═══════════ ← tray wall inner surface (cavity side)
 
-// Compile-time check: slot_height must be large enough to reach above the
-// tray wall top. If this fires, increase slot_open_margin or reduce
-// plate_recess.
-assert(slot_height >= 2 * plate_recess + plate_t + 2 * slot_open_margin,
-       "slot_height too small: gasket slot does not reach the tray wall top — plate cannot drop in");
+// Compile-time checks on the slot decomposition. Both must hold or the
+// drop-in or the bottom gasket fails.
+assert(slot_top_above_plate >= plate_recess + slot_open_margin,
+       "slot_top_above_plate too small: slot top doesn't reach above the tray wall top — plate cannot drop in");
+assert(slot_bot_below_plate >= gasket_compressed,
+       "slot_bot_below_plate too small: bottom gasket has nowhere to live below the plate");
 
 // Slot dimensions
 slot_tol     = 0.3;    // clearance around tab (per side, length direction)
-slot_depth   = 2.5;    // how deep the slot goes into the wall
-slot_open_margin = 0.5;    // mm slot top extends ABOVE the tray wall top
-                           // (turns each slot into an open-top channel so
-                           //  the plate can drop straight in from above —
-                           //  otherwise the slot would be sealed at the top
-                           //  by wall material and the tab couldn't enter)
-// slot_height is sized for BOTH constraints:
-//   1. symmetric headroom around the plate tab + two gaskets (old need)
-//        = plate_t + 2 * gasket_compressed + 0.5
-//   2. drop-in access: slot top reaches wall_top + slot_open_margin, which
-//      (since the slot is centered on plate midline at plate_z − plate_t/2)
-//      requires slot_height ≥ 2·plate_recess + plate_t + 2·slot_open_margin
-// With current values the drop-in constraint dominates:
-//   2·2.0 + 1.6 + 2·0.5 = 6.6 mm  vs  1.6 + 3.0 + 0.5 = 5.1 mm
-slot_height  = max(plate_t + 2 * gasket_compressed + 0.5,
-                   2 * plate_recess + plate_t + 2 * slot_open_margin);
+slot_depth   = 1.5;    // how deep the slot goes into the wall.
+                       // Measured tab penetration into the wall is 1.25..1.33 mm
+                       // (tab_ext 1.749..1.828 mm, minus plate_gap 0.5 mm), so
+                       // 1.5 mm captures the tab with ~0.17 mm back clearance.
+                       // Reduced from 2.5 mm because 2.5 mm left only 2.3 mm
+                       // of outboard wall cheek on 4.8 mm walls, with 7 slots
+                       // running 20 mm each along front+back — a chip-off
+                       // hazard in hardwood. 1.5 mm depth leaves 3.3 mm cheek.
+slot_open_margin = 1.5;    // mm slot top extends ABOVE the tray wall top at
+                           // the slot's center-Y. Turns each slot into an
+                           // open-top channel so the plate can drop in from
+                           // above. Bumped from 0.5 mm because the LEFT/RIGHT
+                           // slots run ALONG the 5° tilt axis (Y), so the
+                           // wall top rises over the slot's length. Over the
+                           // 20.10 mm slot length the uphill end sits
+                           // L·tan(5°)/2 = 0.88 mm above slot center, so the
+                           // flat-topped slot box must clear ≥0.88 mm of
+                           // wall-top rise. With slot_open_margin = 1.5 mm
+                           // the uphill wall-top is 0.62 mm BELOW the slot
+                           // top — comfortably above ±0.2 mm fab slop on
+                           // both wall and tab. Front/back slots run along X
+                           // (no tilt drift) so they only see a
+                           // 4.8·tan(5°) = 0.42 mm rise across wall thickness.
+// Slot is sized ASYMMETRICALLY about plate midplane. The two constraints
+// (drop-in clearance above wall top, gasket headroom below the plate) have
+// nothing to do with each other, so a symmetric slot wastes wood — every
+// extra mm of slot_open_margin needed for the tilt-corrected drop-in would
+// otherwise force a matching mm of empty slot on the bottom side too. By
+// decomposing into top/bottom extents and recombining, slot_height shrinks
+// from 8.6 → 6.85 mm, the slot box ends just below where the bottom gasket
+// needs it, and the tab sits visually centered between snug compression
+// zones rather than floating in the middle of an oversized cavity.
+//
+// Geometry (case Z, plate top = plate_z(cy), plate bottom = plate_z − plate_t):
+//
+//                                              ┄┄┄┄┄  ← slot top  = plate_top + slot_top_above_plate
+//                                                       (= wall_top + slot_open_margin)
+//                                                       must be ≥ wall_top + slot_open_margin to clear
+//                                                       the tilted wall over the slot's full length
+//                                              ─────  ← tray wall top  = plate_top + plate_recess
+//                                              ┄┄┄┄┄
+//                                              ▓▓▓▓▓  ← top gasket (gasket_compressed)
+//                                              ▒▒▒▒▒  ← plate tab (plate_t)
+//                                              ▓▓▓▓▓  ← bottom gasket (gasket_compressed)
+//                                              ┄┄┄┄┄  ← slot bottom = plate_bot − slot_bot_below_plate
+//
+slot_top_above_plate = plate_recess + slot_open_margin;   // 2.0 + 1.5 = 3.5 mm
+slot_bot_below_plate = gasket_compressed + 0.25;          // 1.5 + 0.25 = 1.75 mm
+slot_height          = plate_t + slot_top_above_plate + slot_bot_below_plate;
+                                                          // 1.6 + 3.5 + 1.75 = 6.85 mm
+// Slot center, relative to plate midplane. Positive = slot is offset upward.
+// (slot_top + slot_bot)/2 = plate_midplane + (slot_top_above_plate − slot_bot_below_plate)/2
+slot_center_offset   = (slot_top_above_plate - slot_bot_below_plate) / 2;
+                                                          // (3.5 − 1.75)/2 = +0.875 mm
 
 module gasket_slots() {
     // ── Back wall slots (3) ──────────────────────────────────────────────
@@ -713,7 +752,7 @@ module gasket_slots() {
         cx = p2c_x(back_tab_cx[i]);
         wall_inner_y = outer_d - wall_t;  // inner face of back wall
         local_pz = plate_z(wall_inner_y);  // plate top Z at this Y
-        slot_center_z = local_pz - plate_t / 2;  // center on plate mid-thickness
+        slot_center_z = local_pz - plate_t / 2 + slot_center_offset;
 
         translate([cx - (tab_len + slot_tol)/2,
                    wall_inner_y - 0.01,
@@ -726,7 +765,7 @@ module gasket_slots() {
         cx = p2c_x(front_tab_cx[i]);
         wall_inner_y = wall_t;  // inner face of front wall
         local_pz = plate_z(wall_inner_y);
-        slot_center_z = local_pz - plate_t / 2;
+        slot_center_z = local_pz - plate_t / 2 + slot_center_offset;
 
         translate([cx - (tab_len + slot_tol)/2,
                    wall_inner_y - slot_depth,
@@ -741,7 +780,7 @@ module gasket_slots() {
     let(cy_L            = p2c_y(left_tab_cy),
         wall_inner_x_L  = wall_t,
         local_pz_L      = plate_z(p2c_y(left_tab_cy)),
-        slot_center_z_L = plate_z(p2c_y(left_tab_cy)) - plate_t / 2) {
+        slot_center_z_L = plate_z(p2c_y(left_tab_cy)) - plate_t / 2 + slot_center_offset) {
         translate([wall_inner_x_L - slot_depth,
                    cy_L - (tab_len + slot_tol)/2,
                    slot_center_z_L - slot_height/2])
@@ -752,7 +791,7 @@ module gasket_slots() {
     let(cy_R            = p2c_y(right_tab_cy),
         wall_inner_x_R  = outer_w - wall_t,
         local_pz_R      = plate_z(p2c_y(right_tab_cy)),
-        slot_center_z_R = plate_z(p2c_y(right_tab_cy)) - plate_t / 2) {
+        slot_center_z_R = plate_z(p2c_y(right_tab_cy)) - plate_t / 2 + slot_center_offset) {
         translate([wall_inner_x_R - 0.01,
                    cy_R - (tab_len + slot_tol)/2,
                    slot_center_z_R - slot_height/2])
