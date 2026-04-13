@@ -177,10 +177,17 @@ disp_cut_tol  = 0.15;   // module-body pocket oversize vs module (per side).
                         // old 0.30 corner-binding bump is no longer needed.
                         // 0.15 per side keeps the pocket tight (worst-case
                         // ±0.2mm fab slop → +0.10/−0.05 mm; minor file fit).
-shelf_t        = 1.0;   // wood above the display glass (the visible recess).
-                        // This is what the user sees looking down through the
-                        // top window. ≤1 mm is the hard limit — any deeper and
-                        // the display is occluded at typing-angle viewing.
+shelf_t        = 1.5;   // wood above the display glass (the visible recess).
+                        // Bumped from 1.0 → 1.5 in the 2026-04-13 pre-fab
+                        // design review: the 1.0 × 1.6 mm cross-grain short
+                        // beams of the picture-frame had a bending SF < 1
+                        // against a 1 N poke, and a 1 × 1.6 × 30 mm cross-
+                        // grain matchstick is a real chip-out risk with
+                        // saw/drill/file. Bending stiffness scales as t³,
+                        // so 1.0 → 1.5 is a 3.4× stiffness win. The cost
+                        // is a deeper visible recess (1.5 mm vs 1.0 mm) —
+                        // still well inside the disp_pocket_d ≥ disp_glass_t
+                        // invariant (5.0 − 1.5 = 3.5 mm ≥ 1.56 mm).
 shelf_frame_x  = 1.0;   // picture-frame wood width along the short (X) sides
                         // of the window. X bezel is the tight constraint at
                         // 1.20 mm, so this is as thick as the frame can safely
@@ -341,6 +348,19 @@ pocket_corner_clearance =
 assert(pocket_corner_clearance <= disp_pocket_r,
        "window corner arc escapes the pocket corner — reduce shelf_corner_r or grow shelf_frame");
 
+// USB-C opening Z geometry (used by both the cutout module and the
+// invariant asserts below). Derived from the back-wall plate Z and the
+// mid-mount HRO TYPE-C-31-M-12 receptacle, whose opening center sits on
+// the PCB midplane.
+back_wall_inner_y   = outer_d - wall_t;
+back_plate_top_z    = plate_z(back_wall_inner_y);
+back_plate_bottom_z = back_plate_top_z - plate_t;
+pcb_top_z           = back_plate_bottom_z - switch_depth;
+usb_z_center        = pcb_top_z - pcb_t / 2;
+usb_cut_z_bot       = usb_z_center - usb_cut_h / 2;
+usb_cut_z_top       = usb_z_center + usb_cut_h / 2;
+back_wall_top_z     = back_h - top_t;  // tray wall top at the back
+
 // Overlay overhang dimensions
 overlay_w       = outer_w + 2 * overhang;
 overlay_d       = outer_d + 2 * overhang;
@@ -385,6 +405,126 @@ key_rects = [
 // does shrink the main-field ↔ arrow-LDR rib from 4.26 to 4.16 mm effective,
 // which is still the weakest cross-section in the overlay.
 key_cap_clearance = 0.3;
+
+
+// =============================================================================
+// SECTION 5b: GLOBAL INVARIANT ASSERTIONS (self-contained verification)
+// =============================================================================
+// These asserts replace the previous scripts/verify_measurements.py external
+// tool. Every invariant that was (or should have been) checked by the script
+// now lives inline: OpenSCAD fails the render if any of them break.
+//
+// Primary-source verification of the dimensioned constants against
+// plate.kicad_pcb, mkey.kicad_pcb, and plate.step was performed as part of
+// the 2026-04-13 pre-fabrication design review. Every KiCad/STEP-derived
+// constant matched to ≤ 0.001 mm. Since the plate and PCB are physically
+// fabricated and frozen (see project memory note on display mounting), those
+// dimensioned constants are locked truth — no ongoing drift check is needed.
+// What CAN change is the case-parameter cluster below, and the asserts here
+// guard every invariant those parameters must satisfy.
+
+// ─── Slot + wall invariants ─────────────────────────────────────────────────
+
+// Side (left/right) slots run along the tilt axis. Their flat slot-box top
+// must clear the (rising) wall top at the UPHILL end of the slot, plus a
+// fab-slop budget. This is the regression guarded by commit 7ca2d31.
+assert(slot_open_margin >=
+       (tab_len + slot_tol) * tan(tilt_angle) / 2 + FAB_SLOP,
+       "slot_open_margin too small: uphill end of side slots drops below wall top under tilt + fab slop");
+
+// Wall cheek outboard of each slot must be thick enough not to chip off in
+// hardwood under gasket compression or assembly force.
+assert(wall_t - slot_depth >= 3.0,
+       "slot cheek (wall_t − slot_depth) below 3.0 mm — hardwood chip-off hazard");
+
+// Every tab must penetrate no deeper than the slot can accept. Tab
+// penetration into the wall = tab_ext − plate_gap; the slot is slot_depth
+// deep measured from the inner wall face, so this bounds tab_ext.
+assert(max(max(back_tab_ext, front_tab_ext),
+           max(left_tab_ext, right_tab_ext)) <= slot_depth + plate_gap - 0.05,
+       "tab extension exceeds slot depth + plate gap — tab bottoms out on slot back wall");
+
+// ─── Case geometry invariants ───────────────────────────────────────────────
+
+assert(chamfer <= top_t,
+       "chamfer width exceeds top_t — chamfer would cut through the overlay slab");
+
+assert(overhang <= wall_t,
+       "overlay overhang exceeds wall_t — unsupported cantilever");
+
+// The key_cap_clearance expansion must not erode the main-field ↔ arrow LDR
+// rib below its structural minimum. Gap at nominal MX spacing is 4.76 mm;
+// after 2×key_cap_clearance expansion the effective rib width is
+// 4.76 − 2·key_cap_clearance. We require ≥ 4.0 mm with top_t=5 for an
+// along-grain rib (Y grain per case.scad line 217–221).
+assert(4.76 - 2 * key_cap_clearance >= 4.0,
+       "key_cap_clearance too large: arrow-LDR rib would drop below 4.0 mm");
+
+// ─── Display shelf invariants (top_t vs shelf_t vs glass) ────────────────
+// This is an invariant re-statement of the derived-dimension asserts above;
+// kept here so a future top_t / shelf_t edit still has to pass it even if
+// those variables are moved.
+assert(top_t - shelf_t >= disp_glass_t,
+       "top_t − shelf_t < disp_glass_t — module body cannot fit under the shelf");
+
+// ─── USB-C cutout Z invariants ───────────────────────────────────────────
+assert(usb_cut_z_bot >= bottom_t + 0.1,
+       "USB cutout pierces (or touches) the case floor");
+assert(usb_cut_z_top <= back_wall_top_z - 0.1,
+       "USB cutout pierces the tray wall top at the back");
+
+// ─── 66-switch coverage check (locked reference) ─────────────────────────
+// Every MX switch on the frozen mkey.kicad_pcb, in plate-local coordinates
+// (Board_X − 31.473, |Board_Y − 150.195| − 7.416). The list is sorted by
+// row (Y) then column (X). Extracted and verified 2026-04-13 against the
+// authoritative KiCad source; the plate/PCB are physically fabricated and
+// cannot change. This list exists to catch future edits to `key_rects`
+// that would accidentally leave a real switch unexposed.
+MX_SWITCHES = [
+    // Row 0 — number row + backspace
+    [ 12.025, 88.200], [ 31.075, 88.200], [ 50.124, 88.200], [ 69.174, 88.200],
+    [ 88.225, 88.200], [107.275, 88.200], [126.325, 88.200], [145.375, 88.200],
+    [164.425, 88.200], [183.474, 88.200], [202.524, 88.200], [221.575, 88.200],
+    [240.625, 88.200], [269.200, 88.200],
+    // Row 1 — tab row
+    [ 16.787, 69.150], [ 40.600, 69.150], [ 59.650, 69.150], [ 78.700, 69.150],
+    [ 97.749, 69.150], [116.800, 69.150], [135.849, 69.150], [154.899, 69.150],
+    [173.950, 69.150], [193.000, 69.150], [212.050, 69.150], [231.099, 69.150],
+    [250.149, 69.150],
+    // ISO Enter (bridges rows 1 and 2)
+    [276.343, 59.625],
+    // Row 2 — home row
+    [ 19.168, 50.100], [ 45.362, 50.100], [ 64.412, 50.100], [ 83.462, 50.100],
+    [102.512, 50.100], [121.562, 50.100], [140.612, 50.100], [159.662, 50.100],
+    [178.712, 50.100], [197.762, 50.100], [216.812, 50.100], [235.862, 50.100],
+    [254.912, 50.100],
+    // Row 3 main — shift row + Arrow UP
+    [ 14.406, 31.050], [ 35.837, 31.050], [ 54.887, 31.050], [ 73.937, 31.050],
+    [ 92.987, 31.050], [112.037, 31.050], [131.087, 31.050], [150.137, 31.050],
+    [169.187, 31.050], [188.237, 31.050], [207.287, 31.050], [226.337, 31.050],
+    [262.056, 31.050], [321.587, 31.050],
+    // Row 4 main — front row + Arrow L/D/R
+    [ 14.406, 12.000], [ 38.218, 12.000], [ 62.031, 12.000], [133.468, 12.000],
+    [204.906, 12.000], [228.718, 12.000], [252.531, 12.000], [276.343, 12.000],
+    [302.537, 12.000], [321.587, 12.000], [340.637, 12.000],
+];
+
+function _switch_in_rect(sx, sy, r, t) =
+    (r[0] - t) <= sx && sx <= (r[2] + t) &&
+    (r[1] - t) <= sy && sy <= (r[3] + t);
+
+function _switch_in_any_rect(sx, sy) =
+    len([for (r = key_rects)
+         if (_switch_in_rect(sx, sy, r, key_cap_clearance)) 1]) > 0;
+
+_switches_covered = len([
+    for (s = MX_SWITCHES) if (_switch_in_any_rect(s[0], s[1])) 1
+]);
+
+assert(len(MX_SWITCHES) == 66,
+       "MX_SWITCHES list corrupted — expected 66 switches");
+assert(_switches_covered == len(MX_SWITCHES),
+       "key_rects union does not cover every MX switch — a real switch is under solid overlay wood");
 
 
 // =============================================================================
@@ -641,17 +781,11 @@ module display_retainer() {
 
 // ─── 7f. USB-C cutout ───────────────────────────────────────────────────────
 module usb_cutout() {
-    // USB exits through the back wall
+    // USB exits through the back wall. Z geometry is computed at top level
+    // (see `usb_z_center` and friends) so the invariant asserts share the
+    // exact same derivation the cut itself uses — no drift possible.
     ux = p2c_x(usb_plate_x) - usb_cut_w / 2;
-
-    // USB-C mid-mount connector sits on the PCB surface.
-    // PCB top = plate bottom - switch body depth
-    // USB opening center ≈ PCB center line
-    back_plate_z = plate_z(outer_d - wall_t) - plate_t;
-    pcb_top_z = back_plate_z - switch_depth;
-    usb_z_center = pcb_top_z - pcb_t / 2;  // center of PCB thickness
-
-    translate([ux, outer_d - wall_t - 0.5, usb_z_center - usb_cut_h / 2])
+    translate([ux, back_wall_inner_y - 0.5, usb_cut_z_bot])
         cube([usb_cut_w, wall_t + 1, usb_cut_h]);
 }
 
