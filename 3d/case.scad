@@ -308,7 +308,7 @@ plate_oy = wall_t + plate_gap;
 disp_pocket_w = disp_module_w + 2 * disp_cut_tol;   // 31.80
 disp_pocket_h = disp_module_h + 2 * disp_cut_tol;   // 37.52
 disp_pocket_r = disp_module_r + disp_cut_tol;       // 2.35
-disp_pocket_d = top_t - shelf_t;                    // 4.00 with top_t=5, shelf_t=1
+disp_pocket_d = top_t - shelf_t;                    // 3.50 with top_t=5, shelf_t=1.5
 
 // Top window: visible from above, cut through the thin shelf. Asymmetric X/Y
 // offsets from the pocket, blended at the corners by a `shelf_corner_r` fillet
@@ -446,8 +446,11 @@ assert(max(max(back_tab_ext, front_tab_ext),
 
 // ─── Case geometry invariants ───────────────────────────────────────────────
 
-assert(chamfer <= top_t,
-       "chamfer width exceeds top_t — chamfer would cut through the overlay slab");
+// The top-edge chamfer is a dormant feature (edge_chamfers() is not called from
+// case_tray_finished today; only the inline 0.5mm bottom chamfers are). The
+// ceiling still guards against a future reinstatement eating the wall cheek.
+assert(chamfer <= wall_t - 0.5,
+       "chamfer width exceeds wall_t − 0.5 — top-edge chamfer would eat the tray wall cheek");
 
 assert(overhang <= wall_t,
        "overlay overhang exceeds wall_t — unsupported cantilever");
@@ -472,6 +475,59 @@ assert(usb_cut_z_bot >= bottom_t + 0.1,
        "USB cutout pierces (or touches) the case floor");
 assert(usb_cut_z_top <= back_wall_top_z - 0.1,
        "USB cutout pierces the tray wall top at the back");
+
+// ─── USB-C cutout X invariants ───────────────────────────────────────────
+// The cut must sit inside the back wall's X extent with enough wood on each
+// side that a ±0.5 mm PCB placement slop can't run it off the cheek.
+assert(p2c_x(usb_plate_x) - usb_cut_w / 2 >= wall_t + 0.5,
+       "USB cutout X-range escapes the back wall's left cheek");
+assert(p2c_x(usb_plate_x) + usb_cut_w / 2 <= outer_w - wall_t - 0.5,
+       "USB cutout X-range escapes the back wall's right cheek");
+
+// ─── Main-field ↔ display-pocket bezel ───────────────────────────────────
+// Rightmost main-field rect edge (Row 0 / Row 3 main) sits at x=288.250. The
+// display bottom pocket left edge is disp_cx − disp_pocket_w/2. The hardwood
+// bezel between the main key opening and the display hole must be ≥ 4.0 mm
+// (along-grain Y beam) for the rib to survive typing vibration.
+assert((disp_cx - disp_pocket_w / 2) - (288.250 + key_cap_clearance) >= 4.0,
+       "main-field ↔ display-pocket bezel < 4.0 mm — rib too thin for along-grain Y beam");
+
+// ─── Active area centered in module ──────────────────────────────────────
+// The display cutout is centered on the module bbox, and the top window is
+// centered on the pocket. For the visible active pixels to sit centered in
+// the window, the module's active-area offset must equal half the inactive
+// bezel in each axis. Catch a datasheet edit that breaks centering.
+assert(abs(disp_active_ox - (disp_module_w - disp_active_w) / 2) < 0.01 &&
+       abs(disp_active_oy - (disp_module_h - disp_active_h) / 2) < 0.01,
+       "active area not centered in module — top window will be off-center vs active pixels");
+
+// ─── Retainer fits in pocket under glass ─────────────────────────────────
+// Retainer is glued to the overlay underside at the bottom of the pocket,
+// and the module (disp_glass_t thick) sits above it pressed against the
+// shelf. Retainer thickness is bounded by (pocket depth − glass thickness).
+assert(retainer_t <= disp_pocket_d - disp_glass_t,
+       "retainer too thick to fit in pocket beneath the module glass");
+
+// ─── Bottom pad recess fab-slop margin ───────────────────────────────────
+// Pad recesses are 1 mm deep in a 3.5 mm floor, leaving 2.5 mm nominal. Under
+// ±0.2 mm hand-tool depth slop, ensure ≥ 2 mm floor remains over the pads.
+assert(bottom_t - pad_d - FAB_SLOP >= 2.0,
+       "bottom pad recess leaves < 2.0 mm floor under ±0.2 mm fab slop");
+
+// ─── key_rects stay inside plate bounds ──────────────────────────────────
+// Catches an edit that walks a row rectangle off the plate. Uses the same
+// indexing convention as the rest of the file: [x1, y1, x2, y2] plate-local.
+assert(len([for (r = key_rects)
+            if (r[0] < -0.01 || r[1] < -0.01 ||
+                r[2] > plate_w + 0.01 || r[3] > plate_d + 0.01) 1]) == 0,
+       "a key_rect escapes the plate's rectangular bounds");
+
+// ─── Tilt angle bounds ───────────────────────────────────────────────────
+// The slot-open-margin assert above uses tan(tilt_angle)/2 without handling
+// large angles, and the tilt-rotated display cut frame assumes the overlay
+// slab is uniform thickness (true only for moderate tilt). Bound the angle.
+assert(tilt_angle > 0 && tilt_angle < 30,
+       "tilt_angle out of supported range — keep 0 < tilt_angle < 30°");
 
 // ─── 66-switch coverage check (locked reference) ─────────────────────────
 // Every MX switch on the frozen mkey.kicad_pcb, in plate-local coordinates
@@ -1108,6 +1164,10 @@ module assembly() {
 
     if (SHOW_RETAINER) {
         // Backing clamp sits at the bottom of the (tilted) display pocket.
+        // display_retainer() extrudes upward from its local z=0, so placing
+        // that origin at local z = −top_t (overlay underside) puts the
+        // retainer flush with the overlay bottom, occupying the bottom
+        // retainer_t of the pocket.
         rcx = p2c_x(disp_cx);
         rcy = p2c_y(disp_cy);
         translate([rcx, rcy, top_z(rcy)])
@@ -1115,7 +1175,7 @@ module assembly() {
         color("Goldenrod", 0.9)
         translate([-disp_pocket_w / 2,
                    -disp_pocket_h / 2,
-                   -top_t - retainer_t + EXPLODE * 0.5])
+                   -top_t + EXPLODE * 0.5])
             display_retainer();
     }
 
