@@ -28,6 +28,29 @@ SHOW_DISPLAY    = false;   // ghost display for fit check
 SHOW_SECTION    = false;   // cross-section cut for inspection
 EXPLODE         = 2;       // set >0 to separate overlay from tray (mm)
 
+// ─── Feature toggles (per-fabrication-method overrides) ─────────────────────
+// DESIGN NOTE — why these are toggles:
+//   The case may be fabricated by two very different methods depending on the
+//   build: (a) hand-cut hardwood using saw/drill/file/chisel, or (b) 3D-printed
+//   plastic (FDM/SLA). Some features are trivial in one method and painful in
+//   the other. A rabbet on the tray wall top to locate the overlay is ~5
+//   minutes on a 3D-printer but a fiddly chisel operation in hardwood; blind
+//   magnet pockets are laughably easy on a printer but need a drill-press stop
+//   in wood. Rather than forking the file, every optional locating/retention
+//   feature is behind a toggle so you can flip them per build without editing
+//   the geometry. This is the real power of the file: one source, multiple
+//   fabrication paths, with the asserts still covering all configurations.
+ENABLE_OVERLAY_RABBET = true;    // cut a shallow rabbet in the tray wall top
+                                 // that the overlay overhang seats into for
+                                 // X/Y registration. Trivial on a printer,
+                                 // chisel work in hardwood.
+ENABLE_MAGNET_POCKETS = true;    // cut blind magnet pockets in the tray wall
+                                 // top AND matching pockets in the overlay
+                                 // underside, so the two pieces hold together
+                                 // magnetically (serviceable — overlay lifts
+                                 // off for PCB access). Counts on N52 disc
+                                 // magnets — see magnet_* params below.
+
 // =============================================================================
 // SECTION 1: PLATE DIMENSIONS (from plate.kicad_pcb)
 // =============================================================================
@@ -268,6 +291,83 @@ overhang = 2.0;   // top overlay overhang beyond tray walls (mm)
 // ─── Corner rounding ─────────────────────────────────────────────────────────
 overlay_corner_r = 3.0;    // outer corner radius of overlay
 
+// ─── Overlay locating rabbet (optional, ENABLE_OVERLAY_RABBET) ──────────────
+// INVERTED ("tongue") geometry: a small ridge of wood stands proud ABOVE
+// the tray wall top on the inside edge, and the overlay underside has a
+// matching recess that drops over the ridge. The overlay still sits flat
+// on the wall's outer cheek at the existing wall_top Z; the tongue is
+// added above it and the recess is cut into the overlay slab above its
+// underside plane. Nothing else in the stack-up changes.
+//
+// Why inverted vs a cut-into-the-wall rabbet: hand-cutting a recess into
+// the wall top and a matching downward lip on the overlay underside is
+// fiddly — the lip is a thin cross-grain cantilever with nothing below it
+// during cutting. The tongue variant lets the wall wood support itself
+// during fabrication: remove the outer ring of the wall top to depth
+// rabbet_h and you're left with a solid tongue standing proud, no
+// unsupported cantilevers. The overlay's recess is a shallow groove
+// routed / chiseled / printed into the underside (also well-supported
+// during cutting).
+//
+// NOTCHING at slot Y: a naive continuous ring tongue would block the
+// plate-tab drop-in path where the tabs descend through the slot open-top
+// channels. `gasket_slot_footprints_2d()` subtracts each slot footprint
+// (plus a descent-clearance margin) from the tongue and recess 2D
+// footprints, leaving clean gaps at all 9 tab positions. The ring is
+// therefore discontinuous — 9 short segments running between the slots
+// around the case perimeter, each fully supported by solid wall material.
+rabbet_w = 1.8;      // ring width in the wall-depth direction (outer ring
+                     // of wood removed from the wall top). The tongue
+                     // itself is `rabbet_w − 2·rabbet_tol` = 1.3 mm wide.
+                     // Must leave a ≥1.5 mm rest cheek for the overlay
+                     // outboard of the tongue (wall_t − rabbet_w ≥ 1.5).
+rabbet_h = 1.0;      // tongue height above the wall top (= recess depth
+                     // into the overlay underside). Reduced from 1.2 mm
+                     // to keep enough overlay slab above the recess in
+                     // hand-cut wood and to leave healthy material for
+                     // the magnet-pocket cheeks in the overlay.
+rabbet_tol = 0.25;   // per-side clearance between the tongue and the
+                     // recess. 0.25 mm gives a sliding hand-seat fit
+                     // with no binding under ±0.2 mm fab slop.
+notch_margin = 0.5;  // extra plan-view clearance added around each slot
+                     // footprint when notching the tongue / recess, so
+                     // the plate tab has a finger of sliding room when
+                     // descending into the slot.
+
+// ─── Magnet pockets (optional, ENABLE_MAGNET_POCKETS) ───────────────────────
+// Blind cylindrical pockets sunk into the tray wall top AND the matching
+// points on the overlay underside. N52 neodymium disc magnets are press-fit
+// or epoxied into each pocket; tray and overlay magnets attract across the
+// rabbet seam and hold the overlay down.
+//
+// Default sizing targets 3 mm Ø × 2 mm N52 discs (pull force ≈ 300 g each;
+// 4 of them give ~1.2 kg of holding force — plenty for a 5° tilted keyboard
+// that only has to fight gravity + light typing vibration). Larger magnets
+// won't fit: the 4.8 mm wall can't host a 5 mm pocket without knife-edge
+// cheeks that would crumble in hardwood.
+magnet_d      = 3.2;    // pocket diameter. 3.0 mm nominal magnet + 0.2 mm
+                        // press-fit/epoxy slop.
+magnet_depth  = 2.2;    // pocket depth (Z). 2.0 mm nominal magnet + 0.2 mm
+                        // so the magnet sits flush or very slightly recessed.
+magnet_inset  = 15;     // distance from case OUTER corner to magnet center,
+                        // measured along the front/back wall axis. Keeps the
+                        // magnet clear of the corner rounding AND clear of the
+                        // nearest gasket slot (leftmost back slot cx = 97.6 mm,
+                        // rightmost = 269.1 mm; slots are ±10 mm wide — 15 mm
+                        // inset leaves ≥70 mm separation on the left and is
+                        // checked against the USB cutout on the right by
+                        // assert below).
+// Magnets are placed by the `magnet_positions` function (one pair per corner)
+// so a different layout can be substituted without touching any module. It
+// is a function rather than a top-level list because it depends on
+// `outer_w` / `outer_d` which are computed in SECTION 5 below.
+function magnet_positions() = [
+    [magnet_inset,             wall_t / 2],              // front-left
+    [outer_w - magnet_inset,   wall_t / 2],              // front-right
+    [magnet_inset,             outer_d - wall_t / 2],    // back-left
+    [outer_w - magnet_inset,   outer_d - wall_t / 2],    // back-right
+];
+
 // =============================================================================
 // SECTION 5: DERIVED DIMENSIONS
 // =============================================================================
@@ -335,6 +435,11 @@ assert(disp_win_w >= disp_active_w && disp_win_h >= disp_active_h,
        "top window smaller than active area — shelf_frame_{x,y} too large");
 assert(shelf_corner_r >= disp_active_r,
        "shelf_corner_r must clear the display's own rounded active corner (≥ disp_active_r)");
+// Hull-of-circles degenerates if the radius is larger than the window bbox
+// half-extent in either axis. True today by ~12× but a future edit to
+// shelf_corner_r or the window size could silently break display_window_2d().
+assert(shelf_corner_r <= disp_win_w / 2 && shelf_corner_r <= disp_win_h / 2,
+       "shelf_corner_r exceeds half the window bbox — display_window_2d hull degenerate");
 // Window corner arc must stay inside the pocket corner arc. Derivation:
 // window corner pivot at (shelf_frame_x + r, shelf_frame_y + r) relative to
 // the pocket bbox corner; pocket pivot at (disp_pocket_r, disp_pocket_r);
@@ -455,6 +560,89 @@ assert(chamfer <= wall_t - 0.5,
 assert(overhang <= wall_t,
        "overlay overhang exceeds wall_t — unsupported cantilever");
 
+// ─── Overlay rabbet invariants (only enforced when feature is on) ────────
+// Inverted ("tongue") geometry — the positive locating feature stands proud
+// on the tray wall top and drops into a matching recess in the overlay
+// underside. The outer cheek of the wall (the OUTBOARD part of the wall
+// top, not covered by the recess) is what the overlay actually rests on.
+assert(!ENABLE_OVERLAY_RABBET || wall_t - rabbet_w >= 1.5,
+       "rabbet_w leaves < 1.5 mm outer cheek on the wall top — overlay seat too weak");
+// Tongue cross-section must survive the tolerance shrink AND be fabricable.
+assert(!ENABLE_OVERLAY_RABBET || rabbet_w - 2 * rabbet_tol >= 0.5,
+       "rabbet_w - 2*rabbet_tol < 0.5 mm — tongue cross-section below fabricable minimum");
+// Tongue height must leave enough overlay slab above the recess; too short
+// and the tongue can't register, too tall and the overlay slab thins below
+// structural minimum at the recess floor.
+assert(!ENABLE_OVERLAY_RABBET || (rabbet_h >= 0.5 && rabbet_h <= top_t - 1.0),
+       "rabbet_h out of range — must be ≥0.5 mm and leave ≥1.0 mm of overlay slab above the recess");
+assert(!ENABLE_OVERLAY_RABBET || rabbet_tol >= 0.15,
+       "rabbet_tol below 0.15 mm — tongue will bind in the recess under ±0.2 mm fab slop");
+// The tongue/recess are notched at each slot Y with a plan-view margin of
+// `notch_margin` around the slot footprint. The margin must be non-negative
+// AND small enough that it doesn't consume every ring segment between
+// adjacent slots (otherwise the ring becomes a series of isolated dots).
+// Closest-adjacent slot pair on the back wall is at cx = 92.302 and 175.542,
+// gap = 83.24 mm − (tab_len+slot_tol) = 83.24 − 20.1 = 63.14 mm. notch_margin
+// must be well below half that.
+assert(!ENABLE_OVERLAY_RABBET || (notch_margin >= 0 && notch_margin <= 5.0),
+       "notch_margin out of range — must be ≥0 mm and ≤5 mm");
+// At slot Y locations the tongue is removed, so the locating ring has 9
+// gaps. This is intentional — plate tabs drop through those gaps during
+// assembly. The OVERLAY material directly above each slot Y is still at
+// the full overlay-slab Z range (the recess is also notched), so the slot
+// open-top is properly capped by solid overlay wood after assembly.
+
+// ─── Magnet pocket invariants (only enforced when feature is on) ────────
+// The pocket must fit in the wall cross-section with a ≥0.6 mm cheek on
+// both sides (marginal-but-workable in hardwood with a brad-point bit;
+// trivial in print). Each magnet position must sit inside the wall ring
+// (not in the cavity, not past the outer face) and must not collide with
+// a gasket slot or the USB cutout.
+assert(!ENABLE_MAGNET_POCKETS || (wall_t - magnet_d) / 2 >= 0.6,
+       "magnet pocket leaves < 0.6 mm cheek in wall — hardwood chip-off hazard");
+assert(!ENABLE_MAGNET_POCKETS || magnet_depth + 1.0 <= top_t + plate_recess,
+       "magnet pocket too deep — would pierce the tray wall below the gasket region");
+// Every magnet position must sit entirely inside the wall ring (NOT in the
+// cavity and NOT past the outer boundary), with a ≥0.3 mm margin to the
+// cavity inner face and the outer face.
+assert(!ENABLE_MAGNET_POCKETS ||
+       len([for (p = magnet_positions())
+            if (p[0] - magnet_d/2 < 0.3 ||
+                p[0] + magnet_d/2 > outer_w - 0.3 ||
+                p[1] - magnet_d/2 < 0.3 ||
+                p[1] + magnet_d/2 > outer_d - 0.3 ||
+                (p[0] + magnet_d/2 > wall_t - 0.3 &&
+                 p[0] - magnet_d/2 < outer_w - wall_t + 0.3 &&
+                 p[1] + magnet_d/2 > wall_t - 0.3 &&
+                 p[1] - magnet_d/2 < outer_d - wall_t + 0.3)) 1]) == 0,
+       "a magnet position does not sit fully inside the wall ring material");
+// Magnet pockets must not collide with any gasket slot footprint in X-Y.
+// Slot X/Y ranges depend on which wall — use each tab's center + length.
+assert(!ENABLE_MAGNET_POCKETS ||
+       len([for (p = magnet_positions())
+            for (bx = back_tab_cx)
+            let (sx1 = p2c_x(bx) - (tab_len + slot_tol)/2 - magnet_d/2,
+                 sx2 = p2c_x(bx) + (tab_len + slot_tol)/2 + magnet_d/2)
+            if (p[0] >= sx1 && p[0] <= sx2 &&
+                p[1] >= outer_d - wall_t - magnet_d/2) 1]) == 0,
+       "a back-wall magnet pocket overlaps a back gasket slot");
+assert(!ENABLE_MAGNET_POCKETS ||
+       len([for (p = magnet_positions())
+            for (fx = front_tab_cx)
+            let (sx1 = p2c_x(fx) - (tab_len + slot_tol)/2 - magnet_d/2,
+                 sx2 = p2c_x(fx) + (tab_len + slot_tol)/2 + magnet_d/2)
+            if (p[0] >= sx1 && p[0] <= sx2 &&
+                p[1] <= wall_t + magnet_d/2) 1]) == 0,
+       "a front-wall magnet pocket overlaps a front gasket slot");
+// Magnet pockets must not collide with the USB cutout in X.
+assert(!ENABLE_MAGNET_POCKETS ||
+       len([for (p = magnet_positions())
+            let (ux1 = p2c_x(usb_plate_x) - usb_cut_w/2 - magnet_d/2 - 0.5,
+                 ux2 = p2c_x(usb_plate_x) + usb_cut_w/2 + magnet_d/2 + 0.5)
+            if (p[0] >= ux1 && p[0] <= ux2 &&
+                p[1] >= outer_d - wall_t - magnet_d/2) 1]) == 0,
+       "a back-wall magnet pocket overlaps the USB cutout");
+
 // The key_cap_clearance expansion must not erode the main-field ↔ arrow LDR
 // rib below its structural minimum. Gap at nominal MX spacing is 4.76 mm;
 // after 2×key_cap_clearance expansion the effective rib width is
@@ -483,6 +671,19 @@ assert(p2c_x(usb_plate_x) - usb_cut_w / 2 >= wall_t + 0.5,
        "USB cutout X-range escapes the back wall's left cheek");
 assert(p2c_x(usb_plate_x) + usb_cut_w / 2 <= outer_w - wall_t - 0.5,
        "USB cutout X-range escapes the back wall's right cheek");
+
+// The USB cut and back-wall gasket slots are both cut into the back wall;
+// if their X ranges ever overlap, the overlap region loses its slot back
+// wall and the tab just pushes into the USB hole. Today the rightmost back
+// tab ends at x≈273.8 and the USB cut starts at x≈330.6 — 56 mm of clear
+// wood — but guard against a future tab/USB X edit that closes the gap.
+assert(len([for (bx = back_tab_cx)
+            let (sx1 = p2c_x(bx) - (tab_len + slot_tol)/2,
+                 sx2 = p2c_x(bx) + (tab_len + slot_tol)/2,
+                 ux1 = p2c_x(usb_plate_x) - usb_cut_w/2,
+                 ux2 = p2c_x(usb_plate_x) + usb_cut_w/2)
+            if (!(sx2 < ux1 || sx1 > ux2)) 1]) == 0,
+       "USB cutout X-range overlaps a back-wall gasket slot — back wall cheeks merge");
 
 // ─── Main-field ↔ display-pocket bezel ───────────────────────────────────
 // Rightmost main-field rect edge (Row 0 / Row 3 main) sits at x=288.250. The
@@ -521,6 +722,15 @@ assert(len([for (r = key_rects)
             if (r[0] < -0.01 || r[1] < -0.01 ||
                 r[2] > plate_w + 0.01 || r[3] > plate_d + 0.01) 1]) == 0,
        "a key_rect escapes the plate's rectangular bounds");
+
+// ─── Display cutout (in plate) stays inside plate bounds ─────────────────
+// A future edit to disp_cut_y{1,2} or disp_cut_x{1,2} could walk the cutout
+// off the plate; the cutout itself is fabricated in the frozen plate, but
+// this file derives case geometry from those constants and they must still
+// describe a region inside plate_d × plate_w for the derivation to be sane.
+assert(disp_cut_y1 >= 0 && disp_cut_y2 <= plate_d &&
+       disp_cut_x1 >= 0 && disp_cut_x2 <= plate_w,
+       "display cutout escapes plate's rectangular bounds");
 
 // ─── Tilt angle bounds ───────────────────────────────────────────────────
 // The slot-open-margin assert above uses tan(tilt_angle)/2 without handling
@@ -581,6 +791,14 @@ assert(len(MX_SWITCHES) == 66,
        "MX_SWITCHES list corrupted — expected 66 switches");
 assert(_switches_covered == len(MX_SWITCHES),
        "key_rects union does not cover every MX switch — a real switch is under solid overlay wood");
+
+// Coverage is count-based, so a copy-paste that duplicates one switch and
+// drops another would still pass. Guard against that directly.
+assert(len([for (i = [0:len(MX_SWITCHES)-1])
+            for (j = [i+1:len(MX_SWITCHES)-1])
+            if (abs(MX_SWITCHES[i][0] - MX_SWITCHES[j][0]) < 0.01 &&
+                abs(MX_SWITCHES[i][1] - MX_SWITCHES[j][1]) < 0.01) 1]) == 0,
+       "MX_SWITCHES contains a duplicate switch position — coverage check is unreliable");
 
 
 // =============================================================================
@@ -644,35 +862,195 @@ function p2c_y(py) = plate_oy + py;
 // Assembly: place gasket strips in slots → drop plate in → place overlay on top.
 // =============================================================================
 
-// Wall step: top top_t of all walls is removed (full width, no lip).
-// The overlay sits flush on the shortened wall tops and overhangs on all sides.
-// Plate and gaskets provide lateral registration.
-rabbet_depth = wall_t;          // full wall width — no lip
-rabbet_height = top_t;          // 3mm, matches overlay thickness
+// ─── PCB retention (informational note) ─────────────────────────────────────
+// The PCB is NOT mechanically fastened to the case. The MX switches solder
+// through the plate, and the plate is held by the gasket tabs. The PCB
+// therefore rides the plate via the switch leads — standard gasket-mount
+// convention. No standoffs, screw bosses, or PCB fasteners exist anywhere
+// in this file. Do not add any without also re-running the pre-fab review;
+// a rigid PCB mount would fight the gasket compression the rest of the
+// design is tuned around.
+
+// ─── Overlay locating rabbet (2D footprints) ────────────────────────────────
+// `rabbet_outer_2d()` is the full ring width (= recess footprint in the
+// overlay underside). `rabbet_inner_2d()` is the same ring shrunk by
+// `rabbet_tol` per side (= tongue footprint on the tray wall top). The
+// tongue sits inside the recess with `rabbet_tol` sliding clearance per
+// side. Neither is notched in this helper — see `tongue_2d()` /
+// `recess_2d()` below for the slot-notched versions actually used by the
+// 3D modules.
+module rabbet_outer_2d() {
+    difference() {
+        translate([wall_t - rabbet_w, wall_t - rabbet_w])
+            square([inner_w + 2 * rabbet_w, inner_d + 2 * rabbet_w]);
+        translate([wall_t, wall_t])
+            square([inner_w, inner_d]);
+    }
+}
+module rabbet_inner_2d() {
+    difference() {
+        translate([wall_t - rabbet_w + rabbet_tol,
+                   wall_t - rabbet_w + rabbet_tol])
+            square([inner_w + 2 * (rabbet_w - rabbet_tol),
+                    inner_d + 2 * (rabbet_w - rabbet_tol)]);
+        translate([wall_t - rabbet_tol, wall_t - rabbet_tol])
+            square([inner_w + 2 * rabbet_tol, inner_d + 2 * rabbet_tol]);
+    }
+}
+
+// 2D notch footprints — one rectangle per gasket slot, sized to reliably
+// cut THROUGH the full width of the tongue/recess ring. The notch extends
+// `margin` past the ring on both the cavity and outer sides (Y-extent =
+// rabbet_w + 2*margin) and `margin` past the tab on both length ends.
+// Using `rabbet_w` (not `slot_depth`) guarantees the notch always breaks
+// the ring into cleanly disconnected segments regardless of how slot_depth
+// relates to rabbet_w — a notch that only partially bites the ring leaves
+// a hairline bridge that makes CGAL produce degenerate topology.
+module gasket_slot_footprints_2d(margin) {
+    ring_w = rabbet_w + 2 * margin;
+
+    // Back wall — notches in the inner ring of the back wall
+    for (cx = back_tab_cx) {
+        translate([p2c_x(cx) - (tab_len + slot_tol) / 2 - margin,
+                   outer_d - wall_t - margin])
+            square([tab_len + slot_tol + 2 * margin, ring_w]);
+    }
+    // Front wall
+    for (cx = front_tab_cx) {
+        translate([p2c_x(cx) - (tab_len + slot_tol) / 2 - margin,
+                   wall_t - rabbet_w - margin])
+            square([tab_len + slot_tol + 2 * margin, ring_w]);
+    }
+    // Left wall
+    translate([wall_t - rabbet_w - margin,
+               p2c_y(left_tab_cy) - (tab_len + slot_tol) / 2 - margin])
+        square([ring_w, tab_len + slot_tol + 2 * margin]);
+    // Right wall
+    translate([outer_w - wall_t - margin,
+               p2c_y(right_tab_cy) - (tab_len + slot_tol) / 2 - margin])
+        square([ring_w, tab_len + slot_tol + 2 * margin]);
+}
+
+// Slot-notched tongue / recess footprints — continuous locating ring with
+// 9 gaps where the gasket slots need a clear tab-descent path.
+module tongue_2d() {
+    difference() {
+        rabbet_inner_2d();
+        gasket_slot_footprints_2d(notch_margin);
+    }
+}
+module recess_2d() {
+    difference() {
+        rabbet_outer_2d();
+        gasket_slot_footprints_2d(notch_margin);
+    }
+}
+
+// Tongue: positive tilted ring-slab standing proud above the tray wall
+// top. In `tongue_2d()` footprint. Z range extends 0.01 mm BELOW wall_top
+// so the union with the tray wall top has overlap rather than a
+// coplanar-face singularity.
+module tray_tongue_3d() {
+    intersection() {
+        translate([0, 0, -1])
+            linear_extrude(height = back_h + 10)
+                tongue_2d();
+        difference() {
+            wedge_box(outer_w, outer_d,
+                      front_h - top_t + rabbet_h,
+                      back_h  - top_t + rabbet_h);
+            wedge_box(outer_w, outer_d,
+                      front_h - top_t - 0.01,
+                      back_h  - top_t - 0.01);
+        }
+    }
+}
+
+// Recess: negative tilted ring-slab cut INTO the overlay underside. In
+// `recess_2d()` footprint. Lower Z bound extends 0.01 mm below the overlay
+// underside so the subtraction cleanly pierces the underside plane rather
+// than touching it coplanarly (CGAL produces degenerate topology for
+// exactly-coincident faces, resulting in spurious extra volumes).
+module overlay_recess_3d() {
+    intersection() {
+        translate([0, 0, -1])
+            linear_extrude(height = back_h + 10)
+                recess_2d();
+        difference() {
+            wedge_box(outer_w, outer_d,
+                      front_h - top_t + rabbet_h,
+                      back_h  - top_t + rabbet_h);
+            wedge_box(outer_w, outer_d,
+                      front_h - top_t - 0.01,
+                      back_h  - top_t - 0.01);
+        }
+    }
+}
+
+// Magnet pocket — one blind cylinder, Z-axis, for the tray. Cuts from the
+// wall top downward by `magnet_depth`. The overlay version is identical
+// geometry but applied to the overlay underside.
+module magnet_pocket_at(pos, z_top) {
+    translate([pos[0], pos[1], z_top - magnet_depth])
+        cylinder(d = magnet_d, h = magnet_depth + 0.01);
+}
+
+// Cuts magnet pockets in the TRAY wall top.
+module tray_magnet_pockets() {
+    for (p = magnet_positions()) {
+        z_top = top_z(p[1]) - top_t;  // tray wall top Z at this Y
+        magnet_pocket_at(p, z_top + 0.01);
+    }
+}
+
+// Cuts magnet pockets in the OVERLAY underside. The overlay underside Z at
+// a given Y equals `top_z(cy) − top_t` — same formula as the tray wall top,
+// because they meet at the seam in the nominal assembly.
+module overlay_magnet_pockets() {
+    for (p = magnet_positions()) {
+        z_bot = top_z(p[1]) - top_t;  // overlay underside Z at this Y
+        // Cut upward from the underside into the overlay slab.
+        translate([p[0], p[1], z_bot])
+            cylinder(d = magnet_d, h = magnet_depth + 0.01);
+    }
+}
 
 // ─── PIECE 1: TRAY (bottom + walls) ─────────────────────────────────────────
 module case_tray() {
-    difference() {
-        // Outer shell — shortened by top_t so overlay sits flush on wall tops
-        wedge_box(outer_w, outer_d, front_h - top_t, back_h - top_t);
+    union() {
+        difference() {
+            // Outer shell — top face at wall_top (= top_z − top_t) so the
+            // overlay's flat underside sits directly on the wall cheek.
+            wedge_box(outer_w, outer_d, front_h - top_t, back_h - top_t);
 
-        // Inner cavity (fully open top)
-        translate([wall_t, wall_t, bottom_t])
-            wedge_box(inner_w, inner_d,
-                      front_h + 10,
-                      back_h  + 10);
+            // Inner cavity (fully open top)
+            translate([wall_t, wall_t, bottom_t])
+                wedge_box(inner_w, inner_d,
+                          front_h + 10,
+                          back_h  + 10);
 
-        // Gasket tab slots (cut into the walls)
-        gasket_slots();
+            // Gasket tab slots (cut into the walls)
+            gasket_slots();
 
-        // USB-C cutout through back wall
-        usb_cutout();
+            // USB-C cutout through back wall
+            usb_cutout();
+
+            // Optional: magnet pockets sunk into the wall tops.
+            if (ENABLE_MAGNET_POCKETS) tray_magnet_pockets();
+        }
+
+        // Optional: overlay-locating tongue standing proud above the
+        // wall top. Unioned AFTER the cavity/slot/magnet cuts so its
+        // geometry is preserved in full.
+        if (ENABLE_OVERLAY_RABBET) tray_tongue_3d();
     }
 }
 
 // ─── PIECE 2: TOP OVERLAY ───────────────────────────────────────────────────
-// Overhangs the tray walls. Sits in the wall rabbet for registration.
-// Has the key opening and display features.
+// Overhangs the tray walls. With ENABLE_OVERLAY_RABBET a recess is cut into
+// the overlay underside and the tray's tongue drops into it for X/Y
+// registration. With ENABLE_MAGNET_POCKETS magnet pockets mate with the
+// tray pockets across the seam to hold the overlay down.
 module case_overlay() {
     difference() {
         // Full overlay with overhang and rounded corners
@@ -688,21 +1066,19 @@ module case_overlay() {
                               overlay_back_h  - top_t,
                               overlay_corner_r + 0.01);
 
-        // Note: the overlay and tray outer wall lip occupy the same Z range
-        // where they meet. This is correct — they nest together physically
-        // (overlay sits in the rabbet, lip provides lateral registration).
-        // The CAD overlap is intentional and represents the assembly fit.
-
-        // Key opening: union of per-keycap rectangles (plate hidden everywhere
-        // except where a key needs to pass through)
+        // Key opening: union of per-keycap rectangles
         key_opening();
 
-        // Display through-cut sized to the module outline. The active-area
-        // window lip is provided by a separately-fabricated `display_retainer`
-        // piece glued to the overlay underside (see SHOW_RETAINER and
-        // display_retainer module below). This replaces the old blind pocket
-        // + 1.2 mm hardwood lip, which could not be hand-cut and would crack.
+        // Display through-cut / bottom pocket
         display_cutout();
+
+        // Optional: magnet pockets in the overlay underside, matching
+        // the tray pockets across the seam.
+        if (ENABLE_MAGNET_POCKETS) overlay_magnet_pockets();
+
+        // Optional: recess cut into the overlay underside that accepts
+        // the tray's tongue for lateral registration.
+        if (ENABLE_OVERLAY_RABBET) overlay_recess_3d();
     }
 }
 
