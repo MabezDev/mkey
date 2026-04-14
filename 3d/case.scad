@@ -559,6 +559,29 @@ assert(max(max(back_tab_ext, front_tab_ext),
            max(left_tab_ext, right_tab_ext)) <= slot_depth + plate_gap - 0.05,
        "tab extension exceeds slot depth + plate gap — tab bottoms out on slot back wall");
 
+// Each gasket slot must sit in the straight portion of its wall, not bleed
+// into the rounded outer corner where the wall becomes a circular arc (any
+// slot geometry crossing that arc would have no flat back wall to register
+// against and the tab would punch out into thin air). Require ≥
+// overlay_corner_r of clear wall between each slot length end and the nearest
+// outer corner.
+assert(len([for (cx = back_tab_cx)
+            if (p2c_x(cx) - (tab_len + slot_tol) / 2 < wall_t + overlay_corner_r ||
+                p2c_x(cx) + (tab_len + slot_tol) / 2 > outer_w - wall_t - overlay_corner_r)
+            1]) == 0,
+       "a back-wall gasket slot runs into the outer tray corner — move the tab or reduce tab_len");
+assert(len([for (cx = front_tab_cx)
+            if (p2c_x(cx) - (tab_len + slot_tol) / 2 < wall_t + overlay_corner_r ||
+                p2c_x(cx) + (tab_len + slot_tol) / 2 > outer_w - wall_t - overlay_corner_r)
+            1]) == 0,
+       "a front-wall gasket slot runs into the outer tray corner — move the tab or reduce tab_len");
+assert(p2c_y(left_tab_cy) - (tab_len + slot_tol) / 2 >= wall_t + overlay_corner_r &&
+       p2c_y(left_tab_cy) + (tab_len + slot_tol) / 2 <= outer_d - wall_t - overlay_corner_r,
+       "left-wall gasket slot runs into the outer tray corner — move the tab or reduce tab_len");
+assert(p2c_y(right_tab_cy) - (tab_len + slot_tol) / 2 >= wall_t + overlay_corner_r &&
+       p2c_y(right_tab_cy) + (tab_len + slot_tol) / 2 <= outer_d - wall_t - overlay_corner_r,
+       "right-wall gasket slot runs into the outer tray corner — move the tab or reduce tab_len");
+
 // ─── Case geometry invariants ───────────────────────────────────────────────
 
 // The top-edge chamfer is a dormant feature (edge_chamfers() is not called from
