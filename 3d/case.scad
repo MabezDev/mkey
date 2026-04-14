@@ -645,6 +645,23 @@ assert(!ENABLE_OVERLAY_RABBET || rabbet_tol >= 0.15,
 // tolerance. 0.2 mm is the smallest value that still gives clear tab-descent.
 assert(!ENABLE_OVERLAY_RABBET || (notch_margin >= 0.2 && notch_margin <= 5.0),
        "notch_margin out of range — must be ≥0.2 mm and ≤5 mm");
+// The tongue recess inner edge (cavity side) sits at `wall_t − rabbet_tol`
+// from the case outer face on every wall. The key opening is a union of
+// rectangles expanded by `key_cap_clearance` per side. Require at least
+// 2 mm of solid overlay slab between the recess inner edge and the
+// nearest key rect edge on all four sides, so a future plate_gap /
+// rabbet_w / key_rects edit can't walk the key cut into the recess and
+// leave the tongue unsupported by a hairline of overlay material.
+assert(!ENABLE_OVERLAY_RABBET || (
+       p2c_x(min([for (r = key_rects) r[0]]) - key_cap_clearance)
+           >= (wall_t - rabbet_tol) + 2.0 &&
+       p2c_y(min([for (r = key_rects) r[1]]) - key_cap_clearance)
+           >= (wall_t - rabbet_tol) + 2.0 &&
+       p2c_x(max([for (r = key_rects) r[2]]) + key_cap_clearance)
+           <= outer_w - (wall_t - rabbet_tol) - 2.0 &&
+       p2c_y(max([for (r = key_rects) r[3]]) + key_cap_clearance)
+           <= outer_d - (wall_t - rabbet_tol) - 2.0),
+       "a key_rect encroaches within 2 mm of the tongue recess inner edge — overlay slab between key cut and recess too thin");
 // At slot Y locations the tongue is removed, so the locating ring has 9
 // gaps. This is intentional — plate tabs drop through those gaps during
 // assembly. The OVERLAY material directly above each slot Y is still at
@@ -703,14 +720,17 @@ assert(!ENABLE_MAGNET_POCKETS ||
             if (p[0] >= sx1 && p[0] <= sx2 &&
                 p[1] <= wall_t + magnet_d/2) 1]) == 0,
        "a front-wall magnet pocket overlaps a front gasket slot");
-// Magnet pockets must not collide with the USB cutout in X.
+// Magnet pockets must not collide with the USB cutout in X, and must keep a
+// real ≥ 2 mm edge-to-edge cheek (not merely non-overlap) so fab slop and
+// any future 0.1-mm USB nudge cannot erode the wall between them. The
+// right-back magnet at magnet_inset = 13 sits ~3 mm from the USB edge
+// today — the 2 mm floor locks that margin into the assertion suite.
 assert(!ENABLE_MAGNET_POCKETS ||
        len([for (p = magnet_positions())
-            let (ux1 = p2c_x(usb_plate_x) - usb_cut_w/2 - magnet_d/2 - 0.5,
-                 ux2 = p2c_x(usb_plate_x) + usb_cut_w/2 + magnet_d/2 + 0.5)
-            if (p[0] >= ux1 && p[0] <= ux2 &&
-                p[1] >= outer_d - wall_t - magnet_d/2) 1]) == 0,
-       "a back-wall magnet pocket overlaps the USB cutout");
+            let (cheek = abs(p[0] - p2c_x(usb_plate_x))
+                         - usb_cut_w/2 - magnet_d/2)
+            if (p[1] >= outer_d - wall_t - magnet_d/2 && cheek < 2.0) 1]) == 0,
+       "a back-wall magnet pocket leaves < 2 mm cheek to the USB cutout");
 
 // ─── Magnet × tongue auto-notching invariants ────────────────────────────
 // Only meaningful when BOTH features are enabled. `magnet_notch_footprints_2d`
@@ -768,6 +788,26 @@ assert(!(ENABLE_MAGNET_POCKETS && ENABLE_OVERLAY_RABBET) ||
               if (gap < MAG_NOTCH_SEP) 1]) == 0,
        "a left/right-wall magnet notch is within 1 mm of the side gasket slot notch — tongue segment collapses");
 
+// Magnet notch must stay clear of the overlay's rounded outer corner. The
+// recess is a square ring but the overlay outer face is rounded at
+// `overlay_corner_r`, so a notch that drifts too close to a case corner
+// would cut into the curved-corner region where the tongue is already
+// thinning against the arc. Require the notch to sit at least
+// `overlay_corner_r` away from both outer boundaries on its length axis.
+// Guards a future `magnet_inset` or `notch_margin` edit.
+assert(!(ENABLE_MAGNET_POCKETS && ENABLE_OVERLAY_RABBET) ||
+       len([for (p = magnet_positions())
+            let (on_fb = p[1] <= wall_t || p[1] >= outer_d - wall_t,
+                 lo   = on_fb
+                        ? p[0] - magnet_d/2 - notch_margin
+                        : p[1] - magnet_d/2 - notch_margin,
+                 hi   = on_fb
+                        ? p[0] + magnet_d/2 + notch_margin
+                        : p[1] + magnet_d/2 + notch_margin,
+                 span = on_fb ? outer_w : outer_d)
+            if (lo < overlay_corner_r || hi > span - overlay_corner_r) 1]) == 0,
+       "a magnet notch enters the overlay's rounded outer corner region");
+
 // The key_cap_clearance expansion must not erode the main-field ↔ arrow LDR
 // rib below its structural minimum. Gap at nominal MX spacing is 4.76 mm;
 // after 2×key_cap_clearance expansion the effective rib width is
@@ -811,6 +851,25 @@ assert(len([for (bx = back_tab_cx)
                  ux2 = p2c_x(usb_plate_x) + usb_cut_w/2)
             if (!(sx2 < ux1 || sx1 > ux2)) 1]) == 0,
        "USB cutout X-range overlaps a back-wall gasket slot — back wall cheeks merge");
+
+// Belt-and-braces Z guard: even if a future edit brings the USB X range
+// into a slot X range, the two cuts should also be forced out of each
+// other's Z range or the back wall literally has no solid material
+// between them. Today the slot Z-centre sits ~3 mm above the USB Z-top
+// at the back wall, so X AND Z overlap is both impossible. This
+// assertion locks that into the suite.
+assert(len([for (bx = back_tab_cx)
+            let (sx1 = p2c_x(bx) - (tab_len + slot_tol)/2,
+                 sx2 = p2c_x(bx) + (tab_len + slot_tol)/2,
+                 ux1 = p2c_x(usb_plate_x) - usb_cut_w/2,
+                 ux2 = p2c_x(usb_plate_x) + usb_cut_w/2,
+                 scz = plate_z(outer_d - wall_t) - plate_t/2 + slot_center_offset,
+                 sz1 = scz - slot_height/2,
+                 sz2 = scz + slot_height/2,
+                 x_overlap = !(sx2 < ux1 || sx1 > ux2),
+                 z_overlap = !(sz2 < usb_cut_z_bot || sz1 > usb_cut_z_top))
+            if (x_overlap && z_overlap) 1]) == 0,
+       "USB cutout overlaps a back-wall gasket slot in both X and Z — no solid wall remains between them");
 
 // ─── Main-field ↔ display-pocket bezel ───────────────────────────────────
 // Rightmost main-field rect edge (Row 0 / Row 3 main) sits at x=288.250. The
@@ -1515,7 +1574,7 @@ slot_height          = plate_t + slot_top_above_plate + slot_bot_below_plate;
 // Slot center, relative to plate midplane. Positive = slot is offset upward.
 // (slot_top + slot_bot)/2 = plate_midplane + (slot_top_above_plate − slot_bot_below_plate)/2
 slot_center_offset   = (slot_top_above_plate - slot_bot_below_plate) / 2;
-                                                          // (3.5 − 1.75)/2 = +0.875 mm
+                                                          // (3.5 − 2.634)/2 = +0.433 mm
 
 module gasket_slots() {
     // ── Back wall slots (3) ──────────────────────────────────────────────
