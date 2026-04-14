@@ -359,14 +359,17 @@ magnet_d      = 3.2;    // pocket diameter. 3.0 mm nominal magnet + 0.2 mm
                         // press-fit/epoxy slop.
 magnet_depth  = 2.2;    // pocket depth (Z). 2.0 mm nominal magnet + 0.2 mm
                         // so the magnet sits flush or very slightly recessed.
-magnet_inset  = 15;     // distance from case OUTER corner to magnet center,
+magnet_inset  = 13;     // distance from case OUTER corner to magnet center,
                         // measured along the front/back wall axis. Keeps the
                         // magnet clear of the corner rounding AND clear of the
                         // nearest gasket slot (leftmost back slot cx = 97.6 mm,
-                        // rightmost = 269.1 mm; slots are ±10 mm wide — 15 mm
-                        // inset leaves ≥70 mm separation on the left and is
-                        // checked against the USB cutout on the right by
-                        // assert below).
+                        // rightmost = 269.1 mm; slots are ±10 mm wide — 13 mm
+                        // inset leaves ≥67 mm separation on the left and gives
+                        // ≥3 mm cheek to the back-wall USB cutout on the right
+                        // (reduced from 15 mm → 13 mm in the 2026-04-14 review:
+                        // at 15 mm the right-back magnet sat only 1.04 mm from
+                        // the USB cutout edge, inside the ±0.2 mm hand-fab slop
+                        // budget; 13 mm restores a 3 mm cheek).
 // Magnets are placed by the `magnet_positions` function (one pair per corner)
 // so a different layout can be substituted without touching any module. It
 // is a function rather than a top-level list because it depends on
@@ -584,12 +587,6 @@ assert(p2c_y(right_tab_cy) - (tab_len + slot_tol) / 2 >= wall_t + overlay_corner
 
 // ─── Case geometry invariants ───────────────────────────────────────────────
 
-// The top-edge chamfer is a dormant feature (edge_chamfers() is not called from
-// case_tray_finished today; only the inline 0.5mm bottom chamfers are). The
-// ceiling still guards against a future reinstatement eating the wall cheek.
-assert(chamfer <= wall_t - 0.5,
-       "chamfer width exceeds wall_t − 0.5 — top-edge chamfer would eat the tray wall cheek");
-
 assert(overhang <= wall_t,
        "overlay overhang exceeds wall_t — unsupported cantilever");
 
@@ -617,8 +614,12 @@ assert(!ENABLE_OVERLAY_RABBET || rabbet_tol >= 0.15,
 // Closest-adjacent slot pair on the back wall is at cx = 92.302 and 175.542,
 // gap = 83.24 mm − (tab_len+slot_tol) = 83.24 − 20.1 = 63.14 mm. notch_margin
 // must be well below half that.
-assert(!ENABLE_OVERLAY_RABBET || (notch_margin >= 0 && notch_margin <= 5.0),
-       "notch_margin out of range — must be ≥0 mm and ≤5 mm");
+// 0.2 mm is the ±0.2 mm fab-slop budget used everywhere else in this file;
+// at notch_margin = 0 the tongue touches the slot edge with literally zero
+// finger-room for the descending tab, and would bind under any positive hand
+// tolerance. 0.2 mm is the smallest value that still gives clear tab-descent.
+assert(!ENABLE_OVERLAY_RABBET || (notch_margin >= 0.2 && notch_margin <= 5.0),
+       "notch_margin out of range — must be ≥0.2 mm and ≤5 mm");
 // At slot Y locations the tongue is removed, so the locating ring has 9
 // gaps. This is intentional — plate tabs drop through those gaps during
 // assembly. The OVERLAY material directly above each slot Y is still at
@@ -633,8 +634,16 @@ assert(!ENABLE_OVERLAY_RABBET || (notch_margin >= 0 && notch_margin <= 5.0),
 // a gasket slot or the USB cutout.
 assert(!ENABLE_MAGNET_POCKETS || (wall_t - magnet_d) / 2 >= 0.6,
        "magnet pocket leaves < 0.6 mm cheek in wall — hardwood chip-off hazard");
-assert(!ENABLE_MAGNET_POCKETS || magnet_depth + 1.0 <= top_t + plate_recess,
-       "magnet pocket too deep — would pierce the tray wall below the gasket region");
+// Magnet pockets are drilled from the wall top downward. The wall column is
+// solid wood from the case floor up to the tray wall top, so the real floor
+// budget is `wall_top(cy) − bottom_t`. Require the pocket to stop at least
+// 2 mm above the case floor at every magnet Y. (The previous formulation
+// `magnet_depth + 1 <= top_t + plate_recess` was numerically loose — it
+// didn't refer to the actual wall material remaining beneath the pocket.)
+assert(!ENABLE_MAGNET_POCKETS ||
+       len([for (p = magnet_positions())
+            if ((top_z(p[1]) - top_t) - magnet_depth < bottom_t + 2.0) 1]) == 0,
+       "magnet pocket bottom leaves less than 2 mm of wall material above the case floor");
 // Every magnet position must sit entirely inside the wall ring (NOT in the
 // cavity and NOT past the outer boundary), with a ≥0.3 mm margin to the
 // cavity inner face and the outer face.
@@ -748,10 +757,12 @@ assert(top_t - shelf_t >= disp_glass_t,
        "top_t − shelf_t < disp_glass_t — module body cannot fit under the shelf");
 
 // ─── USB-C cutout Z invariants ───────────────────────────────────────────
-assert(usb_cut_z_bot >= bottom_t + 0.1,
-       "USB cutout pierces (or touches) the case floor");
-assert(usb_cut_z_top <= back_wall_top_z - 0.1,
-       "USB cutout pierces the tray wall top at the back");
+// Margins are 0.3 mm — 1.5× the general ±0.2 mm hand-fab slop budget, so
+// that slop alone cannot push the cut through the floor or the wall top.
+assert(usb_cut_z_bot >= bottom_t + 0.3,
+       "USB cutout pierces (or touches) the case floor within fab slop");
+assert(usb_cut_z_top <= back_wall_top_z - 0.3,
+       "USB cutout pierces the tray wall top at the back within fab slop");
 
 // ─── USB-C cutout X invariants ───────────────────────────────────────────
 // The cut must sit inside the back wall's X extent with enough wood on each
@@ -1377,11 +1388,26 @@ module usb_cutout() {
 // drop-in or the bottom gasket fails.
 assert(slot_top_above_plate >= plate_recess + slot_open_margin,
        "slot_top_above_plate too small: slot top doesn't reach above the tray wall top — plate cannot drop in");
-assert(slot_bot_below_plate >= gasket_compressed,
-       "slot_bot_below_plate too small: bottom gasket has nowhere to live below the plate");
+// Side slots run ALONG the tilt axis (Y), so the plate tilts through the
+// slot length. At the downhill end of each side slot the plate bottom drops
+// (tab_len + slot_tol)·tan(tilt)/2 below the slot-center reference, which
+// eats into the bottom-gasket headroom. This check is the symmetric
+// counterpart of the slot_open_margin check at line ~546 (which guards the
+// uphill end of the TOP of the slot) — without it the 2026-04-13 review
+// value of slot_bot_below_plate = gasket_compressed + 0.25 = 1.75 mm left
+// only 0.87 mm below the plate at the downhill side-slot end, crushing the
+// 1.5 mm bottom gasket.
+assert(slot_bot_below_plate >=
+       gasket_compressed + (tab_len + slot_tol) * tan(tilt_angle) / 2 + FAB_SLOP,
+       "slot_bot_below_plate too small: downhill end of side slot has gasket headroom < gasket_compressed under tilt + fab slop");
 
 // Slot dimensions
-slot_tol     = 0.3;    // clearance around tab (per side, length direction)
+slot_tol     = 0.4;    // clearance around tab (per side, length direction).
+                       // Bumped from 0.3 → 0.4 in the 2026-04-14 review:
+                       // 0.3 was exactly equal to the ±0.2 mm fab slop budget,
+                       // so a long tab + short slot worst-case left zero play
+                       // and the tab would jam. 0.4 restores 0.2 mm of play
+                       // under worst-case slop.
 slot_depth   = 1.5;    // how deep the slot goes into the wall.
                        // Measured tab penetration into the wall is 1.25..1.33 mm
                        // (tab_ext 1.749..1.828 mm, minus plate_gap 0.5 mm), so
@@ -1429,9 +1455,19 @@ slot_open_margin = 1.5;    // mm slot top extends ABOVE the tray wall top at
 //                                              ┄┄┄┄┄  ← slot bottom = plate_bot − slot_bot_below_plate
 //
 slot_top_above_plate = plate_recess + slot_open_margin;   // 2.0 + 1.5 = 3.5 mm
-slot_bot_below_plate = gasket_compressed + 0.25;          // 1.5 + 0.25 = 1.75 mm
+// slot_bot_below_plate: sized so the bottom gasket (gasket_compressed =
+// 1.5 mm) still fits under the plate at the downhill end of the SIDE slots
+// (which run along Y / the tilt axis). Over the (tab_len+slot_tol)/2 =
+// 10.10 mm half-length, the plate bottom descends by 10.10·tan(5°) = 0.884
+// mm; add FAB_SLOP (0.2) and a small machining margin (0.05). The front/back
+// slots run along X and have no tilt drift, so they inherit the side-slot
+// sizing for free.
+slot_bot_below_plate = gasket_compressed
+                     + (tab_len + slot_tol) * tan(tilt_angle) / 2
+                     + FAB_SLOP + 0.05;
+                                                          // 1.5 + 0.884 + 0.2 + 0.05 = 2.634 mm
 slot_height          = plate_t + slot_top_above_plate + slot_bot_below_plate;
-                                                          // 1.6 + 3.5 + 1.75 = 6.85 mm
+                                                          // 1.6 + 3.5 + 2.634 = 7.734 mm
 // Slot center, relative to plate midplane. Positive = slot is offset upward.
 // (slot_top + slot_bot)/2 = plate_midplane + (slot_top_above_plate − slot_bot_below_plate)/2
 slot_center_offset   = (slot_top_above_plate - slot_bot_below_plate) / 2;
@@ -1493,71 +1529,13 @@ module gasket_slots() {
 }
 
 // =============================================================================
-// SECTION 10: EDGE CHAMFERS & BOTTOM FEATURES
+// SECTION 10: BOTTOM FEATURES
 // =============================================================================
-// Premium chamfers on all top outer edges. These will be rounded/sanded
-// after CNC or hand cutting for a refined hardwood finish.
-
-chamfer = 1.0;   // 45° chamfer width (mm)
-
-module edge_chamfers() {
-    // Top edge chamfers: 45° cuts along all four top edges of the case
-    // These follow the tilt on the back and sides
-
-    // Front top edge (horizontal, at Y=0, Z=front_h)
-    translate([-0.1, -0.1, front_h - chamfer])
-        rotate([0, 0, 0])
-            linear_extrude(height = chamfer + 0.1, scale = [1, 0])
-                square([outer_w + 0.2, chamfer + 0.1]);
-
-    // Simplified: cut prisms along each top edge
-    // Front edge chamfer
-    translate([-0.1, -0.1, front_h])
-        rotate([45, 0, 0])
-            cube([outer_w + 0.2, chamfer * 1.42, chamfer * 1.42]);
-
-    // Back edge chamfer (at higher Z due to tilt)
-    translate([-0.1, outer_d + 0.1, back_h])
-        rotate([45, 0, 0])
-            translate([0, -chamfer * 1.42, 0])
-                cube([outer_w + 0.2, chamfer * 1.42, chamfer * 1.42]);
-
-    // Left edge chamfer (follows tilt from front to back)
-    translate([-0.1, 0, 0])
-    hull() {
-        translate([0, -0.1, front_h])
-            rotate([0, -45, 0])
-                cube([chamfer * 1.42, 0.01, chamfer * 1.42]);
-        translate([0, outer_d + 0.1, back_h])
-            rotate([0, -45, 0])
-                cube([chamfer * 1.42, 0.01, chamfer * 1.42]);
-    }
-
-    // Right edge chamfer (follows tilt)
-    translate([outer_w + 0.1, 0, 0])
-    hull() {
-        translate([0, -0.1, front_h])
-            rotate([0, 45, 0])
-                translate([-chamfer * 1.42, 0, 0])
-                    cube([chamfer * 1.42, 0.01, chamfer * 1.42]);
-        translate([0, outer_d + 0.1, back_h])
-            rotate([0, 45, 0])
-                translate([-chamfer * 1.42, 0, 0])
-                    cube([chamfer * 1.42, 0.01, chamfer * 1.42]);
-    }
-
-    // Bottom edge chamfers (subtle, 0.5mm)
-    bc = 0.5;
-    // Front bottom
-    translate([-0.1, -0.1, -0.1])
-        rotate([-45, 0, 0])
-            cube([outer_w + 0.2, bc * 1.42, bc * 1.42]);
-    // Back bottom
-    translate([-0.1, outer_d + 0.1, -0.1])
-        rotate([-45, 0, 0])
-            translate([0, -bc * 1.42, 0])
-                cube([outer_w + 0.2, bc * 1.42, bc * 1.42]);
-}
+// The only finishing currently applied to the case is the inline 0.5 mm
+// bottom chamfers (front + back edges) cut in `case_tray_finished()` below,
+// and the pad recesses. The top edges will be hand-sanded/block-planed on
+// the physical piece — there is no CAD top-edge chamfer. A prior dormant
+// `edge_chamfers()` module was removed in the 2026-04-14 review.
 
 // Bottom rubber pad recesses (for anti-slip, no legs per spec)
 pad_d   = 1.0;     // recess depth
