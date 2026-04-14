@@ -313,9 +313,19 @@ overlay_corner_r = 3.0;    // outer corner radius of overlay
 // plate-tab drop-in path where the tabs descend through the slot open-top
 // channels. `gasket_slot_footprints_2d()` subtracts each slot footprint
 // (plus a descent-clearance margin) from the tongue and recess 2D
-// footprints, leaving clean gaps at all 9 tab positions. The ring is
-// therefore discontinuous — 9 short segments running between the slots
-// around the case perimeter, each fully supported by solid wall material.
+// footprints, leaving clean gaps at all 9 tab positions.
+//
+// NOTCHING at magnet positions (when ENABLE_MAGNET_POCKETS is also on):
+// the blind magnet pockets are drilled from the wall top mid-wall, but the
+// tongue ring also runs along the inner half of the wall top. Where the
+// two overlap, a continuous tongue would be drilled through by the magnet
+// bit in hand fab, shearing off the 1.3 mm cross-grain cantilever.
+// `magnet_notch_footprints_2d()` applies the same subtract-footprints
+// pattern as the gasket slots, leaving an extra gap in the tongue/recess
+// at each of the 4 magnet positions. With both features on the tongue
+// therefore has up to 9 + 4 = 13 gaps; each remaining segment is still
+// fully supported by solid wall material and separated from every
+// neighbouring gap by several mm of wood (asserted below).
 rabbet_w = 1.8;      // ring width in the wall-depth direction (outer ring
                      // of wood removed from the wall top). The tongue
                      // itself is `rabbet_w − 2·rabbet_tol` = 1.3 mm wide.
@@ -643,6 +653,62 @@ assert(!ENABLE_MAGNET_POCKETS ||
                 p[1] >= outer_d - wall_t - magnet_d/2) 1]) == 0,
        "a back-wall magnet pocket overlaps the USB cutout");
 
+// ─── Magnet × tongue auto-notching invariants ────────────────────────────
+// Only meaningful when BOTH features are enabled. `magnet_notch_footprints_2d`
+// classifies each magnet by the wall it sits next to and emits a rectangle
+// that cuts the tongue ring cleanly on that wall. For the classification
+// to match a wall (and therefore the notch to actually happen), each magnet
+// position must satisfy one of the four adjacency predicates.
+assert(!(ENABLE_MAGNET_POCKETS && ENABLE_OVERLAY_RABBET) ||
+       len([for (p = magnet_positions())
+            if (!(p[1] <= wall_t ||
+                  p[1] >= outer_d - wall_t ||
+                  p[0] <= wall_t ||
+                  p[0] >= outer_w - wall_t)) 1]) == 0,
+       "a magnet position is not adjacent to any wall — tongue auto-notch would miss it, leaving the tongue undermined by the pocket");
+
+// With both features on, a magnet notch on a given wall must not merge
+// with an adjacent gasket-slot notch on the same wall. If they merge the
+// tongue segment between them disappears and the remaining tongue on
+// either side of the merged gap is pushed farther apart, weakening
+// registration. We require ≥ 1.0 mm of uncut tongue between any magnet
+// notch and every slot notch on the same wall.
+MAG_NOTCH_SEP = 1.0;
+// Front/back walls: compare X-extents of magnet notches vs X-extents of
+// slot notches. Each rectangle extends by `notch_margin` past its nominal
+// footprint; use the post-notch_margin extents for the check.
+assert(!(ENABLE_MAGNET_POCKETS && ENABLE_OVERLAY_RABBET) ||
+       len([for (p = magnet_positions())
+            if (p[1] <= wall_t || p[1] >= outer_d - wall_t)
+              let (m_on_front = p[1] <= wall_t,
+                   m_lo = p[0] - magnet_d/2 - notch_margin,
+                   m_hi = p[0] + magnet_d/2 + notch_margin)
+              for (cx = m_on_front ? front_tab_cx : back_tab_cx)
+                let (s_lo = p2c_x(cx) - (tab_len + slot_tol)/2 - notch_margin,
+                     s_hi = p2c_x(cx) + (tab_len + slot_tol)/2 + notch_margin,
+                     gap  = (m_lo > s_hi) ? (m_lo - s_hi) :
+                            (s_lo > m_hi) ? (s_lo - m_hi) : -1)
+                if (gap < MAG_NOTCH_SEP) 1]) == 0,
+       "a front/back-wall magnet notch is within 1 mm of a gasket slot notch on the same wall — tongue segment collapses");
+
+// Left/right walls: same check but on Y coordinate. Today `magnet_positions`
+// only places magnets front/back so this list comprehension is empty; it
+// guards a future edit that moves a magnet to a side wall.
+assert(!(ENABLE_MAGNET_POCKETS && ENABLE_OVERLAY_RABBET) ||
+       len([for (p = magnet_positions())
+            if ((p[0] <= wall_t || p[0] >= outer_w - wall_t) &&
+                !(p[1] <= wall_t || p[1] >= outer_d - wall_t))
+              let (m_on_left = p[0] <= wall_t,
+                   m_lo = p[1] - magnet_d/2 - notch_margin,
+                   m_hi = p[1] + magnet_d/2 + notch_margin,
+                   s_cy = m_on_left ? left_tab_cy : right_tab_cy,
+                   s_lo = p2c_y(s_cy) - (tab_len + slot_tol)/2 - notch_margin,
+                   s_hi = p2c_y(s_cy) + (tab_len + slot_tol)/2 + notch_margin,
+                   gap  = (m_lo > s_hi) ? (m_lo - s_hi) :
+                          (s_lo > m_hi) ? (s_lo - m_hi) : -1)
+              if (gap < MAG_NOTCH_SEP) 1]) == 0,
+       "a left/right-wall magnet notch is within 1 mm of the side gasket slot notch — tongue segment collapses");
+
 // The key_cap_clearance expansion must not erode the main-field ↔ arrow LDR
 // rib below its structural minimum. Gap at nominal MX spacing is 4.76 mm;
 // after 2×key_cap_clearance expansion the effective rib width is
@@ -931,18 +997,56 @@ module gasket_slot_footprints_2d(margin) {
         square([ring_w, tab_len + slot_tol + 2 * margin]);
 }
 
+// 2D notch footprints for magnet pockets. With both ENABLE_OVERLAY_RABBET
+// and ENABLE_MAGNET_POCKETS on, each magnet pocket on a wall top overlaps
+// the tongue ring in plan view (the ring runs along the inner edge of the
+// wall, the pockets are drilled roughly mid-wall). Without notches the
+// tongue ends up bridging over the pocket — structurally sound in 3D print
+// but physically impossible in hand-cut hardwood (a 3.2 mm drill would
+// shear the 1.3 mm wide tongue where it passes over each pocket).
+//
+// Each magnet is classified by which wall it belongs to, then a rectangle
+// is emitted that cuts cleanly through the full width of the tongue ring
+// on that wall (same ring_w pattern as gasket_slot_footprints_2d).
+module magnet_notch_footprints_2d(margin) {
+    ring_w = rabbet_w + 2 * margin;
+    w      = magnet_d + 2 * margin;
+    for (p = magnet_positions()) {
+        if (p[1] <= wall_t) {
+            // front wall
+            translate([p[0] - w / 2, wall_t - rabbet_w - margin])
+                square([w, ring_w]);
+        } else if (p[1] >= outer_d - wall_t) {
+            // back wall
+            translate([p[0] - w / 2, outer_d - wall_t - margin])
+                square([w, ring_w]);
+        } else if (p[0] <= wall_t) {
+            // left wall
+            translate([wall_t - rabbet_w - margin, p[1] - w / 2])
+                square([ring_w, w]);
+        } else if (p[0] >= outer_w - wall_t) {
+            // right wall
+            translate([outer_w - wall_t - margin, p[1] - w / 2])
+                square([ring_w, w]);
+        }
+    }
+}
+
 // Slot-notched tongue / recess footprints — continuous locating ring with
-// 9 gaps where the gasket slots need a clear tab-descent path.
+// 9 gaps where the gasket slots need a clear tab-descent path, plus one
+// additional gap at every magnet pocket when ENABLE_MAGNET_POCKETS is on.
 module tongue_2d() {
     difference() {
         rabbet_inner_2d();
         gasket_slot_footprints_2d(notch_margin);
+        if (ENABLE_MAGNET_POCKETS) magnet_notch_footprints_2d(notch_margin);
     }
 }
 module recess_2d() {
     difference() {
         rabbet_outer_2d();
         gasket_slot_footprints_2d(notch_margin);
+        if (ENABLE_MAGNET_POCKETS) magnet_notch_footprints_2d(notch_margin);
     }
 }
 
