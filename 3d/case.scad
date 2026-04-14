@@ -662,12 +662,14 @@ assert(!ENABLE_MAGNET_POCKETS || (wall_t - magnet_d) / 2 >= 0.6,
 // Magnet pockets are drilled from the wall top downward. The wall column is
 // solid wood from the case floor up to the tray wall top, so the real floor
 // budget is `wall_top(cy) − bottom_t`. Require the pocket to stop at least
-// 2 mm above the case floor at every magnet Y. (The previous formulation
-// `magnet_depth + 1 <= top_t + plate_recess` was numerically loose — it
-// didn't refer to the actual wall material remaining beneath the pocket.)
+// 2 mm above the case floor at every magnet Y. The tray cylinder is anchored
+// to the UPHILL edge of the pocket footprint (cavity side, highest wall_top)
+// and its length is magnet_depth + tilt_drift + 0.2, so the cylinder bottom
+// sits at top_z(p[1]+r) − top_t + 0.1 − magnet_cyl_h.
 assert(!ENABLE_MAGNET_POCKETS ||
        len([for (p = magnet_positions())
-            if ((top_z(p[1]) - top_t) - magnet_depth < bottom_t + 2.0) 1]) == 0,
+            if (top_z(p[1] + magnet_d/2) - top_t + 0.1 - magnet_cyl_h
+                < bottom_t + 2.0) 1]) == 0,
        "magnet pocket bottom leaves less than 2 mm of wall material above the case floor");
 // Every magnet position must sit entirely inside the wall ring (NOT in the
 // cavity and NOT past the outer boundary), with a ≥0.3 mm margin to the
@@ -1150,31 +1152,48 @@ module overlay_recess_3d() {
     }
 }
 
-// Magnet pocket — one blind cylinder, Z-axis, for the tray. Cuts from the
-// wall top downward by `magnet_depth`. The overlay version is identical
-// geometry but applied to the overlay underside.
-module magnet_pocket_at(pos, z_top) {
-    translate([pos[0], pos[1], z_top - magnet_depth])
-        cylinder(d = magnet_d, h = magnet_depth + 0.01);
-}
+// Magnet pocket cylinders — TILT-COMPENSATED.
+//
+// The wall top (tray) and overlay underside are both tilted at `tilt_angle`
+// about the X axis. A vertical Ø`magnet_d` cylinder whose top sits at
+// `wall_top(p[1])` does NOT punch cleanly through the tilted plane: at the
+// uphill end of the pocket the plane is `magnet_d · tan(tilt_angle)/2` above
+// the cylinder top, leaving a thin sliver of material capping the hole; at
+// the downhill end the cylinder pokes the same amount through empty space.
+// Symmetric issue on the overlay underside.
+//
+// Fix: anchor the cylinder to the EXTREME wall-top over the pocket's own
+// footprint (uphill edge for the tray, downhill for the overlay) and grow
+// the cylinder length by the tilt drift so the full `magnet_depth` is
+// preserved at the OTHER extreme. Result: clean hole through the tilted
+// plane everywhere in the pocket footprint.
+magnet_tilt_drift = magnet_d * tan(tilt_angle);   // ≈ 0.28 mm for Ø3.2, 5°
+magnet_cyl_h      = magnet_depth + magnet_tilt_drift + 0.2;   // ≈ 2.68 mm
 
-// Cuts magnet pockets in the TRAY wall top.
+// top_z() is monotonic in y (5° tilt, increasing toward the back), so the
+// uphill edge of every pocket is at y = p[1] + magnet_d/2 regardless of
+// which wall the magnet sits on, and the downhill edge is p[1] − magnet_d/2.
+
+// Cuts magnet pockets in the TRAY wall top. Cylinder top anchored 0.1 mm
+// above the uphill edge of the pocket so it pokes above the highest point
+// of the tilted wall top. Length is bumped by the tilt drift so the
+// downhill edge still has ≥ magnet_depth of drilled clearance.
 module tray_magnet_pockets() {
     for (p = magnet_positions()) {
-        z_top = top_z(p[1]) - top_t;  // tray wall top Z at this Y
-        magnet_pocket_at(p, z_top + 0.01);
+        z_top_hi = top_z(p[1] + magnet_d/2) - top_t + 0.1;
+        translate([p[0], p[1], z_top_hi - magnet_cyl_h])
+            cylinder(d = magnet_d, h = magnet_cyl_h);
     }
 }
 
-// Cuts magnet pockets in the OVERLAY underside. The overlay underside Z at
-// a given Y equals `top_z(cy) − top_t` — same formula as the tray wall top,
-// because they meet at the seam in the nominal assembly.
+// Cuts magnet pockets in the OVERLAY underside. Cylinder bottom anchored
+// 0.1 mm below the downhill edge of the pocket so it starts below the
+// lowest point of the tilted overlay underside.
 module overlay_magnet_pockets() {
     for (p = magnet_positions()) {
-        z_bot = top_z(p[1]) - top_t;  // overlay underside Z at this Y
-        // Cut upward from the underside into the overlay slab.
-        translate([p[0], p[1], z_bot])
-            cylinder(d = magnet_d, h = magnet_depth + 0.01);
+        z_bot_lo = top_z(p[1] - magnet_d/2) - top_t - 0.1;
+        translate([p[0], p[1], z_bot_lo])
+            cylinder(d = magnet_d, h = magnet_cyl_h);
     }
 }
 
