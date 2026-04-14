@@ -5,6 +5,18 @@
 // Design: wedge profile, gasket-mounted plate, integrated display window.
 // Style: sleek defined lines, minimal bezel, premium feel.
 //
+// FABRICATION TARGET — 3D PRINT PATH (JLC3DP SLA resin):
+//   When fabricated by 3D print, the intended process is JLC3DP SLA resin
+//   (standard photopolymer, e.g. 8001 / white resin). MJF/SLS nylon is NOT
+//   suitable — it loses the 1.0 mm shelf_frame_x window detail. FDM is a
+//   hard NO — layer lines destroy disp_cut_tol and the 1.0 mm shelf frame
+//   sits below FDM's 1.6 mm wall minimum. Parameters in this file are tuned
+//   to JLC3DP SLA's ±0.2 mm <100 mm / ±0.3% >100 mm tolerance band and
+//   0.2 mm assembly-clearance rule; the 2026-04-14 pre-fab review
+//   re-tightened disp_cut_tol and grew the locating tongue to clear those
+//   rules with margin. Orient each piece with the cosmetic face (display
+//   window / key opening) up so the seam lands on a non-visible face.
+//
 // Coordinate system (case frame):
 //   X = left to right (0 = left case edge)
 //   Y = front to back (0 = front edge, positive toward back / USB side)
@@ -194,12 +206,19 @@ tilt_angle = 5;   // degrees, back raised
 
 // ─── Tolerances ──────────────────────────────────────────────────────────────
 plate_gap     = 0.5;    // clearance between plate edge and inner wall (per side)
-disp_cut_tol  = 0.15;   // module-body pocket oversize vs module (per side).
+disp_cut_tol  = 0.20;   // module-body pocket oversize vs module (per side).
                         // The module is inserted from BELOW into a blind
                         // pocket; it doesn't thread through anything, so the
                         // old 0.30 corner-binding bump is no longer needed.
-                        // 0.15 per side keeps the pocket tight (worst-case
-                        // ±0.2mm fab slop → +0.10/−0.05 mm; minor file fit).
+                        // Raised from 0.15 → 0.20 in the 2026-04-14 JLC3DP
+                        // pre-fab review: JLC3DP SLA dimensional tolerance
+                        // is ±0.2 mm on features <100 mm, and their min
+                        // assembly-clearance rule is 0.2 mm. 0.15 per side
+                        // meant worst-case shrink pushed the pocket into
+                        // interference by 0.05 mm with no post-processing
+                        // recourse on an SLA print. 0.20 per side puts the
+                        // worst case at 0.0 clearance and nominal at a
+                        // clean 0.20 slip fit.
 shelf_t        = 1.5;   // wood above the display glass (the visible recess).
                         // Bumped from 1.0 → 1.5 in the 2026-04-13 pre-fab
                         // design review: the 1.0 × 1.6 mm cross-grain short
@@ -326,16 +345,22 @@ overlay_corner_r = 3.0;    // outer corner radius of overlay
 // therefore has up to 9 + 4 = 13 gaps; each remaining segment is still
 // fully supported by solid wall material and separated from every
 // neighbouring gap by several mm of wood (asserted below).
-rabbet_w = 1.8;      // ring width in the wall-depth direction (outer ring
-                     // of wood removed from the wall top). The tongue
-                     // itself is `rabbet_w − 2·rabbet_tol` = 1.3 mm wide.
-                     // Must leave a ≥1.5 mm rest cheek for the overlay
-                     // outboard of the tongue (wall_t − rabbet_w ≥ 1.5).
-rabbet_h = 1.0;      // tongue height above the wall top (= recess depth
-                     // into the overlay underside). Reduced from 1.2 mm
-                     // to keep enough overlay slab above the recess in
-                     // hand-cut wood and to leave healthy material for
-                     // the magnet-pocket cheeks in the overlay.
+rabbet_w = 2.0;      // ring width in the wall-depth direction (outer ring
+                     // of wood/resin removed from the wall top). The
+                     // tongue itself is `rabbet_w − 2·rabbet_tol` = 1.5 mm
+                     // wide. Must leave a ≥1.5 mm rest cheek for the
+                     // overlay outboard of the tongue (wall_t − rabbet_w
+                     // = 2.8 mm here, well above the floor).
+                     // Grown from 1.8 → 2.0 in the 2026-04-14 JLC3DP
+                     // review so the tongue cross-section meets JLC3DP's
+                     // 1.5 mm recommended minimum for positioning/snap
+                     // features on SLA.
+rabbet_h = 1.5;      // tongue height above the wall top (= recess depth
+                     // into the overlay underside). Grown from 1.0 → 1.5
+                     // in the 2026-04-14 JLC3DP review to meet the same
+                     // 1.5 mm snap-feature recommendation. Still leaves
+                     // top_t − rabbet_h = 3.5 mm of overlay slab above
+                     // the recess floor (≫ the 1.0 mm structural floor).
 rabbet_tol = 0.25;   // per-side clearance between the tongue and the
                      // recess. 0.25 mm gives a sliding hand-seat fit
                      // with no binding under ±0.2 mm fab slop.
