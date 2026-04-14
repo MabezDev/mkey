@@ -63,6 +63,22 @@ ENABLE_MAGNET_POCKETS = true;    // cut blind magnet pockets in the tray wall
                                  // off for PCB access). Counts on N52 disc
                                  // magnets — see magnet_* params below.
 
+// ─── Decorative trims (3D-print-only) ───────────────────────────────────────
+// Cosmetic embellishments with no mechanical role. Only practical on printed
+// builds — hand-fabrication in hardwood can't render fine text/grooves cleanly.
+// Every cut is sized to satisfy JLC3DP's design rules (≥0.8 mm wide AND
+// ≥0.8 mm deep for any engraved or embossed detail, on both SLA resin and
+// MJF nylon). ENABLE_DECORATIVE_TRIMS is the master gate: flipping it false
+// silently drops every decorative cut, so hardwood builds or "naked" prints
+// use the exact same file with one toggle.
+ENABLE_DECORATIVE_TRIMS = true;   // master switch — false = all decoratives off
+DECO_SIDE_LOGO          = true;   // mKey logo debossed on both outer side walls
+DECO_EDGE_PINSTRIPE     = true;   // hairline groove around the overlay top edge
+DECO_OWNER_INITIALS     = true;   // initials + year debossed into the tray underside
+DECO_LOGO_TOP           = true;   // mKey logo debossed on overlay top above the display
+DECO_INITIALS           = "SM";   // user-customisable owner initials
+DECO_YEAR               = "2026"; // build year stamped under the initials
+
 // =============================================================================
 // SECTION 1: PLATE DIMENSIONS (from plate.kicad_pcb)
 // =============================================================================
@@ -1662,6 +1678,183 @@ module bottom_pad_recesses() {
 }
 
 // =============================================================================
+// SECTION 10b: DECORATIVE TRIMS (3D-print-only)
+// =============================================================================
+// Every feature in this section is cosmetic — disabling the whole group
+// (ENABLE_DECORATIVE_TRIMS = false) produces a functionally identical case.
+// Cut depths and stroke widths are held at ≥0.8 mm per JLC3DP rules.
+
+// ─── Geometry parameters ────────────────────────────────────────────────────
+deco_cut_depth = 0.8;    // shared depth for every engraved/embossed feature
+                         // (= JLC3DP minimum for SLA resin and MJF nylon).
+
+// Overlay edge pinstripe (a hairline-looking groove just inside the outer edge)
+deco_stripe_inset  = 1.2;    // mm in from the overlay outer edge
+deco_stripe_width  = 0.8;    // groove width in the plane of the top face
+
+// Owner initials + year plate
+deco_initials_size   = 6.0;                          // mm cap height (initials row)
+deco_year_size       = 3.8;                          // mm cap height (year row)
+deco_stamp_row_gap   = 1.2;                          // mm gap between the two rows
+deco_initials_font   = "Liberation Sans:style=Bold";
+deco_initials_y_frac = 0.5;                          // 0 = front, 1 = back
+
+// Logo above the display
+deco_logo_chip_size   = 7.0;                         // chip icon outer square, mm
+deco_logo_chip_border = 0.9;                         // chip frame stroke, mm
+deco_logo_chip_inner  = 2.4;                         // inner solid square side, mm
+deco_logo_text        = "mKey";
+deco_logo_text_size   = 5.5;                         // cap height, mm
+deco_logo_text_gap    = 1.8;                         // chip ↔ text gap, mm
+deco_logo_font        = "Liberation Sans:style=Bold";
+
+// ─── Side wall logo ─────────────────────────────────────────────────────────
+// Debossed mKey logo (chip icon + wordmark) on the outer face of the left
+// (X=0) and right (X=outer_w) walls. Reuses deco_logo_2d() — same 2D shape
+// as the top-face logo so the two read identically. The outer face is
+// flat-vertical, so no tilt compensation is needed. The logo is centered
+// along the wall in Y and vertically placed so it sits inside the wall
+// height at Y = outer_d/2 (the mid-point, where wall height equals the
+// average of front_h-top_t and back_h-top_t).
+module deco_side_logo() {
+    wall_top_mid = (front_h + back_h) / 2 - top_t;
+    z_center = wall_top_mid / 2;
+    y_center = outer_d / 2;
+
+    // LEFT wall — readable from −X
+    translate([deco_cut_depth, y_center, z_center])
+        rotate([90, 0, -90])
+            linear_extrude(height = deco_cut_depth + 0.1)
+                deco_logo_2d();
+
+    // RIGHT wall — readable from +X
+    translate([outer_w - deco_cut_depth, y_center, z_center])
+        rotate([90, 0, 90])
+            linear_extrude(height = deco_cut_depth + 0.1)
+                deco_logo_2d();
+}
+
+// ─── Overlay edge pinstripe ─────────────────────────────────────────────────
+// A thin picture-frame groove running just inside the rounded outer edge of
+// the overlay top. Built as a 2D frame, extruded to a vertical prism, then
+// rotated by tilt_angle around the front-bottom X axis so the prism's "top"
+// face sits on the tilted overlay top plane. At 5° tilt the prism is
+// essentially vertical — groove width remains 0.8 mm to within <0.01 mm.
+module deco_pinstripe_frame_2d() {
+    difference() {
+        translate([-overhang, -overhang])
+            offset(r = overlay_corner_r)
+                offset(delta = -overlay_corner_r - deco_stripe_inset)
+                    square([overlay_w, overlay_d]);
+        translate([-overhang, -overhang])
+            offset(r = overlay_corner_r)
+                offset(delta = -overlay_corner_r - deco_stripe_inset - deco_stripe_width)
+                    square([overlay_w, overlay_d]);
+    }
+}
+
+module deco_edge_pinstripe() {
+    translate([0, 0, front_h])
+        rotate([tilt_angle, 0, 0])
+            translate([0, 0, -deco_cut_depth])
+                linear_extrude(height = deco_cut_depth + 0.5)
+                    deco_pinstripe_frame_2d();
+}
+
+// ─── Owner initials + year plate ────────────────────────────────────────────
+// Two stacked text rows debossed into the tray bottom: DECO_INITIALS on top,
+// DECO_YEAR below. Mirrored in X so the stack reads correctly when the case
+// is flipped over the X axis (toward the viewer). Placed in the middle of the
+// underside, clear of the four bottom pad recesses.
+module deco_owner_initials() {
+    x_center = outer_w / 2;
+    y_center = outer_d * deco_initials_y_frac;
+
+    // Stack layout: initials cap-height + gap + year cap-height. Y=0 in the
+    // stack frame is the vertical center of the stack, so the bottom-face
+    // recess is balanced about y_center.
+    total_h     = deco_initials_size + deco_stamp_row_gap + deco_year_size;
+    dy_initials = total_h / 2 - deco_initials_size;   // baseline of initials row
+    dy_year     = -total_h / 2;                       // baseline of year row
+
+    translate([x_center, y_center, -0.01])
+        mirror([1, 0, 0])
+            linear_extrude(height = deco_cut_depth + 0.02) {
+                translate([0, dy_initials])
+                    text(DECO_INITIALS,
+                         size = deco_initials_size,
+                         halign = "center", valign = "baseline",
+                         font = deco_initials_font);
+                translate([0, dy_year])
+                    text(DECO_YEAR,
+                         size = deco_year_size,
+                         halign = "center", valign = "baseline",
+                         font = deco_initials_font);
+            }
+}
+
+// ─── Logo above display ─────────────────────────────────────────────────────
+// Simplified mKey logo: a chip icon (outline frame + inner solid square) and
+// the "mKey" wordmark to its right. The raw SVG in hardware/board/assets has
+// sub-0.5 mm pin ticks that would violate the JLC3DP 0.8 mm rule; the chip is
+// redrawn here from simple primitives so every stroke meets spec. Centred on
+// the display X and positioned in the bezel between the display back edge
+// and the back wall. Cut perpendicular to the tilted overlay top.
+// Measured x-extent of "mKey" rendered in Liberation Sans Bold at cap-height
+// 5.5 mm — obtained by extruding the text and reading the STL bounding box.
+// Scales linearly with cap height. If deco_logo_text or deco_logo_font is
+// changed, re-measure (openscad -o test.stl --summary all --summary-file -
+// on a linear_extrude(1) text(...) test file) and update this constant.
+DECO_LOGO_TEXT_X_EXTENT_REF = 20.76;
+DECO_LOGO_TEXT_REF_SIZE     = 5.5;
+
+module deco_logo_2d() {
+    chip     = deco_logo_chip_size;
+    border   = deco_logo_chip_border;
+    inner_sq = deco_logo_chip_inner;
+    gap      = deco_logo_text_gap;
+
+    // True text width at the current cap height, scaled from the measured
+    // reference extent. Used so chip icon + wordmark is visually centered on
+    // the display X, not biased toward one side by a bad estimate.
+    text_w  = deco_logo_text_size * DECO_LOGO_TEXT_X_EXTENT_REF / DECO_LOGO_TEXT_REF_SIZE;
+    total_w = chip + gap + text_w;
+    chip_x0 = -total_w / 2;
+    text_x0 = chip_x0 + chip + gap;
+
+    // Chip frame (hollow square outline)
+    translate([chip_x0, -chip / 2])
+        difference() {
+            square([chip, chip]);
+            translate([border, border])
+                square([chip - 2 * border, chip - 2 * border]);
+        }
+    // Inner solid square (centered inside the chip frame)
+    translate([chip_x0 + chip / 2 - inner_sq / 2, -inner_sq / 2])
+        square([inner_sq, inner_sq]);
+
+    // Wordmark
+    translate([text_x0, 0])
+        text(deco_logo_text,
+             size = deco_logo_text_size,
+             halign = "left", valign = "center",
+             font = deco_logo_font);
+}
+
+module deco_top_logo() {
+    disp_back_edge = plate_oy + disp_cy + disp_module_h / 2;
+    bezel_back     = outer_d - wall_t;
+    logo_y = (disp_back_edge + bezel_back) / 2;
+    logo_x = plate_ox + disp_cx;
+
+    translate([logo_x, logo_y, top_z(logo_y)])
+        rotate([tilt_angle, 0, 0])
+            translate([0, 0, -deco_cut_depth])
+                linear_extrude(height = deco_cut_depth + 0.5)
+                    deco_logo_2d();
+}
+
+// =============================================================================
 // SECTION 11: COMPLETE CASE WITH FINISHING
 // =============================================================================
 
@@ -1680,6 +1873,12 @@ module case_tray_finished() {
                 translate([0, -bc * 1.42, 0])
                     cube([outer_w + 0.2, bc * 1.42, bc * 1.42]);
         bottom_pad_recesses();
+
+        // ─── Decorative trims (tray) ────────────────────────────────────────
+        if (ENABLE_DECORATIVE_TRIMS) {
+            if (DECO_SIDE_LOGO)      deco_side_logo();
+            if (DECO_OWNER_INITIALS) deco_owner_initials();
+        }
     }
 }
 
@@ -1687,7 +1886,15 @@ module case_overlay_finished() {
     // No CAD chamfers — the rounded corners make simple planar cuts
     // produce artifacts at the corners. Chamfers/edge breaks will be
     // applied during finishing (sanding/routing) on the physical piece.
-    case_overlay();
+    difference() {
+        case_overlay();
+
+        // ─── Decorative trims (overlay) ─────────────────────────────────────
+        if (ENABLE_DECORATIVE_TRIMS) {
+            if (DECO_EDGE_PINSTRIPE) deco_edge_pinstripe();
+            if (DECO_LOGO_TOP)       deco_top_logo();
+        }
+    }
 }
 
 // =============================================================================
