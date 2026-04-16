@@ -1484,9 +1484,21 @@ module usb_cutout() {
     // USB exits through the back wall. Z geometry is computed at top level
     // (see `usb_z_center` and friends) so the invariant asserts share the
     // exact same derivation the cut itself uses — no drift possible.
+    //
+    // Corners are filleted at usb_corner_r to soften stress risers where
+    // the cable tugs against the back wall on insertion/removal. Added in
+    // the 2026-04-16 JLC3DP pre-fab review. Geometry: build the 2D rounded
+    // rectangle in XY, linear_extrude along +Z for a prism the thickness
+    // of the wall, then rotate([-90,0,0]) so the extrude direction flips
+    // from +Z to +Y (mapping Y→-Z, Z→+Y in the shape). The outer Z-shift
+    // puts the bottom of the cut at usb_cut_z_bot.
+    usb_corner_r = 0.5;
     ux = p2c_x(usb_plate_x) - usb_cut_w / 2;
-    translate([ux, back_wall_inner_y - 0.5, usb_cut_z_bot])
-        cube([usb_cut_w, wall_t + 1, usb_cut_h]);
+    translate([ux, back_wall_inner_y - 0.5, usb_cut_z_bot + usb_cut_h])
+        rotate([-90, 0, 0])
+            linear_extrude(height = wall_t + 1)
+                offset(r = usb_corner_r) offset(delta = -usb_corner_r)
+                    square([usb_cut_w, usb_cut_h]);
 }
 
 // =============================================================================
@@ -1532,12 +1544,21 @@ assert(slot_bot_below_plate >=
        "slot_bot_below_plate too small: downhill end of side slot has gasket headroom < gasket_compressed under tilt + fab slop");
 
 // Slot dimensions
-slot_tol     = 0.4;    // clearance around tab (per side, length direction).
-                       // Bumped from 0.3 → 0.4 in the 2026-04-14 review:
-                       // 0.3 was exactly equal to the ±0.2 mm fab slop budget,
-                       // so a long tab + short slot worst-case left zero play
-                       // and the tab would jam. 0.4 restores 0.2 mm of play
-                       // under worst-case slop.
+slot_tol     = 0.6;    // clearance around tab (per side, length direction).
+                       // Bumped from 0.4 → 0.6 in the 2026-04-16 JLC3DP pre-fab
+                       // review: the ±0.3% tolerance band on >100 mm features
+                       // (case X = 363 mm) translates to ~1 mm of positional
+                       // drift at the outermost tab (rightmost front tab center
+                       // at case-X ≈ 320 mm), which would jam a 0.2 mm-play
+                       // slot. 0.6 gives 0.3 mm play per side — enough to
+                       // absorb uniform shrinkage of ±0.3% over the 320 mm
+                       // reach without losing the snug compression fit. Used
+                       // in conjunction with a JLC3DP X-axis scale-comp order
+                       // note; belt-and-braces if the factory skips it.
+                       //
+                       // Earlier: 0.3 → 0.4 in the 2026-04-14 review (0.3 was
+                       // exactly equal to the ±0.2 mm fab slop budget, leaving
+                       // zero play under worst-case slop).
 slot_depth   = 1.5;    // how deep the slot goes into the wall.
                        // Measured tab penetration into the wall is 1.25..1.33 mm
                        // (tab_ext 1.749..1.828 mm, minus plate_gap 0.5 mm), so
@@ -1696,20 +1717,30 @@ module bottom_pad_recesses() {
 // Cut depths and stroke widths are held at ≥0.8 mm per JLC3DP rules.
 
 // ─── Geometry parameters ────────────────────────────────────────────────────
-deco_cut_depth = 0.8;    // shared depth for every engraved/embossed feature
-                         // (= JLC3DP minimum for SLA resin and MJF nylon).
+deco_cut_depth = 1.0;    // shared depth for every engraved/embossed feature.
+                         // JLC3DP minimum for SLA resin is 0.8 mm; 1.0 gives
+                         // 0.2 mm of margin so any fab-slop doesn't push the
+                         // recess below the readable floor. Grown from 0.8 →
+                         // 1.0 in the 2026-04-16 review.
 
 // Overlay edge pinstripe (a hairline-looking groove just inside the outer edge)
 deco_stripe_inset  = 1.2;    // mm in from the overlay outer edge
-deco_stripe_width  = 0.8;    // groove width in the plane of the top face
+deco_stripe_width  = 0.9;    // groove width in the plane of the top face.
+                             // 0.1 mm above JLC3DP 0.8 mm minimum so that
+                             // ±0.2 mm fab slop doesn't thin the printed
+                             // groove below the readable floor. Grown from
+                             // 0.8 → 0.9 in the 2026-04-16 review.
 
 // Owner initials + year plate
 deco_initials_size   = 6.0;                          // mm cap height (initials row)
-deco_year_size       = 5.0;                          // mm cap height (year row)
-                                                      // Grown from 3.8 → 5.0: at 3.8 mm the thinnest
-                                                      // strokes of "2026" in Liberation Sans Bold are
-                                                      // ~0.6–0.7 mm, below the JLC3DP 0.8 mm engraved-
-                                                      // detail minimum. At 5.0 mm all strokes ≥ 0.8 mm.
+deco_year_size       = 5.5;                          // mm cap height (year row)
+                                                      // Grown from 5.0 → 5.5 in the 2026-04-16 review:
+                                                      // Liberation Sans Bold stem ≈ 0.15·cap-height,
+                                                      // giving 0.75 mm strokes at 5.0 mm — borderline
+                                                      // against the JLC3DP 0.8 mm floor. At 5.5 mm
+                                                      // strokes reach ~0.83 mm with 0.03 mm margin.
+                                                      // Earlier: 3.8 → 5.0 (strokes at 3.8 were below
+                                                      // the 0.8 mm floor).
 deco_stamp_row_gap   = 1.2;                          // mm gap between the two rows
 deco_initials_font   = "Liberation Sans:style=Bold";
 deco_initials_y_frac = 0.5;                          // 0 = front, 1 = back
@@ -1985,11 +2016,16 @@ module case_tray_print() {
 //                      │        │        │        │
 //   back wall  ════════╧════════╧════════╧════════╧═══════
 //
-// REMOVAL after post-cure: score each rib at the front and back wall
-// junctions with a flush-cut saw or craft knife, snap out, and lightly
-// sand the 4 witness marks on each wall's inner face. The rib does NOT
-// touch the wall tops (it stops at wall_top − rib_top_gap) so no
-// sanding is needed on the overlay mating surface.
+// REMOVAL after post-cure: each rib is joined to the tray at three
+// surfaces — front wall, back wall, and floor. Every junction gets a
+// breakaway neck (rib thins from rib_t → rib_neck for rib_neck_len mm
+// measured away from the junction) AND is perforated into short
+// attachment segments with through-gaps between them, so cracks
+// don't have to propagate more than one segment-length cleanly.
+// Suggested sequence: score each exposed segment with a craft knife,
+// snap, repeat along each of the three seams, then lightly sand the
+// witness marks. The rib does NOT touch the wall tops (rib_top_gap)
+// so the overlay mating surface is untouched.
 //
 rib_t        = 1.5;    // rib thickness (X direction). Thin enough to score
                        // and snap, thick enough to print on SLA (≥ JLC3DP
@@ -2001,24 +2037,50 @@ rib_top_gap  = 0.5;    // gap between rib top and wall top (mm). Keeps the
                        // marks land on the seam surface. Also makes the
                        // rib slightly easier to grip with pliers for
                        // snap-out.
-rib_neck     = 0.8;    // breakaway neck thickness at front/back wall
+rib_neck     = 1.0;    // breakaway neck thickness at front/back wall
                        // junctions (Y direction). For the first/last
                        // `rib_neck_len` mm the rib thins to this width,
                        // creating a weak line for clean snap-off.
+                       // Grown from 0.8 → 1.0 in the 2026-04-16 JLC3DP review:
+                       // 0.8 mm nominal worst-cased to 0.6 mm under ±0.2 mm
+                       // SLA tolerance, below the 0.8 mm feature-minimum floor.
+                       // 1.0 mm keeps worst-case at 0.8 mm while remaining
+                       // hand-snappable with flush cutters.
 rib_neck_len = 2.0;    // length of the thinned zone at each wall junction.
+
+// Perforation of the breakaway necks. A continuous 100 mm floor neck
+// is too long for an SLA crack to propagate cleanly — it tends to
+// wander out of the notch line. Punching through-gaps along each
+// neck breaks it into discrete short attachment segments, so any
+// one crack only has to travel ~1 segment before hitting a free
+// edge. Floor perf is aggressive (floor attachment doesn't carry
+// the anti-warp load — the wall T-section does). Wall perf is
+// deliberately minimal (a couple of gaps per wall) to preserve
+// the T-section bracing during the SLA build.
+floor_perf_count = 5;    // number of gaps along the floor neck
+floor_perf_len   = 4.0;  // length of each floor gap (mm, Y direction)
+wall_perf_count  = 2;    // number of gaps per wall neck
+wall_perf_len    = 2.0;  // length of each wall gap (mm, Z direction)
 
 // Rib X positions (case coords) — same slot-avoiding logic as before.
 // Placed at the midpoints of the widest gaps between front-wall and
 // back-wall gasket slot X-ranges so no rib crosses a slot channel.
 //
-// Slot X extents (case coords, each ±(tab_len+slot_tol)/2 = ±10.3 mm):
-//   Front: [35.2, 55.8]  [132.5, 153.1]  [224.5, 245.1]  [309.5, 330.1]
-//   Back:  [87.3, 107.9]  [170.5, 191.1]  [258.8, 279.4]
+// Slot X extents (case coords, each ±(tab_len+slot_tol)/2 = ±10.2 mm at
+// slot_tol=0.6):
+//   Front: [35.3, 55.7]  [132.6, 153.0]  [224.6, 245.0]  [309.6, 330.0]
+//   Back:  [87.4, 107.8]  [170.6, 191.0]  [258.9, 279.3]
 //
 // Available gaps (sorted by X):
-//   [55.8, 87.3] → mid 71.5      [107.9, 132.5] → mid 120.2
-//   [191.1, 224.5] → mid 207.8   [279.4, 309.5] → mid 294.5
-rib_cx = [71.5, 120.2, 207.8, 294.5];
+//   [55.7,  87.4]  → mid  71.5      [107.8, 132.6] → mid 120.2
+//   [191.0, 224.6] → mid 207.8      [245.0, 258.9] → mid 252.0  (NEW)
+//   [279.3, 309.6] → mid 294.5
+//
+// A 5th rib at x=252 was added in the 2026-04-16 review: the old 4-rib
+// layout left 87.6 mm between ribs 2→3 (the widest unsupported span),
+// above the ≤75 mm rule-of-thumb for anti-warp spacing on 363 mm SLA
+// parts. With 5 ribs the largest unsupported span drops to ~55 mm.
+rib_cx = [71.5, 120.2, 207.8, 252.0, 294.5];
 
 module print_support_ribs() {
     for (cx = rib_cx)
@@ -2039,6 +2101,12 @@ module print_support_rib(cx) {
     z_top_b   = top_z(y1) - top_t - rib_top_gap;   // wall top at back − gap
     h_front   = z_top_f - z_floor;
     h_back    = z_top_b - z_floor;
+
+    // Perforation segment lengths: total available run divided among
+    // (perf_count + 1) attachments separated by perf_count gaps.
+    floor_seg_y  = (span    - floor_perf_count * floor_perf_len) / (floor_perf_count + 1);
+    wall_seg_z_f = (h_front - wall_perf_count  * wall_perf_len)  / (wall_perf_count  + 1);
+    wall_seg_z_b = (h_back  - wall_perf_count  * wall_perf_len)  / (wall_perf_count  + 1);
 
     difference() {
         // Full rib slab
@@ -2069,6 +2137,47 @@ module print_support_rib(cx) {
                       rib_neck_len + 0.02,
                       h_back + 0.02]);
         }
+
+        // Breakaway neck at floor: thin the rib's bottom edge from rib_t
+        // to rib_neck for the first rib_neck_len mm of Z. Without this,
+        // the rib's full bottom edge (~100 mm) is fused to the floor and
+        // cannot be snapped out without destroying the floor finish.
+        // Spans the full Y length; overlaps harmlessly with the front/back
+        // wall necks in the corners.
+        for (side = [0, 1]) {
+            neck_cut_w = (rib_t - rib_neck) / 2;
+            translate([cx - rib_t / 2 + side * (rib_t - neck_cut_w) - 0.01 * (1 - side),
+                       y0 - 0.01,
+                       z_floor - 0.01])
+                cube([neck_cut_w + 0.01,
+                      span + 0.02,
+                      rib_neck_len + 0.01]);
+        }
+
+        // Floor neck perforations: punch full-width through-gaps along
+        // the floor neck so the continuous seam becomes discrete
+        // attachment segments. Each gap removes the rib entirely at
+        // floor level across floor_perf_len mm of Y.
+        for (i = [1 : floor_perf_count])
+            translate([cx - rib_t / 2 - 0.01,
+                       y0 + i * floor_seg_y + (i - 1) * floor_perf_len,
+                       z_floor - 0.01])
+                cube([rib_t + 0.02, floor_perf_len, rib_neck_len + 0.01]);
+
+        // Front wall neck perforations: Z-direction gaps splitting the
+        // front wall attachment into (wall_perf_count+1) segments.
+        for (i = [1 : wall_perf_count])
+            translate([cx - rib_t / 2 - 0.01,
+                       y0 - 0.01,
+                       z_floor + i * wall_seg_z_f + (i - 1) * wall_perf_len])
+                cube([rib_t + 0.02, rib_neck_len + 0.02, wall_perf_len]);
+
+        // Back wall neck perforations (mirror of front)
+        for (i = [1 : wall_perf_count])
+            translate([cx - rib_t / 2 - 0.01,
+                       y1 - rib_neck_len - 0.01,
+                       z_floor + i * wall_seg_z_b + (i - 1) * wall_perf_len])
+                cube([rib_t + 0.02, rib_neck_len + 0.02, wall_perf_len]);
     }
 }
 
