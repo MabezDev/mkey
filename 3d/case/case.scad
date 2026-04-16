@@ -86,7 +86,7 @@ ENABLE_DECORATIVE_TRIMS = true;   // master switch — false = all decoratives o
 DECO_SIDE_LOGO          = true;   // mKey logo debossed on both outer side walls
 DECO_EDGE_PINSTRIPE     = true;   // hairline groove around the overlay top edge
 DECO_OWNER_INITIALS     = true;   // initials + year debossed into the tray underside
-DECO_LOGO_TOP           = true;   // mKey logo debossed on overlay top above the display
+DECO_LOGO_TOP           = false;   // mKey logo debossed on overlay top above the display
 DECO_INITIALS           = "SM";   // user-customisable owner initials
 DECO_YEAR               = "2026"; // build year stamped under the initials
 
