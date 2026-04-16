@@ -1962,9 +1962,10 @@ module case_tray_print() {
 }
 
 // ─── Breakaway cross-braces ────────────────────────────────────────────────
-// Three thin bars spanning front-to-back across the tray opening (Y direction).
-// Placed at quarter-points along X. Each bar sits on top of the tray wall
-// with a thin breakaway neck at each wall junction for clean snap-off.
+// Thin bars spanning front-to-back across the tray opening (Y direction).
+// Placed at the midpoints of the widest gaps between gasket slot X-ranges
+// so that no brace caps a slot channel. Each bar sits on top of the tray
+// wall with a thin breakaway neck at each wall junction for clean snap-off.
 //
 // Cross-section (looking along Y):
 //
@@ -1982,14 +1983,23 @@ brace_neck  = 0.8;    // thin neck width at wall junction (Y direction)
                       // or may print solid, defeating the breakaway purpose.
                       // At 0.8 mm the neck prints cleanly and can be separated
                       // with an X-Acto knife along the wall-brace junction.
-brace_count = 3;      // number of braces
+// Brace X positions (case coords). Placed at the midpoints of the widest
+// gaps between front-wall and back-wall gasket slot X-ranges so that no
+// brace sits on top of (and fills in) the open-top slot channel that
+// the plate tabs need to descend through.
+//
+// Slot X extents (case coords, each ±(tab_len+slot_tol)/2 = ±10.3 mm):
+//   Front: [35.2, 55.8]  [132.5, 153.1]  [224.5, 245.1]  [309.5, 330.1]
+//   Back:  [87.3, 107.9]  [170.5, 191.1]  [258.8, 279.4]
+//
+// Available gaps (sorted by X):
+//   [55.8, 87.3] → mid 71.5      [107.9, 132.5] → mid 120.2
+//   [191.1, 224.5] → mid 207.8   [279.4, 309.5] → mid 294.5
+brace_cx = [71.5, 120.2, 207.8, 294.5];
 
 module print_support_braces() {
-    spacing = outer_w / (brace_count + 1);
-    for (i = [1 : brace_count]) {
-        cx = spacing * i;
+    for (cx = brace_cx)
         print_support_brace(cx);
-    }
 }
 
 module print_support_brace(cx) {
