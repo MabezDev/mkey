@@ -1962,27 +1962,38 @@ module case_tray_print() {
 }
 
 // ─── Breakaway cross-braces ────────────────────────────────────────────────
-// Thin bars spanning front-to-back across the tray opening (Y direction).
+// Bars spanning front-to-back across the tray opening (Y direction, ~101 mm).
 // Placed at the midpoints of the widest gaps between gasket slot X-ranges
 // so that no brace caps a slot channel. Each bar sits on top of the tray
-// wall with a thin breakaway neck at each wall junction for clean snap-off.
+// wall with a thin breakaway neck at each wall junction for knife removal.
+//
+// PURPOSE: resist inward/outward bowing of the 363 mm front/back walls
+// during SLA UV post-cure. Resin shrinkage (~0.3%) over the 363 mm span
+// produces ~2 mm of mid-span deflection without braces; the 4 braces
+// divide the span into ~70–88 mm segments (theoretical deflection <0.1 mm).
+// The braces are temporary — cut them off with a flush-cut saw or X-Acto
+// knife after post-cure, then lightly sand the witness marks on the wall
+// tops before overlay fitment.
 //
 // Cross-section (looking along Y):
 //
 //     ┌──────────────────────────┐  ← brace top (wall_top + brace_h)
-//     │    solid brace bar       │  } brace_h = 1.5 mm
+//     │    solid brace bar       │  } brace_h
 //     └──┐                    ┌──┘  ← wall_top (tray wall cheek)
-//        │  neck (0.4mm wide) │     } breakaway thinning at wall junction
+//        │  neck (0.8mm tall) │     } breakaway thinning at wall junction
 //        └────────────────────┘
 //
-brace_w     = 2.0;    // width of each brace bar (X direction)
-brace_h     = 1.5;    // height above wall top (Z direction)
-brace_neck  = 0.8;    // thin neck width at wall junction (Y direction)
-                      // Grown from 0.4 → 0.8: 0.4 mm is below JLC3DP SLA's
-                      // minimum feature size and may not resolve in the print
-                      // or may print solid, defeating the breakaway purpose.
-                      // At 0.8 mm the neck prints cleanly and can be separated
-                      // with an X-Acto knife along the wall-brace junction.
+// Bending stiffness of the brace beam resisting lateral wall force:
+//   I = brace_w · brace_h³ / 12.  At 3 × 4 mm: I = 16.0 mm⁴.
+//   (Old 2 × 1.5 mm: I = 0.56 mm⁴ — 29× weaker, essentially no resistance.)
+//
+brace_w     = 3.0;    // width of each brace bar (X direction)
+brace_h     = 4.0;    // height above wall top (Z direction). Sized so the
+                      // brace cross-section (3 × 4 mm, I = 16 mm⁴) has
+                      // meaningful bending stiffness over the ~101 mm span.
+brace_neck  = 0.8;    // breakaway neck height at wall junction (Z direction).
+                      // Set to JLC3DP SLA minimum feature size — prints
+                      // cleanly and separates with a knife or flush-cut saw.
 // Brace X positions (case coords). Placed at the midpoints of the widest
 // gaps between front-wall and back-wall gasket slot X-ranges so that no
 // brace sits on top of (and fills in) the open-top slot channel that
