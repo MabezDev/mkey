@@ -46,3 +46,6 @@ target/
 # Python caches (from scripts/)
 __pycache__/
 *.pyc
+
+# Generated STL files (build artifacts from 3d/case/build_stl.sh)
+3d/case/*.stl

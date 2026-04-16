@@ -15,7 +15,8 @@
 //   0.2 mm assembly-clearance rule; the 2026-04-14 pre-fab review
 //   re-tightened disp_cut_tol and grew the locating tongue to clear those
 //   rules with margin. Orient each piece with the cosmetic face (display
-//   window / key opening) up so the seam lands on a non-visible face.
+//   window / key opening) DOWN toward the build plate — face-down gives
+//   the smoothest surface finish on both SLA resin and FDM.
 //
 // Coordinate system (case frame):
 //   X = left to right (0 = left case edge)
@@ -39,6 +40,16 @@ SHOW_PLATE      = false;   // ghost plate for fit check
 SHOW_DISPLAY    = false;   // ghost display for fit check
 SHOW_SECTION    = false;   // cross-section cut for inspection
 EXPLODE         = 2;       // set >0 to separate overlay from tray (mm)
+
+// ─── Print-mode switches ────────────────────────────────────────────────────
+// When PRINT_MODE is true, the assembly renders print-oriented pieces:
+//   - Overlay is flattened (5° tilt removed) and flipped cosmetic-face-down
+//   - Tray is unchanged in orientation (bottom is already flat)
+// When exporting STLs for manufacturing, set PRINT_MODE=true and render one
+// piece at a time (SHOW_TRAY xor SHOW_OVERLAY).
+PRINT_MODE      = false;   // flip to true (or pass -D) for STL export
+PRINT_SUPPORTS  = false;   // add breakaway cross-braces to tray for 3D printing
+                           // (prevents wall warping during SLA cure)
 
 // ─── Feature toggles (per-fabrication-method overrides) ─────────────────────
 // DESIGN NOTE — why these are toggles:
@@ -1898,6 +1909,114 @@ module case_overlay_finished() {
 }
 
 // =============================================================================
+// SECTION 11b: PRINT-MODE MODULES
+// =============================================================================
+// When PRINT_MODE is true, these wrappers re-orient the finished pieces for
+// optimal 3D printing:
+//   - Overlay: flattened (5° tilt removed), flipped cosmetic-face-down
+//   - Tray: orientation unchanged (bottom already flat); optional breakaway
+//     cross-braces added when PRINT_SUPPORTS is true
+
+// ─── Print-oriented overlay ─────────────────────────────────────────────────
+// Undo the 5° wedge tilt so the overlay lies perfectly flat, then flip it
+// upside-down so the cosmetic top surface (key opening / display window)
+// faces the build plate for the best surface finish on SLA and FDM.
+module case_overlay_print() {
+    // After case_overlay_finished(), the overlay sits in design position:
+    //   X: -overhang .. overlay_w - overhang
+    //   Y: -overhang .. overlay_d - overhang
+    //   Z: overlay_front_h - top_t .. overlay_back_h  (tilted 5°)
+    //
+    // Step 1: rotate -tilt_angle around X to flatten the top/bottom faces.
+    // Step 2: mirror Z to flip cosmetic face down.
+    // Step 3: translate so the piece sits on Z=0 with X,Y ≥ 0.
+
+    // Compute the bounding-box Z height after flattening (top_t is constant
+    // thickness; after un-tilting the slab is a flat box of height top_t).
+    // The X/Y extent grows negligibly (~0.2 mm) from the rotation; we only
+    // need to fix up the Z origin and the X/Y origin (overhang shift).
+    translate([overhang, overhang, 0])
+    mirror([0, 0, 1])
+    translate([0, 0, -top_t])
+    rotate([-tilt_angle, 0, 0])
+    translate([0, 0, -(front_h - top_t)])
+        case_overlay_finished();
+}
+
+// ─── Print-oriented tray ────────────────────────────────────────────────────
+// The tray bottom is already at Z=0 (flat), so no rotation is needed.
+// When PRINT_SUPPORTS is true, add breakaway cross-braces spanning the
+// cavity opening to hold the long walls at correct spacing during SLA cure.
+module case_tray_print() {
+    case_tray_finished();
+    if (PRINT_SUPPORTS) print_support_braces();
+}
+
+// ─── Breakaway cross-braces ────────────────────────────────────────────────
+// Three thin bars spanning front-to-back across the tray opening (Y direction).
+// Placed at quarter-points along X. Each bar sits on top of the tray wall
+// with a thin breakaway neck at each wall junction for clean snap-off.
+//
+// Cross-section (looking along Y):
+//
+//     ┌──────────────────────────┐  ← brace top (wall_top + brace_h)
+//     │    solid brace bar       │  } brace_h = 1.5 mm
+//     └──┐                    ┌──┘  ← wall_top (tray wall cheek)
+//        │  neck (0.4mm wide) │     } breakaway thinning at wall junction
+//        └────────────────────┘
+//
+brace_w     = 2.0;    // width of each brace bar (X direction)
+brace_h     = 1.5;    // height above wall top (Z direction)
+brace_neck  = 0.4;    // thin neck width at wall junction (Y direction)
+brace_count = 3;      // number of braces
+
+module print_support_braces() {
+    spacing = outer_w / (brace_count + 1);
+    for (i = [1 : brace_count]) {
+        cx = spacing * i;
+        print_support_brace(cx);
+    }
+}
+
+module print_support_brace(cx) {
+    // The bar spans from front wall to back wall, overlapping 0.5 mm into
+    // each wall so the union with the tray body is a single connected solid.
+    wall_lap = 0.5;  // overlap into the wall for solid union
+    y0   = wall_t - wall_lap;
+    y1   = outer_d - wall_t + wall_lap;
+    span = y1 - y0;
+
+    // Main brace bar (sitting on the wall top tilted plane)
+    difference() {
+        // Solid bar from Z=0 up to wall_top + brace_h
+        translate([cx - brace_w / 2, y0, 0])
+            wedge_box(brace_w, span,
+                      top_z(y0) - top_t + brace_h,
+                      top_z(y1) - top_t + brace_h);
+
+        // Remove everything below wall top (keep only the brace_h slab)
+        translate([cx - brace_w / 2 - 0.01, y0 - 0.01, 0])
+            wedge_box(brace_w + 0.02, span + 0.02,
+                      top_z(y0) - top_t,
+                      top_z(y1) - top_t);
+
+        // Breakaway neck at front wall: thin the brace to brace_neck height
+        // for the first few mm inside the cavity (starting at the inner face)
+        neck_len = 3.0;  // how far the thinning extends into the cavity
+        translate([cx - brace_w / 2 - 0.01,
+                   wall_t,
+                   top_z(wall_t) - top_t + brace_neck])
+            cube([brace_w + 0.02, neck_len, brace_h]);
+
+        // Breakaway neck at back wall
+        translate([cx - brace_w / 2 - 0.01,
+                   outer_d - wall_t - neck_len,
+                   top_z(outer_d - wall_t - neck_len) - top_t + brace_neck])
+            cube([brace_w + 0.02, neck_len, brace_h]);
+    }
+}
+
+// =============================================================================
 // SECTION 12: VISUALIZATION GHOSTS
 // =============================================================================
 
@@ -1944,13 +2063,15 @@ module display_ghost() {
 module assembly() {
     if (SHOW_TRAY) {
         color("SaddleBrown", 0.85)
-            case_tray_finished();
+            if (PRINT_MODE) case_tray_print();
+            else             case_tray_finished();
     }
 
     if (SHOW_OVERLAY) {
         color("SaddleBrown", 0.75)
-        translate([0, 0, EXPLODE])
-            case_overlay_finished();
+            if (PRINT_MODE) case_overlay_print();
+            else  translate([0, 0, EXPLODE])
+                      case_overlay_finished();
     }
 
     if (SHOW_RETAINER) {
