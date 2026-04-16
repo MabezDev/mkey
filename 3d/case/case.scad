@@ -1921,6 +1921,9 @@ module case_overlay_finished() {
 // Undo the 5° wedge tilt so the overlay lies perfectly flat, then flip it
 // upside-down so the cosmetic top surface (key opening / display window)
 // faces the build plate for the best surface finish on SLA and FDM.
+//
+// IMPORTANT: use rotate() not mirror() for the flip — mirror([0,0,1])
+// reverses chirality, which inverts all debossed text and logos.
 module case_overlay_print() {
     // After case_overlay_finished(), the overlay sits in design position:
     //   X: -overhang .. overlay_w - overhang
@@ -1928,15 +1931,15 @@ module case_overlay_print() {
     //   Z: overlay_front_h - top_t .. overlay_back_h  (tilted 5°)
     //
     // Step 1: rotate -tilt_angle around X to flatten the top/bottom faces.
-    // Step 2: mirror Z to flip cosmetic face down.
+    // Step 2: rotate 180° around Y to flip cosmetic face down (preserves
+    //         chirality — text/logos stay correct).  Negates both X and Z.
     // Step 3: translate so the piece sits on Z=0 with X,Y ≥ 0.
 
-    // Compute the bounding-box Z height after flattening (top_t is constant
-    // thickness; after un-tilting the slab is a flat box of height top_t).
-    // The X/Y extent grows negligibly (~0.2 mm) from the rotation; we only
-    // need to fix up the Z origin and the X/Y origin (overhang shift).
-    translate([overhang, overhang, 0])
-    mirror([0, 0, 1])
+    // rotate([0,180,0]) maps (x,y,z) → (-x, y, -z): Z flips (cosmetic face
+    // down) and X flips (compensated by the outer translate).  Y is unchanged
+    // so the overhang shift stays the same as the design-position fix-up.
+    translate([overlay_w - overhang, overhang, 0])
+    rotate([0, 180, 0])
     translate([0, 0, -top_t])
     rotate([-tilt_angle, 0, 0])
     translate([0, 0, -(front_h - top_t)])
