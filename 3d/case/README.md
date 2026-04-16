@@ -22,7 +22,7 @@ bottom-down with cross-braces).
 | Flag | Description |
 |------|-------------|
 | `--piece tray\|overlay\|both` | Which piece(s) to export (default: `both`) |
-| `--supports` | Add breakaway cross-braces to the tray to prevent wall warping during cure |
+| `--supports` | Add internal anti-warp rib walls to the tray cavity |
 | `--fn N` | Circle resolution override (default: `128`; file preview default is `48`) |
 | `--outdir DIR` | Output directory (default: `.`) |
 
@@ -36,10 +36,12 @@ optimal 3D printing:
   the build plate — this gives the best surface finish on both SLA resin and FDM.
 
 - **Tray**: Printed bottom-down (the bottom is already flat at Z=0). With
-  `--supports`, three breakaway cross-braces span the tray opening from
-  front wall to back wall, keeping the long walls (363 mm) at correct spacing
-  during SLA UV cure. Snap them off after printing and lightly sand the
-  witness marks.
+  `--supports`, four internal rib walls are added inside the cavity, running
+  front-to-back. These grow simultaneously with the tray walls during the
+  SLA build, creating T-sections that resist the 363 mm long walls from
+  bowing under cure shrinkage. After post-cure: score each rib at the
+  front/back wall necks with a flush-cut saw, snap out, and lightly sand
+  the witness marks on the inner wall faces.
 
 ## Design Parameters (case.scad)
 
@@ -50,7 +52,7 @@ The main toggles in `case.scad` control which features are included:
 | `SHOW_TRAY` | `true` | Render the tray (bottom + walls) |
 | `SHOW_OVERLAY` | `true` | Render the overlay (top surface) |
 | `PRINT_MODE` | `false` | Re-orient pieces for 3D print export |
-| `PRINT_SUPPORTS` | `false` | Add breakaway braces to tray (print mode only) |
+| `PRINT_SUPPORTS` | `false` | Add internal anti-warp rib walls to tray (print mode only) |
 | `ENABLE_OVERLAY_RABBET` | `true` | Locating tongue/recess for X/Y registration |
 | `ENABLE_MAGNET_POCKETS` | `true` | Blind magnet pockets for overlay hold-down |
 | `ENABLE_DECORATIVE_TRIMS` | `true` | Debossed logos, pinstripe, initials |
