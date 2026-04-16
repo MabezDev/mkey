@@ -2016,11 +2016,16 @@ module case_tray_print() {
 //                      │        │        │        │
 //   back wall  ════════╧════════╧════════╧════════╧═══════
 //
-// REMOVAL after post-cure: score each rib at the front and back wall
-// junctions with a flush-cut saw or craft knife, snap out, and lightly
-// sand the 4 witness marks on each wall's inner face. The rib does NOT
-// touch the wall tops (it stops at wall_top − rib_top_gap) so no
-// sanding is needed on the overlay mating surface.
+// REMOVAL after post-cure: each rib is joined to the tray at three
+// surfaces — front wall, back wall, and floor. Every junction gets a
+// breakaway neck (rib thins from rib_t → rib_neck for rib_neck_len mm
+// measured away from the junction) AND is perforated into short
+// attachment segments with through-gaps between them, so cracks
+// don't have to propagate more than one segment-length cleanly.
+// Suggested sequence: score each exposed segment with a craft knife,
+// snap, repeat along each of the three seams, then lightly sand the
+// witness marks. The rib does NOT touch the wall tops (rib_top_gap)
+// so the overlay mating surface is untouched.
 //
 rib_t        = 1.5;    // rib thickness (X direction). Thin enough to score
                        // and snap, thick enough to print on SLA (≥ JLC3DP
@@ -2042,6 +2047,20 @@ rib_neck     = 1.0;    // breakaway neck thickness at front/back wall
                        // 1.0 mm keeps worst-case at 0.8 mm while remaining
                        // hand-snappable with flush cutters.
 rib_neck_len = 2.0;    // length of the thinned zone at each wall junction.
+
+// Perforation of the breakaway necks. A continuous 100 mm floor neck
+// is too long for an SLA crack to propagate cleanly — it tends to
+// wander out of the notch line. Punching through-gaps along each
+// neck breaks it into discrete short attachment segments, so any
+// one crack only has to travel ~1 segment before hitting a free
+// edge. Floor perf is aggressive (floor attachment doesn't carry
+// the anti-warp load — the wall T-section does). Wall perf is
+// deliberately minimal (a couple of gaps per wall) to preserve
+// the T-section bracing during the SLA build.
+floor_perf_count = 5;    // number of gaps along the floor neck
+floor_perf_len   = 4.0;  // length of each floor gap (mm, Y direction)
+wall_perf_count  = 2;    // number of gaps per wall neck
+wall_perf_len    = 2.0;  // length of each wall gap (mm, Z direction)
 
 // Rib X positions (case coords) — same slot-avoiding logic as before.
 // Placed at the midpoints of the widest gaps between front-wall and
@@ -2083,6 +2102,12 @@ module print_support_rib(cx) {
     h_front   = z_top_f - z_floor;
     h_back    = z_top_b - z_floor;
 
+    // Perforation segment lengths: total available run divided among
+    // (perf_count + 1) attachments separated by perf_count gaps.
+    floor_seg_y  = (span    - floor_perf_count * floor_perf_len) / (floor_perf_count + 1);
+    wall_seg_z_f = (h_front - wall_perf_count  * wall_perf_len)  / (wall_perf_count  + 1);
+    wall_seg_z_b = (h_back  - wall_perf_count  * wall_perf_len)  / (wall_perf_count  + 1);
+
     difference() {
         // Full rib slab
         translate([cx - rib_t / 2, y0, z_floor])
@@ -2112,6 +2137,47 @@ module print_support_rib(cx) {
                       rib_neck_len + 0.02,
                       h_back + 0.02]);
         }
+
+        // Breakaway neck at floor: thin the rib's bottom edge from rib_t
+        // to rib_neck for the first rib_neck_len mm of Z. Without this,
+        // the rib's full bottom edge (~100 mm) is fused to the floor and
+        // cannot be snapped out without destroying the floor finish.
+        // Spans the full Y length; overlaps harmlessly with the front/back
+        // wall necks in the corners.
+        for (side = [0, 1]) {
+            neck_cut_w = (rib_t - rib_neck) / 2;
+            translate([cx - rib_t / 2 + side * (rib_t - neck_cut_w) - 0.01 * (1 - side),
+                       y0 - 0.01,
+                       z_floor - 0.01])
+                cube([neck_cut_w + 0.01,
+                      span + 0.02,
+                      rib_neck_len + 0.01]);
+        }
+
+        // Floor neck perforations: punch full-width through-gaps along
+        // the floor neck so the continuous seam becomes discrete
+        // attachment segments. Each gap removes the rib entirely at
+        // floor level across floor_perf_len mm of Y.
+        for (i = [1 : floor_perf_count])
+            translate([cx - rib_t / 2 - 0.01,
+                       y0 + i * floor_seg_y + (i - 1) * floor_perf_len,
+                       z_floor - 0.01])
+                cube([rib_t + 0.02, floor_perf_len, rib_neck_len + 0.01]);
+
+        // Front wall neck perforations: Z-direction gaps splitting the
+        // front wall attachment into (wall_perf_count+1) segments.
+        for (i = [1 : wall_perf_count])
+            translate([cx - rib_t / 2 - 0.01,
+                       y0 - 0.01,
+                       z_floor + i * wall_seg_z_f + (i - 1) * wall_perf_len])
+                cube([rib_t + 0.02, rib_neck_len + 0.02, wall_perf_len]);
+
+        // Back wall neck perforations (mirror of front)
+        for (i = [1 : wall_perf_count])
+            translate([cx - rib_t / 2 - 0.01,
+                       y1 - rib_neck_len - 0.01,
+                       z_floor + i * wall_seg_z_b + (i - 1) * wall_perf_len])
+                cube([rib_t + 0.02, rib_neck_len + 0.02, wall_perf_len]);
     }
 }
 
