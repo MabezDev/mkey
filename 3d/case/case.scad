@@ -48,8 +48,8 @@ EXPLODE         = 2;       // set >0 to separate overlay from tray (mm)
 // When exporting STLs for manufacturing, set PRINT_MODE=true and render one
 // piece at a time (SHOW_TRAY xor SHOW_OVERLAY).
 PRINT_MODE      = false;   // flip to true (or pass -D) for STL export
-PRINT_SUPPORTS  = false;   // add breakaway cross-braces to tray for 3D printing
-                           // (prevents wall warping during SLA cure)
+PRINT_SUPPORTS  = false;   // add internal anti-warp rib walls to the tray cavity
+                           // (grow with the walls during SLA build, resist bowing)
 
 // ─── Feature toggles (per-fabrication-method overrides) ─────────────────────
 // DESIGN NOTE — why these are toggles:
@@ -1954,50 +1954,62 @@ module case_overlay_print() {
 
 // ─── Print-oriented tray ────────────────────────────────────────────────────
 // The tray bottom is already at Z=0 (flat), so no rotation is needed.
-// When PRINT_SUPPORTS is true, add breakaway cross-braces spanning the
-// cavity opening to hold the long walls at correct spacing during SLA cure.
+// When PRINT_SUPPORTS is true, add internal vertical rib walls inside
+// the cavity that grow simultaneously with the tray walls during the
+// SLA build, providing anti-warp support from the first layer onward.
 module case_tray_print() {
     case_tray_finished();
-    if (PRINT_SUPPORTS) print_support_braces();
+    if (PRINT_SUPPORTS) print_support_ribs();
 }
 
-// ─── Breakaway cross-braces ────────────────────────────────────────────────
-// Bars spanning front-to-back across the tray opening (Y direction, ~101 mm).
-// Placed at the midpoints of the widest gaps between gasket slot X-ranges
-// so that no brace caps a slot channel. Each bar sits on top of the tray
-// wall with a thin breakaway neck at each wall junction for knife removal.
+// ─── Internal anti-warp rib walls ──────────────────────────────────────────
+// Vertical rib walls inside the tray cavity, running front-to-back (Y).
+// Unlike the old cross-braces (which sat on top of the walls and only
+// existed in the final printed layers), these ribs grow SIMULTANEOUSLY
+// with the tray walls during the SLA build — every Z layer that adds
+// wall material also adds rib material, so anti-warp resistance is
+// present from the very first wall layer.
 //
-// PURPOSE: resist inward/outward bowing of the 363 mm front/back walls
-// during SLA UV post-cure. Resin shrinkage (~0.3%) over the 363 mm span
-// produces ~2 mm of mid-span deflection without braces; the 4 braces
-// divide the span into ~70–88 mm segments (theoretical deflection <0.1 mm).
-// The braces are temporary — cut them off with a flush-cut saw or X-Acto
-// knife after post-cure, then lightly sand the witness marks on the wall
-// tops before overlay fitment.
+// WHY they work: each rib creates a T-section where it meets the long
+// front/back walls. A 363 mm × 4.8 mm wall alone has poor bowing
+// resistance; adding a 1.5 mm perpendicular rib every ~70–88 mm
+// turns each wall segment into a T-beam, dramatically increasing the
+// second moment of area about the bowing axis. The ribs also link
+// the front and back walls into a rigid diaphragm, resisting racking.
 //
-// Cross-section (looking along Y):
+// Cross-section (plan view, looking down from +Z):
 //
-//     ┌──────────────────────────┐  ← brace top (wall_top + brace_h)
-//     │    solid brace bar       │  } brace_h
-//     └──┐                    ┌──┘  ← wall_top (tray wall cheek)
-//        │  neck (0.8mm tall) │     } breakaway thinning at wall junction
-//        └────────────────────┘
+//   front wall ════════╤════════╤════════╤════════╤═══════ ← 4.8 mm wall
+//                      │        │        │        │
+//                      │ rib 1  │ rib 2  │ rib 3  │ rib 4  ← 1.5 mm ribs
+//                      │        │        │        │
+//   back wall  ════════╧════════╧════════╧════════╧═══════
 //
-// Bending stiffness of the brace beam resisting lateral wall force:
-//   I = brace_w · brace_h³ / 12.  At 3 × 4 mm: I = 16.0 mm⁴.
-//   (Old 2 × 1.5 mm: I = 0.56 mm⁴ — 29× weaker, essentially no resistance.)
+// REMOVAL after post-cure: score each rib at the front and back wall
+// junctions with a flush-cut saw or craft knife, snap out, and lightly
+// sand the 4 witness marks on each wall's inner face. The rib does NOT
+// touch the wall tops (it stops at wall_top − rib_top_gap) so no
+// sanding is needed on the overlay mating surface.
 //
-brace_w     = 3.0;    // width of each brace bar (X direction)
-brace_h     = 4.0;    // height above wall top (Z direction). Sized so the
-                      // brace cross-section (3 × 4 mm, I = 16 mm⁴) has
-                      // meaningful bending stiffness over the ~101 mm span.
-brace_neck  = 0.8;    // breakaway neck height at wall junction (Z direction).
-                      // Set to JLC3DP SLA minimum feature size — prints
-                      // cleanly and separates with a knife or flush-cut saw.
-// Brace X positions (case coords). Placed at the midpoints of the widest
-// gaps between front-wall and back-wall gasket slot X-ranges so that no
-// brace sits on top of (and fills in) the open-top slot channel that
-// the plate tabs need to descend through.
+rib_t        = 1.5;    // rib thickness (X direction). Thin enough to score
+                       // and snap, thick enough to print on SLA (≥ JLC3DP
+                       // 0.8 mm minimum). 1.5 mm also matches the tongue
+                       // cross-section, so the rib is comfortably above
+                       // the fabricable floor.
+rib_top_gap  = 0.5;    // gap between rib top and wall top (mm). Keeps the
+                       // rib below the overlay mating cheek so no witness
+                       // marks land on the seam surface. Also makes the
+                       // rib slightly easier to grip with pliers for
+                       // snap-out.
+rib_neck     = 0.8;    // breakaway neck thickness at front/back wall
+                       // junctions (Y direction). For the first/last
+                       // `rib_neck_len` mm the rib thins to this width,
+                       // creating a weak line for clean snap-off.
+rib_neck_len = 2.0;    // length of the thinned zone at each wall junction.
+
+// Rib X positions (case coords) — same slot-avoiding logic as before.
+// Placed at the midpoints of the widest gaps between front-wall and
+// back-wall gasket slot X-ranges so no rib crosses a slot channel.
 //
 // Slot X extents (case coords, each ±(tab_len+slot_tol)/2 = ±10.3 mm):
 //   Front: [35.2, 55.8]  [132.5, 153.1]  [224.5, 245.1]  [309.5, 330.1]
@@ -2006,48 +2018,57 @@ brace_neck  = 0.8;    // breakaway neck height at wall junction (Z direction).
 // Available gaps (sorted by X):
 //   [55.8, 87.3] → mid 71.5      [107.9, 132.5] → mid 120.2
 //   [191.1, 224.5] → mid 207.8   [279.4, 309.5] → mid 294.5
-brace_cx = [71.5, 120.2, 207.8, 294.5];
+rib_cx = [71.5, 120.2, 207.8, 294.5];
 
-module print_support_braces() {
-    for (cx = brace_cx)
-        print_support_brace(cx);
+module print_support_ribs() {
+    for (cx = rib_cx)
+        print_support_rib(cx);
 }
 
-module print_support_brace(cx) {
-    // The bar spans from front wall to back wall, overlapping 0.5 mm into
-    // each wall so the union with the tray body is a single connected solid.
-    wall_lap = 0.5;  // overlap into the wall for solid union
-    y0   = wall_t - wall_lap;
-    y1   = outer_d - wall_t + wall_lap;
+module print_support_rib(cx) {
+    // The rib spans the full cavity depth (front inner wall to back inner
+    // wall), growing from the floor up to just below the wall top.
+    y0 = wall_t;                    // front inner wall face
+    y1 = outer_d - wall_t;         // back inner wall face
     span = y1 - y0;
 
-    // Main brace bar (sitting on the wall top tilted plane)
+    // Rib heights at front and back (follows the tilt, with rib_top_gap
+    // clearance below the wall top to avoid the overlay mating surface).
+    z_floor   = bottom_t;
+    z_top_f   = top_z(y0) - top_t - rib_top_gap;   // wall top at front − gap
+    z_top_b   = top_z(y1) - top_t - rib_top_gap;   // wall top at back − gap
+    h_front   = z_top_f - z_floor;
+    h_back    = z_top_b - z_floor;
+
     difference() {
-        // Solid bar from Z=0 up to wall_top + brace_h
-        translate([cx - brace_w / 2, y0, 0])
-            wedge_box(brace_w, span,
-                      top_z(y0) - top_t + brace_h,
-                      top_z(y1) - top_t + brace_h);
+        // Full rib slab
+        translate([cx - rib_t / 2, y0, z_floor])
+            wedge_box(rib_t, span, h_front, h_back);
 
-        // Remove everything below wall top (keep only the brace_h slab)
-        translate([cx - brace_w / 2 - 0.01, y0 - 0.01, 0])
-            wedge_box(brace_w + 0.02, span + 0.02,
-                      top_z(y0) - top_t,
-                      top_z(y1) - top_t);
+        // Breakaway neck at front wall: remove material from the rib
+        // sides (X direction) for the first rib_neck_len mm, leaving
+        // only the central rib_neck mm. This creates a thin web that
+        // scores and snaps cleanly.
+        for (side = [0, 1]) {
+            neck_cut_w = (rib_t - rib_neck) / 2;
+            translate([cx - rib_t / 2 + side * (rib_t - neck_cut_w) - 0.01 * (1 - side),
+                       y0 - 0.01,
+                       z_floor - 0.01])
+                cube([neck_cut_w + 0.01,
+                      rib_neck_len + 0.02,
+                      h_front + 0.02]);
+        }
 
-        // Breakaway neck at front wall: thin the brace to brace_neck height
-        // for the first few mm inside the cavity (starting at the inner face)
-        neck_len = 3.0;  // how far the thinning extends into the cavity
-        translate([cx - brace_w / 2 - 0.01,
-                   wall_t,
-                   top_z(wall_t) - top_t + brace_neck])
-            cube([brace_w + 0.02, neck_len, brace_h]);
-
-        // Breakaway neck at back wall
-        translate([cx - brace_w / 2 - 0.01,
-                   outer_d - wall_t - neck_len,
-                   top_z(outer_d - wall_t - neck_len) - top_t + brace_neck])
-            cube([brace_w + 0.02, neck_len, brace_h]);
+        // Breakaway neck at back wall (same pattern)
+        for (side = [0, 1]) {
+            neck_cut_w = (rib_t - rib_neck) / 2;
+            translate([cx - rib_t / 2 + side * (rib_t - neck_cut_w) - 0.01 * (1 - side),
+                       y1 - rib_neck_len - 0.01,
+                       z_floor - 0.01])
+                cube([neck_cut_w + 0.01,
+                      rib_neck_len + 0.02,
+                      h_back + 0.02]);
+        }
     }
 }
 
