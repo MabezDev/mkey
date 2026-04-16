@@ -1705,7 +1705,11 @@ deco_stripe_width  = 0.8;    // groove width in the plane of the top face
 
 // Owner initials + year plate
 deco_initials_size   = 6.0;                          // mm cap height (initials row)
-deco_year_size       = 3.8;                          // mm cap height (year row)
+deco_year_size       = 5.0;                          // mm cap height (year row)
+                                                      // Grown from 3.8 → 5.0: at 3.8 mm the thinnest
+                                                      // strokes of "2026" in Liberation Sans Bold are
+                                                      // ~0.6–0.7 mm, below the JLC3DP 0.8 mm engraved-
+                                                      // detail minimum. At 5.0 mm all strokes ≥ 0.8 mm.
 deco_stamp_row_gap   = 1.2;                          // mm gap between the two rows
 deco_initials_font   = "Liberation Sans:style=Bold";
 deco_initials_y_frac = 0.5;                          // 0 = front, 1 = back
@@ -1774,9 +1778,11 @@ module deco_edge_pinstripe() {
 
 // ─── Owner initials + year plate ────────────────────────────────────────────
 // Two stacked text rows debossed into the tray bottom: DECO_INITIALS on top,
-// DECO_YEAR below. Mirrored in X so the stack reads correctly when the case
-// is flipped over the X axis (toward the viewer). Placed in the middle of the
-// underside, clear of the four bottom pad recesses.
+// DECO_YEAR below. Mirrored in Y so the stack reads correctly when the case
+// is flipped over the X axis (toward the viewer): that physical rotation
+// maps (x,y,z)→(x,−y,−z), negating Y but preserving X, so a Y-mirror
+// pre-compensates the vertical inversion of the glyphs. Placed in the middle
+// of the underside, clear of the four bottom pad recesses.
 module deco_owner_initials() {
     x_center = outer_w / 2;
     y_center = outer_d * deco_initials_y_frac;
@@ -1789,7 +1795,7 @@ module deco_owner_initials() {
     dy_year     = -total_h / 2;                       // baseline of year row
 
     translate([x_center, y_center, -0.01])
-        mirror([1, 0, 0])
+        mirror([0, 1, 0])
             linear_extrude(height = deco_cut_depth + 0.02) {
                 translate([0, dy_initials])
                     text(DECO_INITIALS,
@@ -1970,7 +1976,12 @@ module case_tray_print() {
 //
 brace_w     = 2.0;    // width of each brace bar (X direction)
 brace_h     = 1.5;    // height above wall top (Z direction)
-brace_neck  = 0.4;    // thin neck width at wall junction (Y direction)
+brace_neck  = 0.8;    // thin neck width at wall junction (Y direction)
+                      // Grown from 0.4 → 0.8: 0.4 mm is below JLC3DP SLA's
+                      // minimum feature size and may not resolve in the print
+                      // or may print solid, defeating the breakaway purpose.
+                      // At 0.8 mm the neck prints cleanly and can be separated
+                      // with an X-Acto knife along the wall-brace junction.
 brace_count = 3;      // number of braces
 
 module print_support_braces() {
