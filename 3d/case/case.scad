@@ -288,20 +288,8 @@ overlay_wall_t = 4.8;   // wall thickness for overlay and inner geometry
 tray_wall_t    = 5.3;   // wall thickness for tray outer shell (extend outward)
 tray_ext       = tray_wall_t - overlay_wall_t;  // 0.5mm outward extension
 wall_t         = overlay_wall_t;  // alias for backward compat (inner geometry)
-bottom_t  = 5.0;    // bottom plate thickness (bumped 3.5 → 5.0 for extra rigidity)
-top_t     = 5.0;    // top surface thickness (display cover area).
-                    // Bumped from 3.0 → 5.0 to stiffen the 4.16 mm main-field ↔
-                    // arrow-L/D/R rib, which is the weakest cross-section in
-                    // the overlay. Section modulus scales as thickness²:
-                    // (5/3)² = 2.78× bending stiffness on that rib at zero
-                    // layout cost. Downside: display glass recess grows from
-                    // 1.44 mm (top_t=3) to 3.44 mm (top_t=5), a deeper well.
-                    // ALSO: fabricate the overlay blank with grain running
-                    // along Y (front-to-back, ~110 mm direction), not X — the
-                    // 4.16 mm rib and the 23 mm row3↔arrow-UP bezel both run
-                    // in Y, so Y-grain makes them along-grain (~6× ⊥→∥
-                    // hardwood strength jump). Combined the rib is ~17×
-                    // stronger than the unfixed baseline.
+bottom_t  = 3.0;    // bottom plate thickness
+top_t     = 3.5;    // top surface thickness (display cover area)
 
 // ─── Internal ────────────────────────────────────────────────────────────────
 plate_recess     = 2.0;    // plate top sits this far below the TRAY WALL TOP
@@ -478,9 +466,8 @@ function magnet_positions() = [
 // SECTION 5: DERIVED DIMENSIONS
 // =============================================================================
 
-// Total depth below plate surface
-depth_below = switch_depth + pin_depth + pcb_t + component_h + bottom_clearance;
-// = 5.0 + 3.3 + 1.6 + 3.5 + 2.0 = 15.4 mm
+// Total depth below plate surface (measured from plate bottom to lowest component + clearance)
+depth_below = 8.5;  // empirical: 7mm measured + 1.5mm clearance
 
 // Total internal height from case floor to case top.
 // Stack-up, bottom to top:
