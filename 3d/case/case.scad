@@ -337,6 +337,7 @@ tray_corner_r    = 0.75;   // outer corner radius of tray (overridden by chamfer
 // Primary chamfer on top edges, secondary edge break on all sharp edges.
 chamfer_top_primary   = 1.2;   // mm, 45° chamfer on overlay/tray top edges (1.0-1.5 spec)
 chamfer_edge_break    = 0.2;   // mm, minimum chamfer on all remaining sharp edges
+chamfer_back_bottom   = 10.0;  // mm, large triangular chamfer on tray bottom back edge (must be < pad_inset)
 ENABLE_CHAMFERS       = true;  // master switch for all chamfer geometry
 
 // ─── Overlay locating rabbet (optional, ENABLE_OVERLAY_RABBET) ──────────────
@@ -2030,8 +2031,11 @@ module overlay_body_chamfered() {
 // ─── Chamfered tray outer shell ─────────────────────────────────────────────
 // Creates the tray outer shell with chamfered VERTICAL and BOTTOM edges.
 // Top edges remain sharp for overlay seating.
+// Back bottom edge has a much larger chamfer (chamfer_back_bottom) for a
+// triangular cutout look, while sides stay at chamfer_top_primary.
 module tray_outer_shell_chamfered() {
     c = chamfer_top_primary;
+    cb = chamfer_back_bottom;  // large back chamfer
     w = outer_w + 2*tray_ext;
     d = outer_d + 2*tray_ext;
 
@@ -2045,30 +2049,31 @@ module tray_outer_shell_chamfered() {
         ]);
     }
 
-    // 2D footprint shrunk by chamfer amount (for bottom)
+    // 2D footprint shrunk for bottom surface - sides shrink by c, back shrinks by cb
     module tray_footprint_shrunk() {
         polygon([
-            [c + c, c], [w - c - c, c],
-            [w - c, c + c], [w - c, d - c - c],
-            [w - c - c, d - c], [c + c, d - c],
-            [c, d - c - c], [c, c + c]
+            [c + c, c], [w - c - c, c],           // front edge (shrunk by c)
+            [w - c, c + c], [w - c, d - cb - c],  // right edge (back corner uses cb)
+            [w - c - c, d - cb], [c + c, d - cb], // back edge (shrunk by cb)
+            [c, d - cb - c], [c, c + c]           // left edge (back corner uses cb)
         ]);
     }
 
     translate([-tray_ext, -tray_ext, 0])
     union() {
-        // Bottom chamfer: hull from shrunk footprint at Z=0 to full at Z=c
+        // Bottom chamfer: hull from shrunk footprint at Z=0 to full at Z=cb
+        // This creates the triangular back chamfer while keeping sides at c
         hull() {
             linear_extrude(height = 0.01)
                 tray_footprint_shrunk();
-            translate([0, 0, c])
+            translate([0, 0, cb])
                 linear_extrude(height = 0.01)
                     tray_footprint_chamfered();
         }
         // Upper body: wedge with chamfered-corner footprint
         intersection() {
-            translate([0, 0, c])
-                wedge_box(w, d, front_h - top_t - c, back_h - top_t - c);
+            translate([0, 0, cb])
+                wedge_box(w, d, front_h - top_t - cb, back_h - top_t - cb);
             linear_extrude(height = back_h)
                 tray_footprint_chamfered();
         }
