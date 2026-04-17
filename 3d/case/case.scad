@@ -229,7 +229,7 @@ usb_opening_h = 3.26;               // receptacle opening height
 // =============================================================================
 
 // ─── Tilt ────────────────────────────────────────────────────────────────────
-tilt_angle = 5;   // degrees, back raised
+tilt_angle = 6;   // degrees, back raised
 
 // ─── Tolerances ──────────────────────────────────────────────────────────────
 plate_gap     = 0.5;    // clearance between plate edge and inner wall (per side)
@@ -288,7 +288,7 @@ overlay_wall_t = 4.8;   // wall thickness for overlay and inner geometry
 tray_wall_t    = 5.3;   // wall thickness for tray outer shell (extend outward)
 tray_ext       = tray_wall_t - overlay_wall_t;  // 0.5mm outward extension
 wall_t         = overlay_wall_t;  // alias for backward compat (inner geometry)
-bottom_t  = 3.5;    // bottom plate thickness
+bottom_t  = 5.0;    // bottom plate thickness (bumped 3.5 → 5.0 for extra rigidity)
 top_t     = 5.0;    // top surface thickness (display cover area).
                     // Bumped from 3.0 → 5.0 to stiffen the 4.16 mm main-field ↔
                     // arrow-L/D/R rib, which is the weakest cross-section in
