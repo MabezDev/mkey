@@ -76,3 +76,48 @@ ENABLE_DECORATIVE_TRIMS = false;
 PRINT_MODE = false;
 PRINT_SUPPORTS = false;
 ```
+
+## Assembly
+
+### Gasket install order
+
+The plate is gasket-mounted: each of the 9 tabs is sandwiched between two
+gasket strips inside its wall slot. Order matters — the plate cannot be
+seated if the top gaskets are placed first.
+
+1. **Bottom gaskets first.** Press a gasket strip into the bottom of each
+   of the 9 slots before the plate goes in. These rest at the bottom of
+   each slot, below where the tab will sit.
+2. **Drop the plate in.** Lower the plate so every tab descends through
+   the open slot top and lands on its bottom gasket.
+3. **Top gaskets second.** Press a second gasket strip onto the top of
+   each tab, filling the remaining slot height.
+4. **Overlay caps the stack.** Seating the overlay on the wall tops
+   closes the open-top slots and compresses the top gaskets against the
+   tabs, which compresses the tabs against the bottom gaskets.
+
+### Magnet polarity
+
+The overlay is held to the tray by six Ø2×1 mm N52 disc magnet pairs —
+one per tray pocket and one per matching overlay pocket. Each pair must
+**attract**, not repel, or the overlay will kick itself off the seat.
+
+1. **Pick a reference magnet** from the bag and mark one face (dab of
+   paint, sharpie dot). Set it aside.
+2. **Tray magnets** — install every magnet with the **same face up** as
+   the reference. Before each press-fit, hold the magnet face-up next to
+   the reference: if they repel, flip it.
+3. **Overlay magnets** — install with the **opposite face up**. When the
+   overlay is flipped onto the tray, each overlay magnet then presents
+   the attracting pole downward toward its tray mate. Test by holding
+   the magnet with its eventual-up face touching the reference's
+   marked face: it should **attract**.
+4. **Retain with thin CA glue.** Pockets are press-fit (magnet Ø2.0 +
+   JLC3DP ±0.3 mm hole slop → nominal Ø2.5 pocket), but a drop of CA
+   prevents walk-out under thermal cycling or drop shock.
+
+**Test before any glue cures.** With all 12 magnets placed but still
+removable, lower the overlay onto the tray dry (no gaskets, no plate).
+All six pairs should click together. If any pair repels, pop that
+magnet out and flip it — catching this before the CA sets is much
+cheaper than after.

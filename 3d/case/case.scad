@@ -372,16 +372,18 @@ overlay_corner_r = 3.0;    // outer corner radius of overlay
 // therefore has up to 9 + 4 = 13 gaps; each remaining segment is still
 // fully supported by solid wall material and separated from every
 // neighbouring gap by several mm of wood (asserted below).
-rabbet_w = 2.0;      // ring width in the wall-depth direction (outer ring
+rabbet_w = 2.2;      // ring width in the wall-depth direction (outer ring
                      // of wood/resin removed from the wall top). The
-                     // tongue itself is `rabbet_w − 2·rabbet_tol` = 1.5 mm
+                     // tongue itself is `rabbet_w − 2·rabbet_tol` = 1.7 mm
                      // wide. Must leave a ≥1.5 mm rest cheek for the
                      // overlay outboard of the tongue (wall_t − rabbet_w
-                     // = 2.8 mm here, well above the floor).
-                     // Grown from 1.8 → 2.0 in the 2026-04-14 JLC3DP
-                     // review so the tongue cross-section meets JLC3DP's
-                     // 1.5 mm recommended minimum for positioning/snap
-                     // features on SLA.
+                     // = 2.6 mm here, well above the floor).
+                     // Grown 1.8 → 2.0 in the 2026-04-14 JLC3DP review
+                     // so the tongue met JLC3DP's 1.5 mm snap-feature
+                     // recommendation exactly. Grown 2.0 → 2.2 in the
+                     // 2026-04-17 review to add 0.2 mm margin over that
+                     // floor — absorbs the full ±0.2 mm SLA fab slop
+                     // so the printed tongue never narrows below 1.5 mm.
 rabbet_h = 1.5;      // tongue height above the wall top (= recess depth
                      // into the overlay underside). Grown from 1.0 → 1.5
                      // in the 2026-04-14 JLC3DP review to meet the same
@@ -402,15 +404,27 @@ notch_margin = 0.5;  // extra plan-view clearance added around each slot
 // or epoxied into each pocket; tray and overlay magnets attract across the
 // rabbet seam and hold the overlay down.
 //
-// Default sizing targets 3 mm Ø × 2 mm N52 discs (pull force ≈ 300 g each;
-// 4 of them give ~1.2 kg of holding force — plenty for a 5° tilted keyboard
-// that only has to fight gravity + light typing vibration). Larger magnets
-// won't fit: the 4.8 mm wall can't host a 5 mm pocket without knife-edge
-// cheeks that would crumble in hardwood.
-magnet_d      = 3.2;    // pocket diameter. 3.0 mm nominal magnet + 0.2 mm
-                        // press-fit/epoxy slop.
-magnet_depth  = 2.2;    // pocket depth (Z). 2.0 mm nominal magnet + 0.2 mm
-                        // so the magnet sits flush or very slightly recessed.
+// Default sizing targets 2 mm Ø × 1 mm N52 discs (pull force ≈ 80 g each;
+// 6 of them give ~480 g of holding force — plenty for a 5° tilted keyboard
+// that only has to fight gravity + light typing vibration).
+//
+// Downsized from Ø3×2 → Ø2×1 in the 2026-04-17 JLC3DP pre-fab review:
+// JLC3DP SLA hole-feature tolerance is ±0.3 mm (not the ±0.2 mm used for
+// ordinary dimensional features). With the prior Ø3.2 mm pocket that
+// tolerance meant a worst-case 2.9 mm bore — tighter than the 3.0 mm
+// magnet — so the magnet literally could not drop in. Enlarging the
+// pocket to clear that rule (3.5 mm nominal) would have dropped the wall
+// cheek to 0.65 mm nominal / 0.45 mm worst case, below JLC3DP's 0.8 mm
+// wall-thickness floor for small features. The fix is to shrink the
+// magnet instead: an Ø2 mm magnet in an Ø2.5 mm pocket clears the ±0.3 mm
+// hole rule with 0.2 mm slop AND leaves a 1.15 mm nominal wall cheek
+// (0.95 mm worst case — comfortably above the 0.8 mm wall floor).
+magnet_d      = 2.5;    // pocket diameter. 2.0 mm nominal magnet + 0.3 mm
+                        // JLC3DP hole-tolerance allowance + 0.2 mm epoxy slop.
+magnet_depth  = 2.0;    // pocket depth (Z). Meets JLC3DP's Ø↔depth minimum
+                        // (h ≥ Ø for small holes: Ø2.0 → h ≥ 2.0 mm) and
+                        // fully captures the 1 mm-thick magnet with 1 mm
+                        // of epoxy/slop headroom above.
 magnet_inset  = 13;     // distance from case OUTER corner to magnet center,
                         // measured along the front/back wall axis. Keeps the
                         // magnet clear of the corner rounding AND clear of the
@@ -422,15 +436,28 @@ magnet_inset  = 13;     // distance from case OUTER corner to magnet center,
                         // at 15 mm the right-back magnet sat only 1.04 mm from
                         // the USB cutout edge, inside the ±0.2 mm hand-fab slop
                         // budget; 13 mm restores a 3 mm cheek).
-// Magnets are placed by the `magnet_positions` function (one pair per corner)
-// so a different layout can be substituted without touching any module. It
-// is a function rather than a top-level list because it depends on
-// `outer_w` / `outer_d` which are computed in SECTION 5 below.
+
+// Middle-wall magnet pair (added 2026-04-17): a 5th and 6th magnet pair
+// placed at the MIDDLE of the front and back walls to hold the long span
+// of the overlay down and resist mid-wall bow. The front-wall middle sits
+// at true outer_w/2, in a clean 92 mm gap between front tabs 2 and 3.
+// The back-wall middle would collide with back tab 2 at X=180.84 if placed
+// at true middle; `back_mid_offset` nudges it right into the clean gap
+// between back tab 2 and back tab 3, preserving ≥8 mm of tongue between
+// the magnet notch and the nearest slot notch (above MAG_NOTCH_SEP=1 mm).
+back_mid_offset = 20;
+
+// Magnets are placed by the `magnet_positions` function so a different
+// layout can be substituted without touching any module. It is a function
+// rather than a top-level list because it depends on `outer_w` / `outer_d`
+// which are computed in SECTION 5 below.
 function magnet_positions() = [
-    [magnet_inset,             wall_t / 2],              // front-left
-    [outer_w - magnet_inset,   wall_t / 2],              // front-right
-    [magnet_inset,             outer_d - wall_t / 2],    // back-left
-    [outer_w - magnet_inset,   outer_d - wall_t / 2],    // back-right
+    [magnet_inset,                     wall_t / 2],              // front-left
+    [outer_w - magnet_inset,           wall_t / 2],              // front-right
+    [magnet_inset,                     outer_d - wall_t / 2],    // back-left
+    [outer_w - magnet_inset,           outer_d - wall_t / 2],    // back-right
+    [outer_w / 2,                      wall_t / 2],              // front-middle
+    [outer_w / 2 + back_mid_offset,    outer_d - wall_t / 2],    // back-middle (offset to clear back tab 2)
 ];
 
 // =============================================================================
@@ -1149,8 +1176,8 @@ module gasket_slot_footprints_2d(margin) {
 // the tongue ring in plan view (the ring runs along the inner edge of the
 // wall, the pockets are drilled roughly mid-wall). Without notches the
 // tongue ends up bridging over the pocket — structurally sound in 3D print
-// but physically impossible in hand-cut hardwood (a 3.2 mm drill would
-// shear the 1.3 mm wide tongue where it passes over each pocket).
+// but physically impossible in hand-cut hardwood (a 2.5 mm drill would
+// shear the 1.5 mm wide tongue where it passes over each pocket).
 //
 // Each magnet is classified by which wall it belongs to, then a rectangle
 // is emitted that cuts cleanly through the full width of the tongue ring
@@ -1253,7 +1280,7 @@ module overlay_recess_3d() {
 // the cylinder length by the tilt drift so the full `magnet_depth` is
 // preserved at the OTHER extreme. Result: clean hole through the tilted
 // plane everywhere in the pocket footprint.
-magnet_tilt_drift = magnet_d * tan(tilt_angle);   // ≈ 0.28 mm for Ø3.2, 5°
+magnet_tilt_drift = magnet_d * tan(tilt_angle);   // ≈ 0.22 mm for Ø2.5, 5°
 magnet_cyl_h      = magnet_depth + magnet_tilt_drift + 0.2;   // ≈ 2.68 mm
 
 // top_z() is monotonic in y (5° tilt, increasing toward the back), so the
@@ -1725,32 +1752,43 @@ deco_cut_depth = 1.0;    // shared depth for every engraved/embossed feature.
 
 // Overlay edge pinstripe (a hairline-looking groove just inside the outer edge)
 deco_stripe_inset  = 1.2;    // mm in from the overlay outer edge
-deco_stripe_width  = 0.9;    // groove width in the plane of the top face.
-                             // 0.1 mm above JLC3DP 0.8 mm minimum so that
-                             // ±0.2 mm fab slop doesn't thin the printed
-                             // groove below the readable floor. Grown from
-                             // 0.8 → 0.9 in the 2026-04-16 review.
+deco_stripe_width  = 1.0;    // groove width in the plane of the top face.
+                             // 0.2 mm above JLC3DP 0.8 mm minimum so the
+                             // full ±0.2 mm fab slop fits inside the margin
+                             // — worst-case printed groove still at floor,
+                             // nominal well above. Grown 0.8 → 0.9 in the
+                             // 2026-04-16 review, then 0.9 → 1.0 in the
+                             // 2026-04-17 pre-fab review.
 
 // Owner initials + year plate
 deco_initials_size   = 6.0;                          // mm cap height (initials row)
-deco_year_size       = 5.5;                          // mm cap height (year row)
-                                                      // Grown from 5.0 → 5.5 in the 2026-04-16 review:
+deco_year_size       = 6.0;                          // mm cap height (year row)
                                                       // Liberation Sans Bold stem ≈ 0.15·cap-height,
-                                                      // giving 0.75 mm strokes at 5.0 mm — borderline
-                                                      // against the JLC3DP 0.8 mm floor. At 5.5 mm
-                                                      // strokes reach ~0.83 mm with 0.03 mm margin.
-                                                      // Earlier: 3.8 → 5.0 (strokes at 3.8 were below
-                                                      // the 0.8 mm floor).
+                                                      // so stroke ≈ 0.90 mm at 6.0 mm — 0.10 mm
+                                                      // above the JLC3DP 0.8 mm floor, enough to
+                                                      // survive half the ±0.2 mm fab slop on each
+                                                      // side of the glyph edge. Grown 3.8 → 5.0
+                                                      // → 5.5 → 6.0 across successive pre-fab
+                                                      // reviews (latest: 2026-04-17).
 deco_stamp_row_gap   = 1.2;                          // mm gap between the two rows
 deco_initials_font   = "Liberation Sans:style=Bold";
 deco_initials_y_frac = 0.5;                          // 0 = front, 1 = back
 
 // Logo above the display
 deco_logo_chip_size   = 7.0;                         // chip icon outer square, mm
-deco_logo_chip_border = 0.9;                         // chip frame stroke, mm
+deco_logo_chip_border = 1.0;                         // chip frame stroke, mm.
+                                                      // 0.2 mm above JLC3DP 0.8 mm engraved-detail
+                                                      // floor so ±0.2 mm fab slop doesn't thin the
+                                                      // frame into an unreadable hairline. Grown
+                                                      // 0.9 → 1.0 in the 2026-04-17 pre-fab review.
 deco_logo_chip_inner  = 2.4;                         // inner solid square side, mm
 deco_logo_text        = "mKey";
-deco_logo_text_size   = 5.5;                         // cap height, mm
+deco_logo_text_size   = 6.0;                         // cap height, mm. Liberation Sans Bold stem
+                                                      // ≈ 0.15·cap-height, so stroke ≈ 0.90 mm —
+                                                      // 0.10 mm above the 0.8 mm readable floor.
+                                                      // Grown 5.5 → 6.0 in the 2026-04-17 review.
+                                                      // Ref-size constants below remain anchored
+                                                      // at 5.5; text_w scales linearly.
 deco_logo_text_gap    = 1.8;                         // chip ↔ text gap, mm
 deco_logo_font        = "Liberation Sans:style=Bold";
 
