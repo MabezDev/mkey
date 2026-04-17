@@ -1422,9 +1422,13 @@ module case_complete() {
 // (typically 1-2 mm radius) so this does not affect key travel.
 
 // 2D footprint of the key opening with rounded corners.
+// Both convex (outer) and concave (inner) corners are rounded:
+//   offset(r=-r) offset(delta=r) rounds concave corners (e.g., arrow T-junction)
+//   offset(r=r) offset(delta=-r) rounds convex corners (e.g., rectangle corners)
 module key_opening_2d() {
     t = key_cap_clearance;
     offset(r = key_corner_r) offset(delta = -key_corner_r)
+    offset(r = -key_corner_r) offset(delta = key_corner_r)
         for (r = key_rects) {
             x1 = r[0] - t;  y1 = r[1] - t;
             x2 = r[2] + t;  y2 = r[3] + t;
