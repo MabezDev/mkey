@@ -60,6 +60,105 @@ The main toggles in `case.scad` control which features are included:
 | `ENABLE_MAGNET_POCKETS` | `true` | Blind magnet pockets for overlay hold-down |
 | `ENABLE_DECORATIVE_TRIMS` | `true` | Debossed logos, pinstripe, initials |
 
+## JLC3DP SLA submission notes
+
+Paste the following instructions into the JLC3DP order-note / manufacturer-
+instructions field when uploading `mkey_tray.stl` and `mkey_overlay.stl`.
+Missing any of these will compromise fit or finish.
+
+> Two-piece keyboard case, SLA standard resin.
+>
+> **TRAY (mkey_tray.stl):**
+> - Orient bottom-face DOWN on the build plate (the flat ~363 × 111 mm face).
+>   Walls up, cavity open upward.
+> - Internal anti-warp ribs are already modelled inside the cavity — **do
+>   not add factory supports inside the cavity.** Factory supports on the
+>   outer side walls and outer bottom are acceptable.
+> - The outer left and right side walls each carry a debossed "mKey" logo
+>   centred at mid-height, mid-length (~30 × 7 mm footprint). Please keep
+>   factory support contact points clear of that debossed region if possible.
+> - **Apply X-axis scale compensation on this piece** — it is a 363 mm long
+>   part with critical tab-alignment slot features at both X extremes.
+>
+> **OVERLAY (mkey_overlay.stl):**
+> - Orient cosmetic-face DOWN on the build plate (the face with the key
+>   openings and display window). The underside, which carries the magnet
+>   pockets, faces up.
+> - Place factory supports **only on the outer vertical side walls.** No
+>   point supports on the downward-facing cosmetic face (key openings,
+>   display window rim, pinstripe groove) and no supports inside the magnet
+>   pockets or display pocket on the up-facing underside. A raft under the
+>   cosmetic face is acceptable provided the pinstripe groove and key
+>   openings drain during post-processing (we IPA-flush these on our end).
+> - **Apply X-axis scale compensation on this piece as well** — it must
+>   register into the tray's locating rabbet at both X extremes; asymmetric
+>   scaling would prevent the two pieces mating.
+>
+> Please confirm orientations in the prep screenshots before starting the
+> build.
+
+**Why X-scale compensation is mandatory:** JLC3DP SLA has ±0.3% length
+tolerance above 100 mm. At the 363 mm case X-axis that's ±1.09 mm worst
+case, which would exceed the 0.6 mm slot tolerance on the outermost plate
+tabs and shift the USB cutout off the receptacle body. With compensation,
+residual drift is expected to stay inside the designed tolerances.
+
+## Hand-finishing (post-delivery)
+
+Order of operations when the parts arrive from JLC3DP:
+
+1. **Inspect and photograph** factory support locations before removing
+   anything — useful if a part has to be reordered.
+2. **IPA-flush the resin-trap zones** with isopropanol and a soft brush
+   *before* the final UV cure, if the factory hasn't already. These are
+   recesses that sat against the build plate and may hold uncured resin:
+    - Tray bottom underside: the `SM / 2026` owner-initials deboss.
+    - Overlay cosmetic face: the pinstripe groove and (if enabled) the
+      `DECO_LOGO_TOP` deboss.
+3. **Snap off factory supports** from the tray bottom raft, tray outer
+   walls, and overlay outer vertical walls. Expect witness nubbins —
+   sand flat.
+4. **Flush-sand the tray bottom** (raft side) with 120 → 240 → 400 grit,
+   checking `SM / 2026` deboss legibility under raking light. Stop when
+   legible; the 1.0 mm deboss depth tolerates ~0.3 mm of surface removal
+   before legibility degrades.
+5. **Light-sand the overlay outer vertical walls** (400 grit) to clean
+   support nubbins. The cosmetic face should need only 800–1200 grit
+   touch-up where any micro-support witness remains.
+6. **Break the window edge** on the overlay with a fine file: the 1.0 mm
+   shelf_frame_x on the display window long edges is at the brittle-
+   fracture boundary under direct fingernail pressure during cleaning.
+   A 0.2–0.3 mm edge break at all four window corners and edges
+   multiplies its real-world durability.
+
+### Anti-warp rib breakaway (tray)
+
+The tray ships with 5 internal ribs, each cut with scored necks at the
+front wall, back wall, and floor. Expected removal sequence:
+
+1. Enter the tray cavity from the open top with a #11 craft blade.
+2. For each rib, score the X-side notches at the front-wall neck
+   (Y ≈ 4.8–6.8 mm) and back-wall neck (Y ≈ 104–106 mm) if the factory
+   hasn't left them pre-thinned — usually the necks print thin enough to
+   snap directly.
+3. Work a flush-cutter into each wall-neck perforation gap (2 mm Z-height)
+   and snip the thin webs (3 per wall). Do front wall first, then back.
+4. With the rib free at both walls, twist it around the floor axis — the
+   6 × 13.5 × 1 mm floor webs shear one at a time as the 4 mm punched
+   perforations propagate the crack.
+5. Lift the rib out, flush-sand the 30 total floor stubs with a sanding
+   stick parallel to the wall (not perpendicular — the stick will catch
+   adjacent stubs otherwise).
+
+**Never saw down from above.** The 0.5 mm gap between rib top and wall top
+is too tight for a flush-cut blade and risks nicking the overlay seat.
+
+### Ship with ribs attached
+
+The tray's long-axis stiffness without ribs is marginal for shipping
+impact (the 363 mm × 23 mm cavity U-section racks easily under drop
+loads). Snap the ribs out only at assembly time, not before transport.
+
 ## Fabrication Methods
 
 **SLA resin (recommended)** — JLC3DP or equivalent. All tolerances and
@@ -91,8 +190,12 @@ seated if the top gaskets are placed first.
 1. **Bottom gaskets first.** Press a gasket strip into the bottom of each
    of the 9 slots before the plate goes in. These rest at the bottom of
    each slot, below where the tab will sit.
-2. **Drop the plate in.** Lower the plate so every tab descends through
-   the open slot top and lands on its bottom gasket.
+2. **Drop the plate in, front-first.** With 9 tabs engaging 9 slots
+   simultaneously, a pure vertical descent is harder than a two-stage
+   descent. Engage the 4 front tabs first (lower end of the tilted case),
+   then pivot the plate back and down so the 3 back tabs and 2 side tabs
+   drop into their slots together. The 0.6 mm per-side slot tolerance
+   and 1.5 mm open-top margin accommodate this motion.
 3. **Top gaskets second.** Press a second gasket strip onto the top of
    each tab, filling the remaining slot height.
 4. **Overlay caps the stack.** Seating the overlay on the wall tops
@@ -115,9 +218,13 @@ one per tray pocket and one per matching overlay pocket. Each pair must
    the attracting pole downward toward its tray mate. Test by holding
    the magnet with its eventual-up face touching the reference's
    marked face: it should **attract**.
-4. **Retain with thin CA glue.** Pockets are press-fit (magnet Ø2.0 +
-   JLC3DP ±0.3 mm hole slop → nominal Ø2.5 pocket), but a drop of CA
-   prevents walk-out under thermal cycling or drop shock.
+4. **Retain with thin CA glue (mandatory, not optional).** The 1.15 mm
+   nominal cheek between pocket and outer wall (0.95 mm worst-case after
+   SLA shrink) is too thin to rely on press-fit alone — any walk-out
+   during thermal cycling or drop shock can chip the cheek. Use gel-type
+   CA so it doesn't wick into the pocket and onto the seam, and press a
+   strip of painter's tape across the pocket mouths during cure to prevent
+   lift.
 
 **Test before any glue cures.** With all 12 magnets placed but still
 removable, lower the overlay onto the tray dry (no gaskets, no plate).
