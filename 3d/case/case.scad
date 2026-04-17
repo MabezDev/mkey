@@ -1507,13 +1507,10 @@ module display_cutout() {
                     square([disp_pocket_w, disp_pocket_h]);
 
         // Top window: cuts cleanly through the shelf, from (local z = −shelf_t − ε)
-        // to (local z = +ε) — the shelf is exactly the top `shelf_t` mm of the
-        // overlay slab in the normal direction. The 2D shape is a hull of four
-        // shelf_corner_r circles sitting in the window bbox corners, giving a
-        // rounded rectangle whose inner corners are a smooth curve regardless
-        // of the shelf_frame_{x,y} asymmetry.
+        // to above the chamfered top surface. Extra height added to ensure the
+        // cutout clears any chamfer geometry on the top edges.
         translate([-disp_win_w / 2, -disp_win_h / 2, -shelf_t - 0.01])
-            linear_extrude(height = shelf_t + 0.02)
+            linear_extrude(height = shelf_t + chamfer_top_primary + 0.1)
                 display_window_2d();
     }
 }
