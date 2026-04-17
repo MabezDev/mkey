@@ -342,7 +342,8 @@ x_split = 290.0;  // plate-local X where narrow section right edge is
 overhang = 2.0;   // top overlay overhang beyond tray walls (mm)
 
 // ─── Corner rounding ─────────────────────────────────────────────────────────
-overlay_corner_r = 3.0;    // outer corner radius of overlay
+overlay_corner_r = 0.75;   // outer corner radius of overlay
+tray_corner_r    = 0.75;   // outer corner radius of tray (matches overlay for visual consistency)
 
 // ─── Overlay locating rabbet (optional, ENABLE_OVERLAY_RABBET) ──────────────
 // INVERTED ("tongue") geometry: a small ridge of wood stands proud ABOVE
@@ -1334,9 +1335,10 @@ module case_tray() {
             // Outer shell — extended by tray_ext on all sides for thicker walls.
             // Top face at wall_top (= top_z − top_t) so the overlay's flat
             // underside sits directly on the wall cheek.
+            // Rounded vertical corners for soft user-facing edges.
             translate([-tray_ext, -tray_ext, 0])
-                wedge_box(outer_w + 2*tray_ext, outer_d + 2*tray_ext,
-                          front_h - top_t, back_h - top_t);
+                rounded_wedge_box(outer_w + 2*tray_ext, outer_d + 2*tray_ext,
+                          front_h - top_t, back_h - top_t, tray_corner_r);
 
             // Inner cavity (fully open top) — position unchanged, uses wall_t
             translate([wall_t, wall_t, bottom_t])
@@ -1375,11 +1377,11 @@ module case_overlay() {
                               overlay_corner_r);
 
         // Remove everything below top_t (keep only the top slab)
-        translate([-overhang - 0.01, -overhang - 0.01, 0])
-            rounded_wedge_box(overlay_w + 0.02, overlay_d + 0.02,
-                              overlay_front_h - top_t,
-                              overlay_back_h  - top_t,
-                              overlay_corner_r + 0.01);
+        // Use non-rounded wedge to avoid affecting outer corner radius
+        translate([-overhang - 0.01, -overhang - 0.01, -0.01])
+            wedge_box(overlay_w + 0.02, overlay_d + 0.02,
+                      overlay_front_h - top_t + 0.01,
+                      overlay_back_h  - top_t + 0.01);
 
         // Key opening: union of per-keycap rectangles
         key_opening();
@@ -1986,18 +1988,6 @@ module deco_top_logo() {
 module case_tray_finished() {
     difference() {
         case_tray();
-        // Bottom chamfers and pad recesses apply to tray only.
-        // Chamfers align with extended tray shell (tray_ext offset).
-        bc = 0.5;
-        // Front bottom chamfer
-        translate([-tray_ext - 0.1, -tray_ext - 0.1, -0.1])
-            rotate([-45, 0, 0])
-                cube([outer_w + 2*tray_ext + 0.2, bc * 1.42, bc * 1.42]);
-        // Back bottom chamfer
-        translate([-tray_ext - 0.1, outer_d + tray_ext + 0.1, -0.1])
-            rotate([-45, 0, 0])
-                translate([0, -bc * 1.42, 0])
-                    cube([outer_w + 2*tray_ext + 0.2, bc * 1.42, bc * 1.42]);
         bottom_pad_recesses();
 
         // ─── Decorative trims (tray) ────────────────────────────────────────
