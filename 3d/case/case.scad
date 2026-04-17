@@ -1775,8 +1775,8 @@ deco_stripe_width  = 1.0;    // groove width in the plane of the top face.
                              // 2026-04-17 pre-fab review.
 
 // Owner initials + year plate
-deco_initials_size   = 6.0;                          // mm cap height (initials row)
-deco_year_size       = 6.0;                          // mm cap height (year row)
+deco_initials_size   = 8.0;                          // mm cap height (initials row)
+deco_year_size       = 8.0;                          // mm cap height (year row)
                                                       // Liberation Sans Bold stem ≈ 0.15·cap-height,
                                                       // so stroke ≈ 0.90 mm at 6.0 mm — 0.10 mm
                                                       // above the JLC3DP 0.8 mm floor, enough to
