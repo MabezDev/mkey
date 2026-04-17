@@ -36,12 +36,15 @@ optimal 3D printing:
   the build plate — this gives the best surface finish on both SLA resin and FDM.
 
 - **Tray**: Printed bottom-down (the bottom is already flat at Z=0). With
-  `--supports`, four internal rib walls are added inside the cavity, running
+  `--supports`, five internal rib walls are added inside the cavity, running
   front-to-back. These grow simultaneously with the tray walls during the
   SLA build, creating T-sections that resist the 363 mm long walls from
-  bowing under cure shrinkage. After post-cure: score each rib at the
-  front/back wall necks with a flush-cut saw, snap out, and lightly sand
-  the witness marks on the inner wall faces.
+  bowing under cure shrinkage. After post-cure: score each rib along the
+  front/back wall necks (in the Y direction, from inside the open cavity) —
+  do NOT try to saw down from above, the 0.5 mm gap between rib top and
+  wall top is too tight for a flush-cut blade. Snap out in segments using
+  the pre-modelled perforations, then lightly sand the witness marks
+  parallel to the wall surface (not into the thin neck stub).
 
 ## Design Parameters (case.scad)
 
