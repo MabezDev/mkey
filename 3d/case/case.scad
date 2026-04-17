@@ -372,16 +372,18 @@ overlay_corner_r = 3.0;    // outer corner radius of overlay
 // therefore has up to 9 + 4 = 13 gaps; each remaining segment is still
 // fully supported by solid wall material and separated from every
 // neighbouring gap by several mm of wood (asserted below).
-rabbet_w = 2.0;      // ring width in the wall-depth direction (outer ring
+rabbet_w = 2.2;      // ring width in the wall-depth direction (outer ring
                      // of wood/resin removed from the wall top). The
-                     // tongue itself is `rabbet_w − 2·rabbet_tol` = 1.5 mm
+                     // tongue itself is `rabbet_w − 2·rabbet_tol` = 1.7 mm
                      // wide. Must leave a ≥1.5 mm rest cheek for the
                      // overlay outboard of the tongue (wall_t − rabbet_w
-                     // = 2.8 mm here, well above the floor).
-                     // Grown from 1.8 → 2.0 in the 2026-04-14 JLC3DP
-                     // review so the tongue cross-section meets JLC3DP's
-                     // 1.5 mm recommended minimum for positioning/snap
-                     // features on SLA.
+                     // = 2.6 mm here, well above the floor).
+                     // Grown 1.8 → 2.0 in the 2026-04-14 JLC3DP review
+                     // so the tongue met JLC3DP's 1.5 mm snap-feature
+                     // recommendation exactly. Grown 2.0 → 2.2 in the
+                     // 2026-04-17 review to add 0.2 mm margin over that
+                     // floor — absorbs the full ±0.2 mm SLA fab slop
+                     // so the printed tongue never narrows below 1.5 mm.
 rabbet_h = 1.5;      // tongue height above the wall top (= recess depth
                      // into the overlay underside). Grown from 1.0 → 1.5
                      // in the 2026-04-14 JLC3DP review to meet the same
@@ -1750,32 +1752,43 @@ deco_cut_depth = 1.0;    // shared depth for every engraved/embossed feature.
 
 // Overlay edge pinstripe (a hairline-looking groove just inside the outer edge)
 deco_stripe_inset  = 1.2;    // mm in from the overlay outer edge
-deco_stripe_width  = 0.9;    // groove width in the plane of the top face.
-                             // 0.1 mm above JLC3DP 0.8 mm minimum so that
-                             // ±0.2 mm fab slop doesn't thin the printed
-                             // groove below the readable floor. Grown from
-                             // 0.8 → 0.9 in the 2026-04-16 review.
+deco_stripe_width  = 1.0;    // groove width in the plane of the top face.
+                             // 0.2 mm above JLC3DP 0.8 mm minimum so the
+                             // full ±0.2 mm fab slop fits inside the margin
+                             // — worst-case printed groove still at floor,
+                             // nominal well above. Grown 0.8 → 0.9 in the
+                             // 2026-04-16 review, then 0.9 → 1.0 in the
+                             // 2026-04-17 pre-fab review.
 
 // Owner initials + year plate
 deco_initials_size   = 6.0;                          // mm cap height (initials row)
-deco_year_size       = 5.5;                          // mm cap height (year row)
-                                                      // Grown from 5.0 → 5.5 in the 2026-04-16 review:
+deco_year_size       = 6.0;                          // mm cap height (year row)
                                                       // Liberation Sans Bold stem ≈ 0.15·cap-height,
-                                                      // giving 0.75 mm strokes at 5.0 mm — borderline
-                                                      // against the JLC3DP 0.8 mm floor. At 5.5 mm
-                                                      // strokes reach ~0.83 mm with 0.03 mm margin.
-                                                      // Earlier: 3.8 → 5.0 (strokes at 3.8 were below
-                                                      // the 0.8 mm floor).
+                                                      // so stroke ≈ 0.90 mm at 6.0 mm — 0.10 mm
+                                                      // above the JLC3DP 0.8 mm floor, enough to
+                                                      // survive half the ±0.2 mm fab slop on each
+                                                      // side of the glyph edge. Grown 3.8 → 5.0
+                                                      // → 5.5 → 6.0 across successive pre-fab
+                                                      // reviews (latest: 2026-04-17).
 deco_stamp_row_gap   = 1.2;                          // mm gap between the two rows
 deco_initials_font   = "Liberation Sans:style=Bold";
 deco_initials_y_frac = 0.5;                          // 0 = front, 1 = back
 
 // Logo above the display
 deco_logo_chip_size   = 7.0;                         // chip icon outer square, mm
-deco_logo_chip_border = 0.9;                         // chip frame stroke, mm
+deco_logo_chip_border = 1.0;                         // chip frame stroke, mm.
+                                                      // 0.2 mm above JLC3DP 0.8 mm engraved-detail
+                                                      // floor so ±0.2 mm fab slop doesn't thin the
+                                                      // frame into an unreadable hairline. Grown
+                                                      // 0.9 → 1.0 in the 2026-04-17 pre-fab review.
 deco_logo_chip_inner  = 2.4;                         // inner solid square side, mm
 deco_logo_text        = "mKey";
-deco_logo_text_size   = 5.5;                         // cap height, mm
+deco_logo_text_size   = 6.0;                         // cap height, mm. Liberation Sans Bold stem
+                                                      // ≈ 0.15·cap-height, so stroke ≈ 0.90 mm —
+                                                      // 0.10 mm above the 0.8 mm readable floor.
+                                                      // Grown 5.5 → 6.0 in the 2026-04-17 review.
+                                                      // Ref-size constants below remain anchored
+                                                      // at 5.5; text_w scales linearly.
 deco_logo_text_gap    = 1.8;                         // chip ↔ text gap, mm
 deco_logo_font        = "Liberation Sans:style=Bold";
 
