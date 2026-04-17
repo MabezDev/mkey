@@ -84,7 +84,7 @@ ENABLE_MAGNET_POCKETS = true;    // cut blind magnet pockets in the tray wall
 // use the exact same file with one toggle.
 ENABLE_DECORATIVE_TRIMS = true;   // master switch — false = all decoratives off
 DECO_SIDE_LOGO          = true;   // mKey logo debossed on both outer side walls
-DECO_EDGE_PINSTRIPE     = true;   // hairline groove around the overlay top edge
+DECO_EDGE_PINSTRIPE     = false;  // hairline groove around the overlay top edge
 DECO_OWNER_INITIALS     = true;   // initials + year debossed into the tray underside
 DECO_LOGO_TOP           = false;   // mKey logo debossed on overlay top above the display
 DECO_INITIALS           = "SM";   // user-customisable owner initials
@@ -337,9 +337,8 @@ y_split = 41.0;   // plate-local Y for the L-shape horizontal step
 x_split = 290.0;  // plate-local X where narrow section right edge is
 
 // ─── Overhang ────────────────────────────────────────────────────────────────
-// Reduced from 4.0 → 2.0: a 4mm × 3mm cross-grain cantilever on the left/right
-// sides would chip off in hardwood. 2 mm is still visually present and safer.
-overhang = 2.0;   // top overlay overhang beyond tray walls (mm)
+// Set to tray_ext so overlay outer edge aligns flush with tray outer edge
+overhang = tray_ext;  // top overlay overhang beyond tray walls (mm)
 
 // ─── Corner rounding ─────────────────────────────────────────────────────────
 overlay_corner_r = 0.75;   // outer corner radius of overlay
@@ -2347,7 +2346,7 @@ if (SHOW_SECTION) {
 
 // ─── Dimension echo (for verification) ──────────────────────────────────────
 echo("=== CASE DIMENSIONS ===");
-echo(str("Overlay outer: ", outer_w, " x ", outer_d, " mm"));
+echo(str("Overlay outer: ", overlay_w, " x ", overlay_d, " mm"));
 echo(str("Tray outer: ", outer_w + 2*tray_ext, " x ", outer_d + 2*tray_ext, " mm (extended by ", tray_ext, " mm per side)"));
 echo(str("Height: ", front_h, "-", back_h, " mm (front-back)"));
 echo(str("Tray wall: ", tray_wall_t, " mm, Overlay wall: ", overlay_wall_t, " mm, Bottom: ", bottom_t, " mm, Top surface: ", top_t, " mm"));
