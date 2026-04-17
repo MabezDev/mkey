@@ -1758,11 +1758,12 @@ pad_inset = 15.0;  // inset from edges
 
 module bottom_pad_recesses() {
     // Four pad recesses near the corners (aligned with extended tray shell)
+    // Back pads offset by chamfer_back_bottom to stay on flat bottom surface
     positions = [
-        [-tray_ext + pad_inset, -tray_ext + pad_inset],                                        // front-left
-        [outer_w + tray_ext - pad_inset - pad_w, -tray_ext + pad_inset],                       // front-right
-        [-tray_ext + pad_inset, outer_d + tray_ext - pad_inset - pad_h],                       // back-left
-        [outer_w + tray_ext - pad_inset - pad_w, outer_d + tray_ext - pad_inset - pad_h]       // back-right
+        [-tray_ext + pad_inset, -tray_ext + pad_inset],                                                          // front-left
+        [outer_w + tray_ext - pad_inset - pad_w, -tray_ext + pad_inset],                                         // front-right
+        [-tray_ext + pad_inset, outer_d + tray_ext - chamfer_back_bottom - pad_inset - pad_h],                   // back-left
+        [outer_w + tray_ext - pad_inset - pad_w, outer_d + tray_ext - chamfer_back_bottom - pad_inset - pad_h]   // back-right
     ];
 
     for (pos = positions) {
