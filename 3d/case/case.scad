@@ -610,6 +610,12 @@ key_rects = [
 // which is still the weakest cross-section in the overlay.
 key_cap_clearance = 0.3;
 
+// Corner radius for key openings. Matches shelf_corner_r for visual
+// consistency with the display window. Keycaps have their own 1-2 mm
+// corner radii, so 1.2 mm opening radius provides adequate clearance
+// at all points of key travel. Added in 2026-04-17 JLC3DP pre-fab review.
+key_corner_r = 1.2;
+
 
 // =============================================================================
 // SECTION 5b: GLOBAL INVARIANT ASSERTIONS (self-contained verification)
@@ -1408,17 +1414,32 @@ module case_complete() {
 //   • ~23.21 mm bezel between R-shift and the UP arrow column
 //   • ~13.40 mm bezel between the main field right edge and the display
 //     through-cut (measured wall-to-wall)
+//
+// Corners are rounded with key_corner_r (1.2 mm) using the same
+// offset(r) offset(delta=-r) pattern as the display window. This softens
+// the visual appearance, reduces stress concentration at corners, and
+// improves SLA printability. Keycaps have their own rounded corners
+// (typically 1-2 mm radius) so this does not affect key travel.
+
+// 2D footprint of the key opening with rounded corners.
+module key_opening_2d() {
+    t = key_cap_clearance;
+    offset(r = key_corner_r) offset(delta = -key_corner_r)
+        for (r = key_rects) {
+            x1 = r[0] - t;  y1 = r[1] - t;
+            x2 = r[2] + t;  y2 = r[3] + t;
+            translate([p2c_x(x1), p2c_y(y1)])
+                square([x2 - x1, y2 - y1]);
+        }
+}
+
 module key_opening() {
     z0 = bottom_t - 0.01;
     zh = back_h + 2;
-    t  = key_cap_clearance;
 
-    for (r = key_rects) {
-        x1 = r[0] - t;  y1 = r[1] - t;
-        x2 = r[2] + t;  y2 = r[3] + t;
-        translate([p2c_x(x1), p2c_y(y1), z0])
-            cube([x2 - x1, y2 - y1, zh]);
-    }
+    translate([0, 0, z0])
+        linear_extrude(height = zh)
+            key_opening_2d();
 }
 
 
