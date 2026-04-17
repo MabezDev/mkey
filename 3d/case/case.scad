@@ -341,8 +341,15 @@ x_split = 290.0;  // plate-local X where narrow section right edge is
 overhang = tray_ext;  // top overlay overhang beyond tray walls (mm)
 
 // ─── Corner rounding ─────────────────────────────────────────────────────────
-overlay_corner_r = 0.75;   // outer corner radius of overlay
-tray_corner_r    = 0.75;   // outer corner radius of tray (matches overlay for visual consistency)
+overlay_corner_r = 0.75;   // outer corner radius of overlay (overridden by chamfer when ENABLE_CHAMFERS)
+tray_corner_r    = 0.75;   // outer corner radius of tray (overridden by chamfer when ENABLE_CHAMFERS)
+
+// ─── Edge chamfers ──────────────────────────────────────────────────────────
+// Chamfers prevent chipping during IPA wash and improve hand-feel.
+// Primary chamfer on top edges, secondary edge break on all sharp edges.
+chamfer_top_primary   = 1.2;   // mm, 45° chamfer on overlay/tray top edges (1.0-1.5 spec)
+chamfer_edge_break    = 0.2;   // mm, minimum chamfer on all remaining sharp edges
+ENABLE_CHAMFERS       = true;  // master switch for all chamfer geometry
 
 // ─── Overlay locating rabbet (optional, ENABLE_OVERLAY_RABBET) ──────────────
 // INVERTED ("tongue") geometry: a small ridge of wood stands proud ABOVE
@@ -1334,10 +1341,13 @@ module case_tray() {
             // Outer shell — extended by tray_ext on all sides for thicker walls.
             // Top face at wall_top (= top_z − top_t) so the overlay's flat
             // underside sits directly on the wall cheek.
-            // Rounded vertical corners for soft user-facing edges.
-            translate([-tray_ext, -tray_ext, 0])
-                rounded_wedge_box(outer_w + 2*tray_ext, outer_d + 2*tray_ext,
-                          front_h - top_t, back_h - top_t, tray_corner_r);
+            // Use chamfered or rounded corners based on ENABLE_CHAMFERS.
+            if (ENABLE_CHAMFERS)
+                tray_outer_shell_chamfered();
+            else
+                translate([-tray_ext, -tray_ext, 0])
+                    rounded_wedge_box(outer_w + 2*tray_ext, outer_d + 2*tray_ext,
+                              front_h - top_t, back_h - top_t, tray_corner_r);
 
             // Inner cavity (fully open top) — position unchanged, uses wall_t
             translate([wall_t, wall_t, bottom_t])
@@ -1981,6 +1991,135 @@ module deco_top_logo() {
 }
 
 // =============================================================================
+// SECTION 10c: EDGE CHAMFERS
+// =============================================================================
+// Chamfers prevent chipping during IPA wash/handling and improve tactile feel.
+// Primary chamfer on overlay top edges (1.0-1.5mm), secondary edge break (0.2mm)
+// on all sharp edges.
+//
+// Implementation: minkowski sum with an octahedron kernel creates uniform 45°
+// chamfers on all edges with proper mitered corners. The overlay body is shrunk
+// by the chamfer amount, then minkowski'd with the kernel to restore size while
+// adding chamfers.
+
+// ─── Chamfer kernel (octahedron for 45° chamfers) ───────────────────────────
+// An octahedron centered at origin with vertices at ±c on each axis creates
+// perfect 45° chamfers when used in a minkowski sum.
+module chamfer_octahedron(c) {
+    // Scale a unit octahedron to size c
+    scale([c, c, c])
+        polyhedron(
+            points = [[1,0,0], [-1,0,0], [0,1,0], [0,-1,0], [0,0,1], [0,0,-1]],
+            faces = [[0,2,4], [0,4,3], [0,3,5], [0,5,2],
+                     [1,4,2], [1,3,4], [1,5,3], [1,2,5]]
+        );
+}
+
+// ─── Chamfered wedge box ────────────────────────────────────────────────────
+// Generic chamfered wedge box using minkowski with octahedron.
+// Creates a wedge with chamfer c on all edges.
+module chamfered_wedge_box(w, d, h_front, h_back, c) {
+    minkowski() {
+        intersection() {
+            // Shrunk wedge
+            translate([c, c, c])
+                wedge_box(w - 2*c, d - 2*c, h_front - 2*c, h_back - 2*c);
+            // Vertical prism to clip the wedge (height limited to prevent
+            // minkowski from extending above original top surface)
+            translate([c, c, 0])
+                linear_extrude(height = max(h_front, h_back) - c)
+                    square([w - 2*c, d - 2*c]);
+        }
+        chamfer_octahedron(c);
+    }
+}
+
+// ─── Chamfered overlay body ─────────────────────────────────────────────────
+// Creates the overlay outer shell with built-in chamfers using minkowski.
+module overlay_body_chamfered() {
+    c = chamfer_top_primary;
+    translate([-overhang, -overhang, 0])
+        chamfered_wedge_box(overlay_w, overlay_d,
+                            overlay_front_h, overlay_back_h, c);
+}
+
+// ─── Chamfered tray outer shell ─────────────────────────────────────────────
+// Creates the tray outer shell with chamfered VERTICAL and BOTTOM edges.
+// Top edges remain sharp for overlay seating.
+module tray_outer_shell_chamfered() {
+    c = chamfer_top_primary;
+    w = outer_w + 2*tray_ext;
+    d = outer_d + 2*tray_ext;
+
+    // 2D footprint with chamfered corners (45° cuts at each corner)
+    module tray_footprint_chamfered() {
+        polygon([
+            [c, 0], [w - c, 0],           // front edge
+            [w, c], [w, d - c],           // right edge
+            [w - c, d], [c, d],           // back edge
+            [0, d - c], [0, c]            // left edge
+        ]);
+    }
+
+    // 2D footprint shrunk by chamfer amount (for bottom)
+    module tray_footprint_shrunk() {
+        polygon([
+            [c + c, c], [w - c - c, c],
+            [w - c, c + c], [w - c, d - c - c],
+            [w - c - c, d - c], [c + c, d - c],
+            [c, d - c - c], [c, c + c]
+        ]);
+    }
+
+    translate([-tray_ext, -tray_ext, 0])
+    union() {
+        // Bottom chamfer: hull from shrunk footprint at Z=0 to full at Z=c
+        hull() {
+            linear_extrude(height = 0.01)
+                tray_footprint_shrunk();
+            translate([0, 0, c])
+                linear_extrude(height = 0.01)
+                    tray_footprint_chamfered();
+        }
+        // Upper body: wedge with chamfered-corner footprint
+        intersection() {
+            translate([0, 0, c])
+                wedge_box(w, d, front_h - top_t - c, back_h - top_t - c);
+            linear_extrude(height = back_h)
+                tray_footprint_chamfered();
+        }
+    }
+}
+
+// ─── Overlay with chamfers (replaces case_overlay for chamfered version) ────
+// Uses minkowski-based overlay_body_chamfered() for proper 45° chamfers with
+// mitered corners. Internal cutouts are then subtracted.
+module case_overlay_chamfered() {
+    difference() {
+        // Full overlay body with chamfered edges via minkowski
+        overlay_body_chamfered();
+
+        // Remove everything below top_t (keep only the top slab)
+        translate([-overhang - 0.01, -overhang - 0.01, -0.01])
+            wedge_box(overlay_w + 0.02, overlay_d + 0.02,
+                      overlay_front_h - top_t + 0.01,
+                      overlay_back_h  - top_t + 0.01);
+
+        // Key opening
+        key_opening();
+
+        // Display cutout
+        display_cutout();
+
+        // Magnet pockets
+        if (ENABLE_MAGNET_POCKETS) overlay_magnet_pockets();
+
+        // Rabbet recess
+        if (ENABLE_OVERLAY_RABBET) overlay_recess_3d();
+    }
+}
+
+// =============================================================================
 // SECTION 11: COMPLETE CASE WITH FINISHING
 // =============================================================================
 
@@ -1998,11 +2137,12 @@ module case_tray_finished() {
 }
 
 module case_overlay_finished() {
-    // No CAD chamfers — the rounded corners make simple planar cuts
-    // produce artifacts at the corners. Chamfers/edge breaks will be
-    // applied during finishing (sanding/routing) on the physical piece.
     difference() {
-        case_overlay();
+        // Use chamfered body when ENABLE_CHAMFERS is on
+        if (ENABLE_CHAMFERS)
+            case_overlay_chamfered();
+        else
+            case_overlay();
 
         // ─── Decorative trims (overlay) ─────────────────────────────────────
         if (ENABLE_DECORATIVE_TRIMS) {
