@@ -233,19 +233,18 @@ tilt_angle = 5;   // degrees, back raised
 
 // ─── Tolerances ──────────────────────────────────────────────────────────────
 plate_gap     = 0.5;    // clearance between plate edge and inner wall (per side)
-disp_cut_tol  = 0.20;   // module-body pocket oversize vs module (per side).
+disp_cut_tol  = 0.30;   // module-body pocket oversize vs module (per side).
                         // The module is inserted from BELOW into a blind
                         // pocket; it doesn't thread through anything, so the
                         // old 0.30 corner-binding bump is no longer needed.
-                        // Raised from 0.15 → 0.20 in the 2026-04-14 JLC3DP
-                        // pre-fab review: JLC3DP SLA dimensional tolerance
+                        // Raised from 0.15 → 0.20 → 0.30 across JLC3DP
+                        // pre-fab reviews: JLC3DP SLA dimensional tolerance
                         // is ±0.2 mm on features <100 mm, and their min
-                        // assembly-clearance rule is 0.2 mm. 0.15 per side
-                        // meant worst-case shrink pushed the pocket into
-                        // interference by 0.05 mm with no post-processing
-                        // recourse on an SLA print. 0.20 per side puts the
-                        // worst case at 0.0 clearance and nominal at a
-                        // clean 0.20 slip fit.
+                        // assembly-clearance rule is 0.2 mm. 0.20 per side
+                        // left worst-case at 0.0 mm clearance (pocket shrinks
+                        // to exact module size), violating the 0.2 mm rule.
+                        // 0.30 per side gives 0.1 mm worst-case clearance
+                        // and 0.30 mm nominal slip fit.
 shelf_t        = 1.5;   // wood above the display glass (the visible recess).
                         // Bumped from 1.0 → 1.5 in the 2026-04-13 pre-fab
                         // design review: the 1.0 × 1.6 mm cross-grain short
@@ -2111,14 +2110,14 @@ wall_perf_len    = 2.0;  // length of each wall gap (mm, Z direction)
 //
 // Available gaps (sorted by X):
 //   [55.7,  87.4]  → mid  71.5      [107.8, 132.6] → mid 120.2
-//   [191.0, 224.6] → mid 207.8      [245.0, 258.9] → mid 252.0  (NEW)
-//   [279.3, 309.6] → mid 294.5
+//   [153.0, 170.6] → mid 161.8      [191.0, 224.6] → mid 207.8
+//   [245.0, 258.9] → mid 252.0      [279.3, 309.6] → mid 294.5
 //
-// A 5th rib at x=252 was added in the 2026-04-16 review: the old 4-rib
-// layout left 87.6 mm between ribs 2→3 (the widest unsupported span),
-// above the ≤75 mm rule-of-thumb for anti-warp spacing on 363 mm SLA
-// parts. With 5 ribs the largest unsupported span drops to ~55 mm.
-rib_cx = [71.5, 120.2, 207.8, 252.0, 294.5];
+// 6 ribs ensure all inter-rib spans stay under 75 mm (anti-warp guideline
+// for 363 mm SLA parts). The 6th rib at x=161.8 closes the 87.6 mm gap
+// that existed between ribs 2 and 3 in the old 5-rib layout. Current
+// largest span is ~67 mm (left wall to rib 1).
+rib_cx = [71.5, 120.2, 161.8, 207.8, 252.0, 294.5];
 
 module print_support_ribs() {
     for (cx = rib_cx)
