@@ -279,7 +279,15 @@ retainer_t    = 1.2;    // separately-fabricated backing plate that clamps the
                         // adhesive can replace it).
 
 // ─── Walls ───────────────────────────────────────────────────────────────────
-wall_t    = 4.8;    // wall thickness = bezel (4.5mm visible + 0.3mm plate gap)
+// The tray and overlay can have different outer wall thicknesses. The overlay
+// (and all inner geometry: cavity, plate, magnets, tongue) uses overlay_wall_t.
+// The tray outer shell uses tray_wall_t. When tray_wall_t > overlay_wall_t, the
+// tray extends outward while inner geometry stays fixed — this increases the
+// magnet pocket outer cheek without affecting the mating interface.
+overlay_wall_t = 4.8;   // wall thickness for overlay and inner geometry
+tray_wall_t    = 5.3;   // wall thickness for tray outer shell (extend outward)
+tray_ext       = tray_wall_t - overlay_wall_t;  // 0.5mm outward extension
+wall_t         = overlay_wall_t;  // alias for backward compat (inner geometry)
 bottom_t  = 3.5;    // bottom plate thickness
 top_t     = 5.0;    // top surface thickness (display cover area).
                     // Bumped from 3.0 → 5.0 to stiffen the 4.16 mm main-field ↔
@@ -418,7 +426,7 @@ notch_margin = 0.5;  // extra plan-view clearance added around each slot
 // magnet instead: an Ø2 mm magnet in an Ø2.5 mm pocket clears the ±0.3 mm
 // hole rule with 0.2 mm slop AND leaves a 1.15 mm nominal wall cheek
 // (0.95 mm worst case — comfortably above the 0.8 mm wall floor).
-magnet_d      = 2.5;    // pocket diameter. 2.0 mm nominal magnet + 0.3 mm
+magnet_d      = 2.3;    // pocket diameter. 2.0 mm nominal magnet + 0.3 mm
                         // JLC3DP hole-tolerance allowance + 0.2 mm epoxy slop.
 magnet_depth  = 2.0;    // pocket depth (Z). Meets JLC3DP's Ø↔depth minimum
                         // (h ≥ Ø for small holes: Ø2.0 → h ≥ 2.0 mm) and
@@ -728,7 +736,11 @@ assert(!ENABLE_OVERLAY_RABBET || (
 // (not in the cavity, not past the outer face) and must not collide with
 // a gasket slot or the USB cutout.
 assert(!ENABLE_MAGNET_POCKETS || (wall_t - magnet_d) / 2 >= 0.6,
-       "magnet pocket leaves < 0.6 mm cheek in wall — hardwood chip-off hazard");
+       "magnet pocket leaves < 0.6 mm cheek in overlay wall — hardwood chip-off hazard");
+// Tray outer cheek is larger due to tray_ext. For JLC3DP SLA, the cheek should
+// be >= 1.2 mm (gray zone on thin-wall heatmap) or >= 1.5 mm (snap-feature spec).
+assert(!ENABLE_MAGNET_POCKETS || (tray_wall_t - magnet_d) / 2 >= 1.2,
+       "tray magnet pocket outer cheek < 1.2 mm — increase tray_wall_t");
 // Magnet pockets are drilled from the wall top downward. The wall column is
 // solid wood from the case floor up to the tray wall top, so the real floor
 // budget is `wall_top(cy) − bottom_t`. Require the pocket to stop at least
@@ -1313,11 +1325,14 @@ module overlay_magnet_pockets() {
 module case_tray() {
     union() {
         difference() {
-            // Outer shell — top face at wall_top (= top_z − top_t) so the
-            // overlay's flat underside sits directly on the wall cheek.
-            wedge_box(outer_w, outer_d, front_h - top_t, back_h - top_t);
+            // Outer shell — extended by tray_ext on all sides for thicker walls.
+            // Top face at wall_top (= top_z − top_t) so the overlay's flat
+            // underside sits directly on the wall cheek.
+            translate([-tray_ext, -tray_ext, 0])
+                wedge_box(outer_w + 2*tray_ext, outer_d + 2*tray_ext,
+                          front_h - top_t, back_h - top_t);
 
-            // Inner cavity (fully open top)
+            // Inner cavity (fully open top) — position unchanged, uses wall_t
             translate([wall_t, wall_t, bottom_t])
                 wedge_box(inner_w, inner_d,
                           front_h + 10,
@@ -1721,12 +1736,12 @@ pad_h   = 10.0;    // pad length (front-back)
 pad_inset = 15.0;  // inset from edges
 
 module bottom_pad_recesses() {
-    // Four pad recesses near the corners
+    // Four pad recesses near the corners (aligned with extended tray shell)
     positions = [
-        [pad_inset, pad_inset],                                    // front-left
-        [outer_w - pad_inset - pad_w, pad_inset],                  // front-right
-        [pad_inset, outer_d - pad_inset - pad_h],                  // back-left
-        [outer_w - pad_inset - pad_w, outer_d - pad_inset - pad_h] // back-right
+        [-tray_ext + pad_inset, -tray_ext + pad_inset],                                        // front-left
+        [outer_w + tray_ext - pad_inset - pad_w, -tray_ext + pad_inset],                       // front-right
+        [-tray_ext + pad_inset, outer_d + tray_ext - pad_inset - pad_h],                       // back-left
+        [outer_w + tray_ext - pad_inset - pad_w, outer_d + tray_ext - pad_inset - pad_h]       // back-right
     ];
 
     for (pos = positions) {
@@ -1804,14 +1819,14 @@ module deco_side_logo() {
     z_center = wall_top_mid / 2;
     y_center = outer_d / 2;
 
-    // LEFT wall — readable from −X
-    translate([deco_cut_depth, y_center, z_center])
+    // LEFT wall — readable from −X (aligned with extended tray shell)
+    translate([-tray_ext + deco_cut_depth, y_center, z_center])
         rotate([90, 0, -90])
             linear_extrude(height = deco_cut_depth + 0.1)
                 deco_logo_2d();
 
-    // RIGHT wall — readable from +X
-    translate([outer_w - deco_cut_depth, y_center, z_center])
+    // RIGHT wall — readable from +X (aligned with extended tray shell)
+    translate([outer_w + tray_ext - deco_cut_depth, y_center, z_center])
         rotate([90, 0, 90])
             linear_extrude(height = deco_cut_depth + 0.1)
                 deco_logo_2d();
@@ -1946,17 +1961,18 @@ module deco_top_logo() {
 module case_tray_finished() {
     difference() {
         case_tray();
-        // Bottom chamfers and pad recesses apply to tray only
+        // Bottom chamfers and pad recesses apply to tray only.
+        // Chamfers align with extended tray shell (tray_ext offset).
         bc = 0.5;
         // Front bottom chamfer
-        translate([-0.1, -0.1, -0.1])
+        translate([-tray_ext - 0.1, -tray_ext - 0.1, -0.1])
             rotate([-45, 0, 0])
-                cube([outer_w + 0.2, bc * 1.42, bc * 1.42]);
+                cube([outer_w + 2*tray_ext + 0.2, bc * 1.42, bc * 1.42]);
         // Back bottom chamfer
-        translate([-0.1, outer_d + 0.1, -0.1])
+        translate([-tray_ext - 0.1, outer_d + tray_ext + 0.1, -0.1])
             rotate([-45, 0, 0])
                 translate([0, -bc * 1.42, 0])
-                    cube([outer_w + 0.2, bc * 1.42, bc * 1.42]);
+                    cube([outer_w + 2*tray_ext + 0.2, bc * 1.42, bc * 1.42]);
         bottom_pad_recesses();
 
         // ─── Decorative trims (tray) ────────────────────────────────────────
@@ -2316,8 +2332,11 @@ if (SHOW_SECTION) {
 
 // ─── Dimension echo (for verification) ──────────────────────────────────────
 echo("=== CASE DIMENSIONS ===");
-echo(str("Outer: ", outer_w, " x ", outer_d, " x ", front_h, "-", back_h, " mm"));
-echo(str("Wall: ", wall_t, " mm, Bottom: ", bottom_t, " mm, Top surface: ", top_t, " mm"));
+echo(str("Overlay outer: ", outer_w, " x ", outer_d, " mm"));
+echo(str("Tray outer: ", outer_w + 2*tray_ext, " x ", outer_d + 2*tray_ext, " mm (extended by ", tray_ext, " mm per side)"));
+echo(str("Height: ", front_h, "-", back_h, " mm (front-back)"));
+echo(str("Tray wall: ", tray_wall_t, " mm, Overlay wall: ", overlay_wall_t, " mm, Bottom: ", bottom_t, " mm, Top surface: ", top_t, " mm"));
+echo(str("Tray magnet outer cheek: ", tray_wall_t/2 - magnet_d/2, " mm (was ", overlay_wall_t/2 - magnet_d/2, " mm)"));
 echo(str("Tilt rise: ", tilt_rise, " mm over ", outer_d, " mm depth"));
 echo(str("Display bottom pocket: ", disp_pocket_w, " x ", disp_pocket_h, " mm (r=", disp_pocket_r, ", depth=", disp_pocket_d, ")"));
 echo(str("Display top window: ", disp_win_w, " x ", disp_win_h, " mm (corner r=", shelf_corner_r, "), shelf X=", shelf_frame_x, " Y=", shelf_frame_y, " t=", shelf_t, " mm"));
