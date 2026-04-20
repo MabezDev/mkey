@@ -2412,6 +2412,26 @@ wall_perf_len    = 2.0;  // length of each wall gap (mm, Z direction)
 // largest span is ~67 mm (left wall to rib 1).
 rib_cx = [71.5, 120.2, 161.8, 207.8, 252.0, 294.5];
 
+// ─── Rib-in-chamfer guards ──────────────────────────────────────────────────
+// The back-bottom chamfer pulls the outer shell forward below z = cb.
+// Ribs are clipped to the chamfer-fill inner face (see print_support_rib).
+// These assertions verify the clipped ribs stay inside the shell and retain
+// enough span for anti-warp bracing.
+if (PRINT_SUPPORTS && ENABLE_CHAMFERS) {
+    _rib_trim_depth      = max(0, chamfer_back_bottom - bottom_t) + rib_neck_len;
+    _rib_floor_span      = inner_d - _rib_trim_depth;
+    assert(_rib_floor_span >= 2 * rib_neck_len,
+           str("Rib span at floor after chamfer trim (", _rib_floor_span,
+               " mm) below 2× rib_neck_len (", 2 * rib_neck_len,
+               " mm) — ribs too short for bracing"));
+    _rib_back_clipped    = outer_d - wall_t - _rib_trim_depth;
+    _shell_back_at_floor = outer_d + tray_ext - chamfer_back_bottom + bottom_t;
+    assert(_rib_back_clipped <= _shell_back_at_floor,
+           str("Clipped rib back face (Y=", _rib_back_clipped,
+               ") overshoots chamfered shell (Y=", _shell_back_at_floor,
+               ") at z=bottom_t — ribs protrude through back wall"));
+}
+
 module print_support_ribs() {
     for (cx = rib_cx)
         print_support_rib(cx);
@@ -2508,6 +2528,19 @@ module print_support_rib(cx) {
                        y1 - rib_neck_len - 0.01,
                        z_floor + i * wall_seg_z_b + (i - 1) * wall_perf_len])
                 cube([rib_t + 0.02, rib_neck_len + 0.02, wall_perf_len]);
+
+        // Detach rib from the chamfered inner back wall below z = cb.
+        // A diagonal trim following the chamfer-fill face would leave an
+        // angled attachment that's hard to snap; instead cut straight so
+        // the rib simply doesn't reach the back wall in the chamfer band.
+        if (ENABLE_CHAMFERS) {
+            _cb_h = chamfer_back_bottom - z_floor;
+            _cb_d = _cb_h + rib_neck_len;
+            translate([cx - rib_t/2 - 0.01,
+                       y1 - _cb_d,
+                       z_floor - 0.01])
+                cube([rib_t + 0.02, _cb_d + 0.01, _cb_h + 0.01]);
+        }
     }
 }
 
