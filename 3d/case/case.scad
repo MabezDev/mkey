@@ -1311,6 +1311,42 @@ module overlay_magnet_pockets() {
     }
 }
 
+// ─── Back-wall chamfer protection ───────────────────────────────────────────
+// The large back-bottom chamfer (chamfer_back_bottom = cb) slopes the outer
+// back face at 45° from y = d - cb at z = 0 up to y = d at z = cb. Without
+// protection, this slope punches through the back wall inside the chamfer
+// band (z in [bottom_t, cb]) — at z = bottom_t the outer face lands cb −
+// bottom_t mm inside the cavity back face and the nominal 5.3 mm back wall
+// becomes a negative number (a through-slit).
+//
+// Fix: locally pull the cavity back inner face forward so the back wall
+// stays a uniform tray_wall_t slab inside the chamfer band. The inner face
+// is chamfered parallel to the outer chamfer, offset by tray_wall_t, and
+// meets the straight upper cavity exactly at z = cb (no step). The chamfer
+// region at the back of the cavity (z = bottom_t..cb, roughly 7×5.3 mm in
+// y×z cross-section) is solid material. Nothing in the original cavity is
+// lost: the plate + PCB components all sit at z ≥ bottom_t + depth_below
+// (= 11.5 mm at the front, higher at the back), so the filled-in triangle
+// is empty cavity space that was never used.
+module back_wall_chamfer_fill() {
+    cb = chamfer_back_bottom;
+    cavity_back_y = outer_d - wall_t;           // straight cavity back (z ≥ cb)
+    front_bot_y   = cavity_back_y - (cb - bottom_t);  // inner chamfer foot @ z=bottom_t
+    // X covers the full cavity width plus a 1 mm overhang each side so the
+    // triangular prism cleanly subtracts from the rectangular cavity cutout.
+    x_lo = wall_t - 1;
+    x_hi = outer_w - wall_t + 1;
+    eps  = 0.001;
+    hull() {
+        // Top apex edge at (y = cavity_back_y, z = cb), spanning X.
+        translate([x_lo, cavity_back_y - eps, cb])
+            cube([x_hi - x_lo, eps, eps]);
+        // Bottom base rectangle at z = bottom_t, spanning full triangle base in Y.
+        translate([x_lo, front_bot_y, bottom_t])
+            cube([x_hi - x_lo, cavity_back_y - front_bot_y, eps]);
+    }
+}
+
 // ─── PIECE 1: TRAY (bottom + walls) ─────────────────────────────────────────
 module case_tray() {
     union() {
@@ -1326,11 +1362,16 @@ module case_tray() {
                     rounded_wedge_box(outer_w + 2*tray_ext, outer_d + 2*tray_ext,
                               front_h - top_t, back_h - top_t, tray_corner_r);
 
-            // Inner cavity (fully open top) — position unchanged, uses wall_t
-            translate([wall_t, wall_t, bottom_t])
-                wedge_box(inner_w, inner_d,
-                          front_h + 10,
-                          back_h  + 10);
+            // Inner cavity (fully open top). The straight wedge cavity is
+            // reduced near the back wall in the chamfer band (z < cb) so the
+            // outer chamfer has material to eat without breaching the cavity.
+            difference() {
+                translate([wall_t, wall_t, bottom_t])
+                    wedge_box(inner_w, inner_d,
+                              front_h + 10,
+                              back_h  + 10);
+                if (ENABLE_CHAMFERS) back_wall_chamfer_fill();
+            }
 
             // Gasket tab slots (cut into the walls)
             gasket_slots();
