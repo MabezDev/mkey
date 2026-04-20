@@ -463,8 +463,26 @@ function magnet_positions() = [
 // SECTION 5: DERIVED DIMENSIONS
 // =============================================================================
 
-// Total depth below plate surface (measured from plate bottom to lowest component + clearance)
-depth_below = 8.5;  // empirical: 7mm measured + 1.5mm clearance
+// ─── Empirical plate+PCB stack measurements ───────────────────────────────
+// Prototype measurements of the assembled plate + PCB + components stack.
+// These drive the vertical space allocated below the plate.
+//
+// FRONT of case: from plate bottom down to the lowest bottom-side component
+// tip. This feeds `internal_h` directly via `depth_below` below — shrinking
+// it reduces the whole case height.
+//
+// BACK of case (USB-C + ESP32-S3-WROOM-1 area): from the lowest bottom-side
+// component up to the highest top-side component (USB receptacle body /
+// ESP32 module can). The 6° tilt raises the plate at the back so more
+// vertical space is available; this measurement is enforced by assertion
+// against `back_plate_bottom_z − bottom_t` (see derived section below),
+// not by feeding `internal_h`.
+stack_h_front   = 7.0;   // empirical, measured at front wall
+stack_h_back    = 13.0;  // empirical, measured at back (USB/processor)
+stack_clearance = 1.5;   // required air gap at both front and back
+
+// Total depth below plate surface (plate bottom to case floor top).
+depth_below = stack_h_front + stack_clearance;  // 8.5 mm
 
 // Total internal height from case floor to case top.
 // Stack-up, bottom to top:
@@ -555,6 +573,19 @@ usb_z_center        = pcb_top_z - pcb_t / 2;
 usb_cut_z_bot       = usb_z_center - usb_cut_h / 2;
 usb_cut_z_top       = usb_z_center + usb_cut_h / 2;
 back_wall_top_z     = back_h - top_t;  // tray wall top at the back
+
+// Back-wall vertical budget: from case-floor top to plate bottom at the back
+// wall must accommodate the 13 mm PCB+USB+ESP32 stack plus 1.5 mm of
+// clearance. The tilt raises the plate at the back by (outer_d − wall_t) ·
+// tan(tilt_angle), so this is naturally looser than depth_below at the front
+// — but if someone shrinks tilt_angle, depth_below, or raises bottom_t in the
+// future, this assert catches the regression before it reaches fab.
+back_avail_h = back_plate_bottom_z - bottom_t;
+assert(back_avail_h >= stack_h_back + stack_clearance,
+       str("Back-wall stack clash: available ", back_avail_h,
+           " mm < required ", stack_h_back + stack_clearance,
+           " mm (", stack_h_back, " mm stack + ", stack_clearance,
+           " mm clearance). Increase tilt_angle, depth_below, or reduce bottom_t."));
 
 // Overlay overhang dimensions
 overlay_w       = outer_w + 2 * overhang;
@@ -2481,3 +2512,7 @@ echo(str("Display top window: ", disp_win_w, " x ", disp_win_h, " mm (corner r="
 echo(str("USB cutout: ", usb_cut_w, " x ", usb_cut_h, " mm at back wall"));
 echo(str("Internal depth below plate: ", depth_below, " mm"));
 echo(str("Plate recess below tray wall top: ", plate_recess, " mm"));
+echo(str("Back stack budget: avail ", back_avail_h, " mm vs need ",
+         stack_h_back + stack_clearance, " mm (", stack_h_back,
+         " + ", stack_clearance, "), margin ",
+         back_avail_h - (stack_h_back + stack_clearance), " mm"));
