@@ -35,7 +35,6 @@ $fn = 48;
 // ─── Rendering switches ──────────────────────────────────────────────────────
 SHOW_TRAY       = true;    // piece 1: bottom + walls
 SHOW_OVERLAY    = true;    // piece 2: top surface
-SHOW_RETAINER   = false;   // piece 3: display retainer (fabricate separately)
 SHOW_PLATE      = false;   // ghost plate for fit check
 SHOW_DISPLAY    = false;   // ghost display for fit check
 SHOW_SECTION    = false;   // cross-section cut for inspection
@@ -153,11 +152,12 @@ right_tab_ext = 1.764;
 //   - toppoplcd.com (TT172LMN10A datasheet)
 //
 // DISPLAY MOUNTING ARRANGEMENT — IMPORTANT (non-obvious, load-bearing):
-//   The display module seats in the OVERLAY HOUSING (display_cutout +
-//   display_retainer), NOT in the plate. It is inserted from above and
-//   held against the retainer lip from below. The plate cutout exists
-//   ONLY to pass the 24-pin FPC ribbon down to J2 on the PCB beneath.
-//   The module body never passes through the plate cutout.
+//   The display module seats in a blind pocket cut into the OVERLAY
+//   underside (see display_cutout), NOT in the plate. It is inserted
+//   from below and adhered with glue to the shelf underside so its
+//   glass face stays pressed against the top window. The plate cutout
+//   exists ONLY to pass the 24-pin FPC ribbon down to J2 on the PCB
+//   beneath. The module body never passes through the plate cutout.
 //
 //   Consequence: the plate cutout dimensions (31.500 × 37.200) only need
 //   to clear the ribbon, not the 31.5×37.22 module body. The nominal
@@ -274,10 +274,6 @@ shelf_corner_r = 1.2;   // radius of the curved inner corners of the window.
                         // corners, and small enough that the window corner
                         // arc stays inside the pocket arc (verified by
                         // assertion below).
-retainer_t    = 1.2;    // separately-fabricated backing plate that clamps the
-                        // module UP against the shelf from below (optional;
-                        // adhesive can replace it).
-
 // ─── Walls ───────────────────────────────────────────────────────────────────
 // The tray and overlay can have different outer wall thicknesses. The overlay
 // (and all inner geometry: cavity, plate, magnets, tongue) uses overlay_wall_t.
@@ -954,15 +950,8 @@ assert(abs(disp_active_ox - (disp_module_w - disp_active_w) / 2) < 0.01 &&
        abs(disp_active_oy - (disp_module_h - disp_active_h) / 2) < 0.01,
        "active area not centered in module — top window will be off-center vs active pixels");
 
-// ─── Retainer fits in pocket under glass ─────────────────────────────────
-// Retainer is glued to the overlay underside at the bottom of the pocket,
-// and the module (disp_glass_t thick) sits above it pressed against the
-// shelf. Retainer thickness is bounded by (pocket depth − glass thickness).
-assert(retainer_t <= disp_pocket_d - disp_glass_t,
-       "retainer too thick to fit in pocket beneath the module glass");
-
 // ─── Bottom pad recess fab-slop margin ───────────────────────────────────
-// Pad recesses are 1 mm deep in a 3.5 mm floor, leaving 2.5 mm nominal. Under
+// Pad recesses are 0.8 mm deep in a 3.0 mm floor, leaving 2.2 mm nominal. Under
 // ±0.2 mm hand-tool depth slop, ensure ≥ 2 mm floor remains over the pads.
 assert(bottom_t - pad_d - FAB_SLOP >= 2.0,
        "bottom pad recess leaves < 2.0 mm floor under ±0.2 mm fab slop");
@@ -1505,8 +1494,6 @@ module display_cutout() {
 
 // 2D footprint of the top window. Hull of four circles of radius
 // shelf_corner_r placed at the inner corners of the window bounding box.
-// Used by both display_cutout (overlay window) and display_retainer (backing
-// clamp inner opening) so the two always match.
 module display_window_2d() {
     for_x = [shelf_corner_r, disp_win_w - shelf_corner_r];
     for_y = [shelf_corner_r, disp_win_h - shelf_corner_r];
@@ -1518,30 +1505,7 @@ module display_window_2d() {
     }
 }
 
-// ─── 7e. Display backing clamp (optional, separately fabricated) ────────────
-// Flat picture-frame piece (1.2 mm plywood, brass, or 3D-printed) that slots
-// into the bottom of the display pocket and clamps the module UP against the
-// shelf underside. Outer outline = pocket size; inner window clears the
-// module's FPC ribbon area. Glue or screw to the overlay underside once the
-// module is seated. Optional — adhesive on the module glass / shelf can do
-// the same job if you prefer.
-module display_retainer() {
-    difference() {
-        // Outer outline matches the pocket footprint.
-        linear_extrude(height = retainer_t)
-            offset(r=disp_pocket_r) offset(delta=-disp_pocket_r)
-                square([disp_pocket_w, disp_pocket_h]);
-        // Inner opening matches the overlay's top window exactly, so the
-        // clamp never encroaches on any part that would be visible or
-        // block the FPC ribbon.
-        translate([(disp_pocket_w - disp_win_w) / 2,
-                   (disp_pocket_h - disp_win_h) / 2, -0.1])
-            linear_extrude(height = retainer_t + 0.2)
-                display_window_2d();
-    }
-}
-
-// ─── 7f. USB-C cutout ───────────────────────────────────────────────────────
+// ─── 7e. USB-C cutout ───────────────────────────────────────────────────────
 module usb_cutout() {
     // USB exits through the back wall. Z geometry is computed at top level
     // (see `usb_z_center` and friends) so the invariant asserts share the
@@ -1751,7 +1715,7 @@ module gasket_slots() {
 // `edge_chamfers()` module was removed in the 2026-04-14 review.
 
 // Bottom rubber pad recesses (for anti-slip, no legs per spec)
-pad_d   = 1.0;     // recess depth
+pad_d   = 0.8;     // recess depth (0.8 mm keeps ≥2.0 mm bottom floor under ±0.2 fab slop)
 pad_w   = 30.0;    // pad width
 pad_h   = 10.0;    // pad length (front-back)
 pad_inset = 15.0;  // inset from edges
@@ -2434,23 +2398,6 @@ module assembly() {
             if (PRINT_MODE) case_overlay_print();
             else  translate([0, 0, EXPLODE])
                       case_overlay_finished();
-    }
-
-    if (SHOW_RETAINER) {
-        // Backing clamp sits at the bottom of the (tilted) display pocket.
-        // display_retainer() extrudes upward from its local z=0, so placing
-        // that origin at local z = −top_t (overlay underside) puts the
-        // retainer flush with the overlay bottom, occupying the bottom
-        // retainer_t of the pocket.
-        rcx = p2c_x(disp_cx);
-        rcy = p2c_y(disp_cy);
-        translate([rcx, rcy, top_z(rcy)])
-        rotate([tilt_angle, 0, 0])
-        color("Goldenrod", 0.9)
-        translate([-disp_pocket_w / 2,
-                   -disp_pocket_h / 2,
-                   -top_t + EXPLODE * 0.5])
-            display_retainer();
     }
 
     if (SHOW_PLATE)
