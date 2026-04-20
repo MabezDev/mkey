@@ -298,7 +298,51 @@ component_h      = 3.5;    // tallest component below PCB (ESP32-S3-WROOM-1: 3.2
 bottom_clearance = 2.0;    // air gap below components
 
 // ─── Gasket ──────────────────────────────────────────────────────────────────
-gasket_compressed = 1.5;   // working thickness when loaded
+gasket_compressed = 1.5;   // nominal compressed thickness used to size
+                            // slot_bot_below_plate (Section 8). Represents the
+                            // "design target" gasket under load.
+
+// ─── Installed gasket scheme (as-built, for plate Z alignment) ───────────────
+// The slot is sized generously (drop-in headroom above, tilt + gasket budget
+// below), so where the plate actually settles depends on which foam strips go
+// in and how they compress. The tab rests on the BOTTOM gasket, so the
+// installed plate Z is:
+//   plate_bot_installed = slot_bot + bot_gasket_installed
+//                       = plate_bot_nominal − (slot_bot_below_plate − bot_gasket_installed)
+// A thinner installed gasket than the slot_bot_below_plate budget drops the
+// plate below nominal; the USB receptacle is bonded to the PCB which rides
+// the switches which are bonded to the plate, so USB drops with it.
+//
+// This build uses a thicker foam strip underneath and a thin cushion on top,
+// so the plate drops only a fraction of a mm. `usb_z_center` shifts by
+// `plate_z_installed_offset` (see Section 5) to keep the USB opening near
+// the centre of the case cutout after assembly.
+bot_gasket_installed = 1.5;   // compressed bottom gasket thickness at mid-slot
+                               // (matches gasket_compressed — the maximum that
+                               // fits in slot_bot_below_plate under tilt+slop
+                               // at the downhill side-slot end)
+top_gasket_installed = 0.5;   // compressed top gasket thickness (thin cap)
+
+// ─── Slot clearance (hoisted) ────────────────────────────────────────────────
+// Defined here (rather than with the rest of the slot geometry in Section 8)
+// because plate_z_installed_offset (Section 5) needs it, and OpenSCAD
+// top-level variable bodies don't forward-reference. The rest of slot_*
+// (slot_depth, slot_open_margin, …) stay in Section 8 with their asserts.
+slot_tol     = 0.6;    // clearance around tab (per side, length direction).
+                       // Bumped from 0.4 → 0.6 in the 2026-04-16 JLC3DP pre-fab
+                       // review: the ±0.3% tolerance band on >100 mm features
+                       // (case X = 363 mm) translates to ~1 mm of positional
+                       // drift at the outermost tab (rightmost front tab center
+                       // at case-X ≈ 320 mm), which would jam a 0.2 mm-play
+                       // slot. 0.6 gives 0.3 mm play per side — enough to
+                       // absorb uniform shrinkage of ±0.3% over the 320 mm
+                       // reach without losing the snug compression fit. Used
+                       // in conjunction with a JLC3DP X-axis scale-comp order
+                       // note; belt-and-braces if the factory skips it.
+                       //
+                       // Earlier: 0.3 → 0.4 in the 2026-04-14 review (0.3 was
+                       // exactly equal to the ±0.2 mm fab slop budget, leaving
+                       // zero play under worst-case slop).
 
 // ─── USB cutout ──────────────────────────────────────────────────────────────
 usb_cut_w = 15.0;   // wide for thick aftermarket cables
@@ -566,10 +610,27 @@ assert(pocket_corner_clearance <= disp_pocket_r,
 // mid-mount HRO TYPE-C-31-M-12 receptacle, whose opening center sits on
 // the PCB midplane.
 back_wall_inner_y   = outer_d - wall_t;
-back_plate_top_z    = plate_z(back_wall_inner_y);
-back_plate_bottom_z = back_plate_top_z - plate_t;
-pcb_top_z           = back_plate_bottom_z - switch_depth;
-usb_z_center        = pcb_top_z - pcb_t / 2;
+back_plate_top_z    = plate_z(back_wall_inner_y);          // nominal
+back_plate_bottom_z = back_plate_top_z - plate_t;          // nominal
+pcb_top_z           = back_plate_bottom_z - switch_depth;  // nominal
+
+// Installed plate Z drift — see `bot_gasket_installed` in Section 4. The
+// tab rests on the bottom gasket, so plate_bot_installed = slot_bot +
+// bot_gasket_installed, and drift from nominal is (bot_gasket_installed −
+// slot_bot_below_plate). `slot_bot_below_plate` is formally defined in
+// Section 8, but we inline its formula here because forward top-level
+// variable references don't resolve in this assignment context. The
+// formula below MUST stay in sync with the Section 8 definition — a cross-
+// check assertion in Section 8 locks the two together.
+plate_z_installed_offset = bot_gasket_installed
+                         - (gasket_compressed
+                            + (tab_len + slot_tol) * tan(tilt_angle) / 2
+                            + FAB_SLOP + 0.05);
+
+// USB cutout is centred on the INSTALLED USB position (= nominal + offset),
+// not the design-nominal plate Z. The receptacle moves down with the plate
+// under the gasket scheme, so the cutout follows it.
+usb_z_center        = pcb_top_z - pcb_t / 2 + plate_z_installed_offset;
 usb_cut_z_bot       = usb_z_center - usb_cut_h / 2;
 usb_cut_z_top       = usb_z_center + usb_cut_h / 2;
 back_wall_top_z     = back_h - top_t;  // tray wall top at the back
@@ -923,6 +984,37 @@ assert(usb_cut_z_bot >= bottom_t + 0.3,
        "USB cutout pierces (or touches) the case floor within fab slop");
 assert(usb_cut_z_top <= back_wall_top_z - 0.3,
        "USB cutout pierces the tray wall top at the back within fab slop");
+
+// ─── Installed gasket scheme sanity ──────────────────────────────────────
+// Bottom gasket must fit within the slot_bot_below_plate budget at the
+// downhill end of the side slots. slot_bot_below_plate equals
+// gasket_compressed + tilt + FAB_SLOP + 0.05 (defined Section 8) — that
+// formula is evaluated inline inside this assert body so forward refs
+// work. If the installed gasket is thicker than that, it over-compresses
+// at the downhill end.
+assert(bot_gasket_installed
+       + (tab_len + slot_tol) * tan(tilt_angle) / 2 + FAB_SLOP
+       <= slot_bot_below_plate,
+       str("bot_gasket_installed (", bot_gasket_installed,
+           " mm) too thick — exceeds slot_bot_below_plate (",
+           slot_bot_below_plate,
+           " mm) at downhill side-slot end. Reduce installed thickness, bump gasket_compressed, or trim the foam strip."));
+// Top gasket must fit in the slot_top_above_plate headroom above the plate.
+assert(top_gasket_installed <= slot_top_above_plate,
+       "top_gasket_installed exceeds slot_top_above_plate — top foam doesn't fit");
+// Even if the actual installed gasket differs from bot_gasket_installed by
+// up to 0.5 mm, a ~3 mm-tall USB port must still sit inside the cutout
+// with fab-slop margin. The cutout is 8 mm tall, half-height 4 mm, so
+// USB_half(1.5) + drift(0.5) + slop(0.2) = 2.2 mm ≤ 4 mm — plenty.
+USB_PORT_H_WORST = 3.0;
+GASKET_DRIFT_TOL = 0.5;
+assert(USB_PORT_H_WORST / 2 + GASKET_DRIFT_TOL + FAB_SLOP <= usb_cut_h / 2,
+       str("usb_cut_h (", usb_cut_h,
+           " mm) too small: USB port + plate-Z drift + fab slop exceeds half-height"));
+// Cross-check that the plate_z_installed_offset inline formula in Section 5
+// stays in sync with the Section 8 definition of slot_bot_below_plate.
+assert(plate_z_installed_offset == bot_gasket_installed - slot_bot_below_plate,
+       "plate_z_installed_offset inline formula (Section 5) drifted from slot_bot_below_plate formula (Section 8) — update Section 5 to match");
 
 // ─── USB-C cutout X invariants ───────────────────────────────────────────
 // The cut must sit inside the back wall's X extent with enough wood on each
@@ -1641,22 +1733,9 @@ assert(slot_bot_below_plate >=
        gasket_compressed + (tab_len + slot_tol) * tan(tilt_angle) / 2 + FAB_SLOP,
        "slot_bot_below_plate too small: downhill end of side slot has gasket headroom < gasket_compressed under tilt + fab slop");
 
-// Slot dimensions
-slot_tol     = 0.6;    // clearance around tab (per side, length direction).
-                       // Bumped from 0.4 → 0.6 in the 2026-04-16 JLC3DP pre-fab
-                       // review: the ±0.3% tolerance band on >100 mm features
-                       // (case X = 363 mm) translates to ~1 mm of positional
-                       // drift at the outermost tab (rightmost front tab center
-                       // at case-X ≈ 320 mm), which would jam a 0.2 mm-play
-                       // slot. 0.6 gives 0.3 mm play per side — enough to
-                       // absorb uniform shrinkage of ±0.3% over the 320 mm
-                       // reach without losing the snug compression fit. Used
-                       // in conjunction with a JLC3DP X-axis scale-comp order
-                       // note; belt-and-braces if the factory skips it.
-                       //
-                       // Earlier: 0.3 → 0.4 in the 2026-04-14 review (0.3 was
-                       // exactly equal to the ±0.2 mm fab slop budget, leaving
-                       // zero play under worst-case slop).
+// Slot dimensions — note: slot_tol is hoisted to Section 4 because the
+// USB-cutout Z calculation needs it. The rest of the slot geometry stays
+// here with its invariant asserts above.
 slot_depth   = 1.5;    // how deep the slot goes into the wall.
                        // Measured tab penetration into the wall is 1.25..1.33 mm
                        // (tab_ext 1.749..1.828 mm, minus plate_gap 0.5 mm), so
@@ -2516,3 +2595,8 @@ echo(str("Back stack budget: avail ", back_avail_h, " mm vs need ",
          stack_h_back + stack_clearance, " mm (", stack_h_back,
          " + ", stack_clearance, "), margin ",
          back_avail_h - (stack_h_back + stack_clearance), " mm"));
+echo(str("Installed gasket: ", bot_gasket_installed, " mm bottom + ",
+         top_gasket_installed, " mm top → plate Z offset ",
+         plate_z_installed_offset, " mm (USB cutout tracks this)"));
+echo(str("USB cutout Z: ", usb_cut_z_bot, "-", usb_cut_z_top,
+         " mm (centre ", usb_z_center, " mm)"));
