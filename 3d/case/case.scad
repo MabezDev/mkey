@@ -2489,11 +2489,7 @@ module print_support_rib(cx) {
         }
 
         // Breakaway neck at floor: thin the rib's bottom edge from rib_t
-        // to rib_neck for the first rib_neck_len mm of Z. Without this,
-        // the rib's full bottom edge (~100 mm) is fused to the floor and
-        // cannot be snapped out without destroying the floor finish.
-        // Spans the full Y length; overlaps harmlessly with the front/back
-        // wall necks in the corners.
+        // to rib_neck for the first rib_neck_len mm of Z.
         for (side = [0, 1]) {
             neck_cut_w = (rib_t - rib_neck) / 2;
             translate([cx - rib_t / 2 + side * (rib_t - neck_cut_w) - 0.01 * (1 - side),
@@ -2503,6 +2499,15 @@ module print_support_rib(cx) {
                       span + 0.02,
                       rib_neck_len + 0.01]);
         }
+
+        // Corner breaks: fully remove the rib where the wall and floor
+        // neck zones overlap so each neck snaps against a single surface.
+        // Front-floor corner
+        translate([cx - rib_t / 2 - 0.01, y0 - 0.01, z_floor - 0.01])
+            cube([rib_t + 0.02, rib_neck_len + 0.02, rib_neck_len + 0.01]);
+        // Back-floor corner
+        translate([cx - rib_t / 2 - 0.01, y1 - rib_neck_len - 0.01, z_floor - 0.01])
+            cube([rib_t + 0.02, rib_neck_len + 0.02, rib_neck_len + 0.01]);
 
         // Floor neck perforations: punch full-width through-gaps along
         // the floor neck so the continuous seam becomes discrete
