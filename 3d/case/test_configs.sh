@@ -187,10 +187,6 @@ run_config "show=overlay-only" \
 run_config "show=both" \
     -D "SHOW_TRAY=true" -D "SHOW_OVERLAY=true"
 
-# retainer
-run_config "show=retainer" \
-    -D "SHOW_TRAY=false" -D "SHOW_OVERLAY=false" -D "SHOW_RETAINER=true"
-
 # --- Section 5: Print mode × piece × features (full cross) ---
 echo ""
 echo "--- Section 5: Print export combinations (print=true × piece × features) ---"
@@ -212,7 +208,6 @@ for piece_label in tray overlay; do
                     -D "PRINT_MODE=true" \
                     -D "SHOW_TRAY=$show_tray" \
                     -D "SHOW_OVERLAY=$show_overlay" \
-                    -D "SHOW_RETAINER=false" \
                     -D "ENABLE_OVERLAY_RABBET=$rabbet" \
                     -D "ENABLE_MAGNET_POCKETS=$magnets" \
                     -D "PRINT_SUPPORTS=$supports"

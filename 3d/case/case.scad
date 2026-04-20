@@ -42,7 +42,7 @@ EXPLODE         = 2;       // set >0 to separate overlay from tray (mm)
 
 // ─── Print-mode switches ────────────────────────────────────────────────────
 // When PRINT_MODE is true, the assembly renders print-oriented pieces:
-//   - Overlay is flattened (5° tilt removed) and flipped cosmetic-face-down
+//   - Overlay is flattened (6° tilt removed) and flipped cosmetic-face-down
 //   - Tray is unchanged in orientation (bottom is already flat)
 // When exporting STLs for manufacturing, set PRINT_MODE=true and render one
 // piece at a time (SHOW_TRAY xor SHOW_OVERLAY).
@@ -415,27 +415,31 @@ ENABLE_CHAMFERS       = true;  // master switch for all chamfer geometry
 // therefore has up to 9 + 4 = 13 gaps; each remaining segment is still
 // fully supported by solid wall material and separated from every
 // neighbouring gap by several mm of wood (asserted below).
-rabbet_w = 2.2;      // ring width in the wall-depth direction (outer ring
+rabbet_w = 2.4;      // ring width in the wall-depth direction (outer ring
                      // of wood/resin removed from the wall top). The
-                     // tongue itself is `rabbet_w − 2·rabbet_tol` = 1.7 mm
+                     // tongue itself is `rabbet_w − 2·rabbet_tol` = 1.8 mm
                      // wide. Must leave a ≥1.5 mm rest cheek for the
                      // overlay outboard of the tongue (wall_t − rabbet_w
-                     // = 2.6 mm here, well above the floor).
+                     // = 2.4 mm here, well above the floor).
                      // Grown 1.8 → 2.0 in the 2026-04-14 JLC3DP review
                      // so the tongue met JLC3DP's 1.5 mm snap-feature
                      // recommendation exactly. Grown 2.0 → 2.2 in the
-                     // 2026-04-17 review to add 0.2 mm margin over that
-                     // floor — absorbs the full ±0.2 mm SLA fab slop
-                     // so the printed tongue never narrows below 1.5 mm.
+                     // 2026-04-17 review to add 0.2 mm margin. Grown
+                     // 2.2 → 2.4 in the 2026-04-20 pre-fab review so
+                     // the rabbet_tol increase to 0.30 keeps tongue at
+                     // 1.8 mm nominal / 1.6 mm worst-case (above 1.5).
 rabbet_h = 1.5;      // tongue height above the wall top (= recess depth
                      // into the overlay underside). Grown from 1.0 → 1.5
                      // in the 2026-04-14 JLC3DP review to meet the same
                      // 1.5 mm snap-feature recommendation. Still leaves
                      // top_t − rabbet_h = 3.5 mm of overlay slab above
                      // the recess floor (≫ the 1.0 mm structural floor).
-rabbet_tol = 0.25;   // per-side clearance between the tongue and the
-                     // recess. 0.25 mm gives a sliding hand-seat fit
-                     // with no binding under ±0.2 mm fab slop.
+rabbet_tol = 0.30;   // per-side clearance between the tongue and the
+                     // recess. Grown from 0.25 → 0.30 in the 2026-04-20
+                     // pre-fab review: at 0.25 the worst-case clearance
+                     // was 0.05 mm/side (both pieces at +0.2 mm), below
+                     // JLC3DP's 0.2 mm static-assembly rule. 0.30 gives
+                     // 0.10 mm/side worst-case (total 0.20 mm).
 notch_margin = 0.5;  // extra plan-view clearance added around each slot
                      // footprint when notching the tongue / recess, so
                      // the plate tab has a finger of sliding room when
@@ -448,7 +452,7 @@ notch_margin = 0.5;  // extra plan-view clearance added around each slot
 // rabbet seam and hold the overlay down.
 //
 // Default sizing targets 2 mm Ø × 1 mm N52 discs (pull force ≈ 80 g each;
-// 6 of them give ~480 g of holding force — plenty for a 5° tilted keyboard
+// 6 of them give ~480 g of holding force — plenty for a 6° tilted keyboard
 // that only has to fight gravity + light typing vibration).
 //
 // Downsized from Ø3×2 → Ø2×1 in the 2026-04-17 JLC3DP pre-fab review:
@@ -463,7 +467,10 @@ notch_margin = 0.5;  // extra plan-view clearance added around each slot
 // hole rule with 0.2 mm slop AND leaves a 1.15 mm nominal wall cheek
 // (0.95 mm worst case — comfortably above the 0.8 mm wall floor).
 magnet_d      = 2.3;    // pocket diameter. 2.0 mm nominal magnet + 0.3 mm
-                        // JLC3DP hole-tolerance allowance + 0.2 mm epoxy slop.
+                        // JLC3DP hole-tolerance allowance. Accepted risk:
+                        // worst-case pocket (2.3 − 0.3 = 2.0 mm) gives zero
+                        // clearance; slightly oversized magnets may need
+                        // light reaming. Acceptable for a press-fit pocket.
 magnet_depth  = 2.0;    // pocket depth (Z). Meets JLC3DP's Ø↔depth minimum
                         // (h ≥ Ø for small holes: Ø2.0 → h ≥ 2.0 mm) and
                         // fully captures the 1 mm-thick magnet with 1 mm
@@ -1416,10 +1423,10 @@ module overlay_recess_3d() {
 // the cylinder length by the tilt drift so the full `magnet_depth` is
 // preserved at the OTHER extreme. Result: clean hole through the tilted
 // plane everywhere in the pocket footprint.
-magnet_tilt_drift = magnet_d * tan(tilt_angle);   // ≈ 0.22 mm for Ø2.5, 5°
+magnet_tilt_drift = magnet_d * tan(tilt_angle);   // ≈ 0.24 mm for Ø2.3, 6°
 magnet_cyl_h      = magnet_depth + magnet_tilt_drift + 0.2;   // ≈ 2.68 mm
 
-// top_z() is monotonic in y (5° tilt, increasing toward the back), so the
+// top_z() is monotonic in y (6° tilt, increasing toward the back), so the
 // uphill edge of every pocket is at y = p[1] + magnet_d/2 regardless of
 // which wall the magnet sits on, and the downhill edge is p[1] − magnet_d/2.
 
@@ -1748,29 +1755,30 @@ assert(slot_bot_below_plate >=
 // Slot dimensions — note: slot_tol is hoisted to Section 4 because the
 // USB-cutout Z calculation needs it. The rest of the slot geometry stays
 // here with its invariant asserts above.
-slot_depth   = 1.5;    // how deep the slot goes into the wall.
+slot_depth   = 1.7;    // how deep the slot goes into the wall.
                        // Measured tab penetration into the wall is 1.25..1.33 mm
                        // (tab_ext 1.749..1.828 mm, minus plate_gap 0.5 mm), so
-                       // 1.5 mm captures the tab with ~0.17 mm back clearance.
-                       // Reduced from 2.5 mm because 2.5 mm left only 2.3 mm
-                       // of outboard wall cheek on 4.8 mm walls, with 7 slots
-                       // running 20 mm each along front+back — a chip-off
-                       // hazard in hardwood. 1.5 mm depth leaves 3.3 mm cheek.
+                       // 1.7 mm captures the tab with ~0.37 mm back clearance.
+                       // Grown from 1.5 → 1.7 in the 2026-04-20 pre-fab review:
+                       // 0.17 mm clearance was inside the 0.093% SLA shrink
+                       // threshold — cavity shrink bottoms the left tab against
+                       // the slot back wall, defeating gasket isolation.
+                       // 1.7 mm depth leaves 3.1 mm cheek (above 3.0 mm floor).
 slot_open_margin = 1.5;    // mm slot top extends ABOVE the tray wall top at
                            // the slot's center-Y. Turns each slot into an
                            // open-top channel so the plate can drop in from
                            // above. Bumped from 0.5 mm because the LEFT/RIGHT
-                           // slots run ALONG the 5° tilt axis (Y), so the
+                           // slots run ALONG the 6° tilt axis (Y), so the
                            // wall top rises over the slot's length. Over the
                            // 20.10 mm slot length the uphill end sits
-                           // L·tan(5°)/2 = 0.88 mm above slot center, so the
+                           // L·tan(6°)/2 = 1.06 mm above slot center, so the
                            // flat-topped slot box must clear ≥0.88 mm of
                            // wall-top rise. With slot_open_margin = 1.5 mm
                            // the uphill wall-top is 0.62 mm BELOW the slot
                            // top — comfortably above ±0.2 mm fab slop on
                            // both wall and tab. Front/back slots run along X
                            // (no tilt drift) so they only see a
-                           // 4.8·tan(5°) = 0.42 mm rise across wall thickness.
+                           // 4.8·tan(6°) = 0.50 mm rise across wall thickness.
 // Slot is sized ASYMMETRICALLY about plate midplane. The two constraints
 // (drop-in clearance above wall top, gasket headroom below the plate) have
 // nothing to do with each other, so a symmetric slot wastes wood — every
@@ -1798,7 +1806,7 @@ slot_top_above_plate = plate_recess + slot_open_margin;   // 2.0 + 1.5 = 3.5 mm
 // slot_bot_below_plate: sized so the bottom gasket (gasket_compressed =
 // 1.5 mm) still fits under the plate at the downhill end of the SIDE slots
 // (which run along Y / the tilt axis). Over the (tab_len+slot_tol)/2 =
-// 10.10 mm half-length, the plate bottom descends by 10.10·tan(5°) = 0.884
+// 10.10 mm half-length, the plate bottom descends by 10.10·tan(6°) = 1.061
 // mm; add FAB_SLOP (0.2) and a small machining margin (0.05). The front/back
 // slots run along X and have no tilt drift, so they inherit the side-slot
 // sizing for free.
@@ -1927,9 +1935,9 @@ deco_stripe_width  = 1.0;    // groove width in the plane of the top face.
 deco_initials_size   = 8.0;                          // mm cap height (initials row)
 deco_year_size       = 8.0;                          // mm cap height (year row)
                                                       // Liberation Sans Bold stem ≈ 0.15·cap-height,
-                                                      // so stroke ≈ 0.90 mm at 6.0 mm — 0.10 mm
-                                                      // above the JLC3DP 0.8 mm floor, enough to
-                                                      // survive half the ±0.2 mm fab slop on each
+                                                      // so stroke ≈ 1.20 mm at 8.0 mm — 0.40 mm
+                                                      // above the JLC3DP 0.8 mm floor, well within
+                                                      // the ±0.2 mm fab slop budget on each
                                                       // side of the glyph edge. Grown 3.8 → 5.0
                                                       // → 5.5 → 6.0 across successive pre-fab
                                                       // reviews (latest: 2026-04-17).
@@ -1991,8 +1999,8 @@ module deco_side_logo() {
 // A thin picture-frame groove running just inside the rounded outer edge of
 // the overlay top. Built as a 2D frame, extruded to a vertical prism, then
 // rotated by tilt_angle around the front-bottom X axis so the prism's "top"
-// face sits on the tilted overlay top plane. At 5° tilt the prism is
-// essentially vertical — groove width remains 0.8 mm to within <0.01 mm.
+// face sits on the tilted overlay top plane. At 6° tilt the prism is
+// essentially vertical — groove width remains 1.0 mm to within <0.01 mm.
 module deco_pinstripe_frame_2d() {
     difference() {
         translate([-overhang, -overhang])
@@ -2280,12 +2288,12 @@ module case_overlay_finished() {
 // =============================================================================
 // When PRINT_MODE is true, these wrappers re-orient the finished pieces for
 // optimal 3D printing:
-//   - Overlay: flattened (5° tilt removed), flipped cosmetic-face-down
+//   - Overlay: flattened (6° tilt removed), flipped cosmetic-face-down
 //   - Tray: orientation unchanged (bottom already flat); optional breakaway
 //     cross-braces added when PRINT_SUPPORTS is true
 
 // ─── Print-oriented overlay ─────────────────────────────────────────────────
-// Undo the 5° wedge tilt so the overlay lies perfectly flat, then flip it
+// Undo the 6° wedge tilt so the overlay lies perfectly flat, then flip it
 // upside-down so the cosmetic top surface (key opening / display window)
 // faces the build plate for the best surface finish on SLA and FDM.
 //
@@ -2295,7 +2303,7 @@ module case_overlay_print() {
     // After case_overlay_finished(), the overlay sits in design position:
     //   X: -overhang .. overlay_w - overhang
     //   Y: -overhang .. overlay_d - overhang
-    //   Z: overlay_front_h - top_t .. overlay_back_h  (tilted 5°)
+    //   Z: overlay_front_h - top_t .. overlay_back_h  (tilted 6°)
     //
     // Step 1: rotate -tilt_angle around X to flatten the top/bottom faces.
     // Step 2: rotate 180° around Y to flip cosmetic face down (preserves
