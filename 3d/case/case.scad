@@ -1824,12 +1824,18 @@ deco_logo_chip_border = 1.0;                         // chip frame stroke, mm.
                                                       // 0.9 → 1.0 in the 2026-04-17 pre-fab review.
 deco_logo_chip_inner  = 2.4;                         // inner solid square side, mm
 deco_logo_text        = "mKey";
-deco_logo_text_size   = 6.0;                         // cap height, mm. Liberation Sans Bold stem
-                                                      // ≈ 0.15·cap-height, so stroke ≈ 0.90 mm —
-                                                      // 0.10 mm above the 0.8 mm readable floor.
-                                                      // Grown 5.5 → 6.0 in the 2026-04-17 review.
-                                                      // Ref-size constants below remain anchored
-                                                      // at 5.5; text_w scales linearly.
+deco_logo_text_size   = 7.5;                         // cap height, mm. Liberation Sans Bold stem
+                                                      // ≈ 0.15·cap-height, so stroke ≈ 1.125 mm
+                                                      // nominal → 0.925 mm worst-case under the
+                                                      // full ±0.2 mm SLA fab slop, still ≥ 0.8 mm
+                                                      // JLC3DP engraved-detail floor with 0.125 mm
+                                                      // margin. Grown 6.0 → 7.5 in the 2026-04-20
+                                                      // pre-fab design review: at 6.0 the stem was
+                                                      // 0.9 mm nominal / 0.7 mm worst-case, below
+                                                      // the 0.8 mm floor — the only hard JLC rule
+                                                      // violation surfaced by the review. Ref-size
+                                                      // constants below remain anchored at 5.5;
+                                                      // text_w scales linearly.
 deco_logo_text_gap    = 1.8;                         // chip ↔ text gap, mm
 deco_logo_font        = "Liberation Sans:style=Bold";
 
