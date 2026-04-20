@@ -82,9 +82,9 @@ ENABLE_MAGNET_POCKETS = true;    // cut blind magnet pockets in the tray wall
 // silently drops every decorative cut, so hardwood builds or "naked" prints
 // use the exact same file with one toggle.
 ENABLE_DECORATIVE_TRIMS = true;   // master switch — false = all decoratives off
-DECO_SIDE_LOGO          = true;   // mKey logo debossed on both outer side walls
+DECO_BACK_LOGO          = true;   // mKey logo debossed on outer back wall
 DECO_EDGE_PINSTRIPE     = false;  // hairline groove around the overlay top edge
-DECO_OWNER_INITIALS     = true;   // initials + year debossed into the tray underside
+DECO_OWNER_INITIALS     = false;  // initials + year debossed into the tray underside
 DECO_LOGO_TOP           = false;   // mKey logo debossed on overlay top above the display
 DECO_INITIALS           = "SM";   // user-customisable owner initials
 DECO_YEAR               = "2026"; // build year stamped under the initials
@@ -1969,30 +1969,22 @@ deco_logo_text_size   = 7.5;                         // cap height, mm. Liberati
 deco_logo_text_gap    = 1.8;                         // chip ↔ text gap, mm
 deco_logo_font        = "Liberation Sans:style=Bold";
 
-// ─── Side wall logo ─────────────────────────────────────────────────────────
-// Debossed mKey logo (chip icon + wordmark) on the outer face of the left
-// (X=0) and right (X=outer_w) walls. Reuses deco_logo_2d() — same 2D shape
-// as the top-face logo so the two read identically. The outer face is
-// flat-vertical, so no tilt compensation is needed. The logo is centered
-// along the wall in Y and vertically placed so it sits inside the wall
-// height at Y = outer_d/2 (the mid-point, where wall height equals the
-// average of front_h-top_t and back_h-top_t).
-module deco_side_logo() {
-    wall_top_mid = (front_h + back_h) / 2 - top_t;
-    z_center = wall_top_mid / 2;
-    y_center = outer_d / 2;
+// ─── Back wall logo ─────────────────────────────────────────────────────────
+// Debossed mKey logo (chip icon + wordmark) on the outer face of the back
+// wall. Reuses deco_logo_2d() — same 2D shape as the top-face logo so the
+// two read identically. Centred horizontally and vertically placed in the
+// flat zone between the large back-bottom chamfer (chamfer_back_bottom) and
+// the tray wall top (back_h − top_t). The 2D shape is mirrored in X before
+// extrusion so the text reads correctly when viewed from behind (+Y).
+module deco_back_logo() {
+    z_center = (chamfer_back_bottom + back_wall_top_z) / 2;
+    x_center = outer_w / 2;
 
-    // LEFT wall — readable from −X (aligned with extended tray shell)
-    translate([-tray_ext + deco_cut_depth, y_center, z_center])
-        rotate([90, 0, -90])
+    translate([x_center, outer_d + tray_ext, z_center])
+        rotate([90, 0, 0])
             linear_extrude(height = deco_cut_depth + 0.1)
-                deco_logo_2d();
-
-    // RIGHT wall — readable from +X (aligned with extended tray shell)
-    translate([outer_w + tray_ext - deco_cut_depth, y_center, z_center])
-        rotate([90, 0, 90])
-            linear_extrude(height = deco_cut_depth + 0.1)
-                deco_logo_2d();
+                mirror([1, 0])
+                    deco_logo_2d();
 }
 
 // ─── Overlay edge pinstripe ─────────────────────────────────────────────────
@@ -2261,7 +2253,7 @@ module case_tray_finished() {
 
         // ─── Decorative trims (tray) ────────────────────────────────────────
         if (ENABLE_DECORATIVE_TRIMS) {
-            if (DECO_SIDE_LOGO)      deco_side_logo();
+            if (DECO_BACK_LOGO)      deco_back_logo();
             if (DECO_OWNER_INITIALS) deco_owner_initials();
         }
     }

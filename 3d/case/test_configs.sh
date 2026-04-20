@@ -139,14 +139,14 @@ done
 echo ""
 echo "--- Section 2: Decorative sub-toggle matrix ---"
 
-for side_logo in true false; do
+for back_logo in true false; do
     for pinstripe in true false; do
         for initials in true false; do
             for logo_top in true false; do
-                label="deco_sub: side=$side_logo pin=$pinstripe init=$initials top=$logo_top"
+                label="deco_sub: back=$back_logo pin=$pinstripe init=$initials top=$logo_top"
                 run_config "$label" \
                     -D "ENABLE_DECORATIVE_TRIMS=true" \
-                    -D "DECO_SIDE_LOGO=$side_logo" \
+                    -D "DECO_BACK_LOGO=$back_logo" \
                     -D "DECO_EDGE_PINSTRIPE=$pinstripe" \
                     -D "DECO_OWNER_INITIALS=$initials" \
                     -D "DECO_LOGO_TOP=$logo_top"
