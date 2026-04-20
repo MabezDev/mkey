@@ -614,18 +614,25 @@ back_plate_top_z    = plate_z(back_wall_inner_y);          // nominal
 back_plate_bottom_z = back_plate_top_z - plate_t;          // nominal
 pcb_top_z           = back_plate_bottom_z - switch_depth;  // nominal
 
-// Installed plate Z drift — see `bot_gasket_installed` in Section 4. The
-// tab rests on the bottom gasket, so plate_bot_installed = slot_bot +
-// bot_gasket_installed, and drift from nominal is (bot_gasket_installed −
-// slot_bot_below_plate). `slot_bot_below_plate` is formally defined in
-// Section 8, but we inline its formula here because forward top-level
-// variable references don't resolve in this assignment context. The
-// formula below MUST stay in sync with the Section 8 definition — a cross-
-// check assertion in Section 8 locks the two together.
+// Installed plate Z drift — see `bot_gasket_installed` in Section 4.
+//
+// The plate rests on its DOWNHILL tab edge (side slots run along Y, so
+// the tab's -Y end sits (tab_len/2 + slot_tol)·tan(tilt) below the slot
+// center plate midplane even at nominal Z). `slot_bot_below_plate`
+// already reserves that tilt drop plus a gasket-compressed budget plus
+// FAB_SLOP + 0.05 safety buffer:
+//     slot_bot_below_plate = gasket_compressed
+//                          + (tab_len + slot_tol)·tan(tilt)/2
+//                          + FAB_SLOP + 0.05
+// With an installed gasket of exactly gasket_compressed thickness, the
+// plate only drops by the FAB_SLOP + 0.05 buffer. A thinner installed
+// gasket drops it further by (gasket_compressed − bot_gasket_installed).
+// Simplifying:
+//     plate_drop = bot_gasket_installed
+//                − gasket_compressed − FAB_SLOP − 0.05
+// The USB receptacle rides the plate, so the cutout shifts with it.
 plate_z_installed_offset = bot_gasket_installed
-                         - (gasket_compressed
-                            + (tab_len + slot_tol) * tan(tilt_angle) / 2
-                            + FAB_SLOP + 0.05);
+                         - gasket_compressed - FAB_SLOP - 0.05;
 
 // USB cutout is centred on the INSTALLED USB position (= nominal + offset),
 // not the design-nominal plate Z. The receptacle moves down with the plate
@@ -1011,10 +1018,15 @@ GASKET_DRIFT_TOL = 0.5;
 assert(USB_PORT_H_WORST / 2 + GASKET_DRIFT_TOL + FAB_SLOP <= usb_cut_h / 2,
        str("usb_cut_h (", usb_cut_h,
            " mm) too small: USB port + plate-Z drift + fab slop exceeds half-height"));
-// Cross-check that the plate_z_installed_offset inline formula in Section 5
-// stays in sync with the Section 8 definition of slot_bot_below_plate.
-assert(plate_z_installed_offset == bot_gasket_installed - slot_bot_below_plate,
-       "plate_z_installed_offset inline formula (Section 5) drifted from slot_bot_below_plate formula (Section 8) — update Section 5 to match");
+// Cross-check the simplified plate_z_installed_offset (Section 5) against
+// the full derivation from slot_bot_below_plate (Section 8). The plate
+// rests on its downhill tab edge, so only the FAB_SLOP + 0.05 safety
+// buffer in slot_bot_below_plate becomes drop when bot_gasket_installed
+// matches gasket_compressed.
+assert(plate_z_installed_offset ==
+       bot_gasket_installed + (tab_len + slot_tol) * tan(tilt_angle) / 2
+       - slot_bot_below_plate,
+       "plate_z_installed_offset formula (Section 5) drifted from slot_bot_below_plate (Section 8) — the tilt term must cancel");
 
 // ─── USB-C cutout X invariants ───────────────────────────────────────────
 // The cut must sit inside the back wall's X extent with enough wood on each
