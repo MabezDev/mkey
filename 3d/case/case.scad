@@ -535,7 +535,10 @@ screw_nut_depth    = 2.5;    // hex pocket depth (1.2 mm nut + margin for
                              // bolt tip and tolerance)
 screw_pocket_d     = 3.0;    // bottom segment — catches bolt head (2.6 mm
                              // M1.4 SHCS head + 0.4 mm clearance)
-screw_mid_d        = 2.5;    // intermediate segment
+screw_mid_d        = 2.0;    // intermediate segment (reduced from 2.5:
+                             // JLC3DP ±0.3 mm hole tolerance could grow
+                             // 2.5 to 2.8, larger than the 2.6 mm SHCS
+                             // head — bolt would fall through the step)
 screw_clear_d      = 2.0;    // top segment — M1.4 clearance from wall top
 screw_clear_depth  = 6.0;    // top segment depth (JLC max for 2 mm: 6 mm)
 screw_bolt_length  = 12;     // M1.4 × 12 mm (same length all 4 positions)
