@@ -72,6 +72,11 @@ ENABLE_MAGNET_POCKETS = true;    // cut blind magnet pockets in the tray wall
                                  // magnetically (serviceable — overlay lifts
                                  // off for PCB access). Counts on N52 disc
                                  // magnets — see magnet_* params below.
+ENABLE_SCREW_INSERTS  = false;   // M1.6 hex nuts (glued) in hex pockets in the
+                                 // overlay underside + captive bolts threading
+                                 // up from inside the tray. 4 corner positions.
+                                 // Nothing visible externally. Mutually
+                                 // exclusive with ENABLE_MAGNET_POCKETS.
 
 // ─── Decorative trims (3D-print-only) ───────────────────────────────────────
 // Cosmetic embellishments with no mechanical role. Only practical on printed
@@ -508,6 +513,49 @@ function magnet_positions() = [
     [outer_w - magnet_inset,           outer_d - wall_t / 2],    // back-right
     [outer_w / 2,                      wall_t / 2],              // front-middle
     [outer_w / 2 + back_mid_offset,    outer_d - wall_t / 2],    // back-middle (offset to clear back tab 2)
+];
+
+// ─── Screw + nut pockets (optional, ENABLE_SCREW_INSERTS) ───────────────────
+// M1.6 hex nuts glued into hex-shaped pockets in the overlay underside;
+// M1.6 bolts thread upward through clearance holes in the tray wall top.
+// The bolt heads sit in counterbores recessed below the wall top so the
+// overlay seats flat. The hex pocket prevents the nut from spinning during
+// tightening; CA glue locks it permanently. 4 corners only — positive
+// mechanical engagement doesn't need mid-wall reinforcement to resist bow.
+//
+// SLA resin warps under heat, so heat-set inserts are not usable here.
+// Glued hex nuts are the correct fastener for this process.
+//
+// Hardware: M1.6 hex nut DIN 934 (3.2 mm AF, 1.3 mm thick),
+//           M1.6 × 3 mm socket head cap screw.
+// Length stack-up: the tilt-compensated counterbore is 1.78 mm deep at
+// the bolt center (not the nominal 1.5 mm — the cylinder is anchored to
+// the uphill edge of the tilted wall top, so it cuts 0.28 mm deeper at
+// center). Full traverse to nut top = 1.78 + 1.3 = 3.08 mm. A 3 mm bolt
+// gives 97% nut engagement; 4 mm would overshoot the pocket ceiling.
+// The traverse is identical at all 4 positions (front and back) because
+// both the counterbore anchor and the mating surface shift linearly with
+// the tilt — the Y-dependence cancels.
+screw_nut_af       = 3.4;    // hex pocket across-flats (3.2 mm M1.6 nut +
+                             // 0.2 mm SLA dimensional tolerance). Oriented
+                             // with flats parallel to wall faces so AF
+                             // constrains the wall-thickness cheek.
+screw_nut_depth    = 1.5;    // hex pocket depth (1.3 mm nut + 0.2 mm glue
+                             // headroom). Leaves top_t − 1.5 = 2.0 mm of
+                             // solid overlay above the pocket.
+screw_clear_d      = 2.0;    // M1.6 clearance hole through tray wall top
+screw_head_d       = 3.5;    // counterbore diameter (M1.6 SHCS head OD
+                             // 3.0 mm + 0.5 mm clearance)
+screw_head_depth   = 1.5;    // counterbore depth — recesses bolt head below
+                             // wall top so it doesn't foul the overlay
+screw_inset        = 13;     // corner inset (same geometry as magnet_inset)
+
+// Screw positions: 4 corners, same layout function pattern as magnet_positions.
+function screw_positions() = [
+    [screw_inset,                  wall_t / 2],              // front-left
+    [outer_w - screw_inset,        wall_t / 2],              // front-right
+    [screw_inset,                  outer_d - wall_t / 2],    // back-left
+    [outer_w - screw_inset,        outer_d - wall_t / 2],    // back-right
 ];
 
 // =============================================================================
@@ -976,6 +1024,129 @@ assert(!(ENABLE_MAGNET_POCKETS && ENABLE_OVERLAY_RABBET) ||
             if (lo < overlay_corner_r || hi > span - overlay_corner_r) 1]) == 0,
        "a magnet notch enters the overlay's rounded outer corner region");
 
+// ─── Screw + nut invariants (only enforced when ENABLE_SCREW_INSERTS) ───────
+// Mutually exclusive with magnets — both drill into the same wall-top real
+// estate, and the positions overlap.
+assert(!(ENABLE_SCREW_INSERTS && ENABLE_MAGNET_POCKETS),
+       "ENABLE_SCREW_INSERTS and ENABLE_MAGNET_POCKETS are mutually exclusive");
+// Hex nut across-corners (the bounding circle of the hex pocket).
+screw_nut_ac = screw_nut_af / cos(30);
+// Overlay wall cheek: hex pocket AF constrains wall-thickness direction.
+// Same 0.6 mm floor as magnet cheek (blind pocket in a solid body, not a
+// freestanding snap feature).
+assert(!ENABLE_SCREW_INSERTS || (wall_t - screw_nut_af) / 2 >= 0.6,
+       "hex nut pocket leaves < 0.6 mm cheek in overlay wall");
+// Tray wall cheek around the counterbore.
+assert(!ENABLE_SCREW_INSERTS || (tray_wall_t - screw_head_d) / 2 >= 0.8,
+       "screw counterbore leaves < 0.8 mm cheek in tray wall");
+// Hex pocket must not breach the overlay top surface.
+assert(!ENABLE_SCREW_INSERTS || screw_nut_depth <= top_t - 1.0,
+       "hex nut pocket depth leaves < 1.0 mm of overlay skin above the pocket");
+// Counterbore must not breach the tray floor. Same tilt-compensation check
+// as magnet pockets: anchor to uphill edge.
+screw_tilt_drift = screw_head_d * tan(tilt_angle);
+screw_cb_cyl_h   = screw_head_depth + screw_tilt_drift + 0.2;
+assert(!ENABLE_SCREW_INSERTS ||
+       len([for (p = screw_positions())
+            if (top_z(p[1] + screw_head_d/2) - top_t + 0.1 - screw_cb_cyl_h
+                < bottom_t + 2.0) 1]) == 0,
+       "screw counterbore bottom leaves less than 2 mm of wall material above the case floor");
+// Every screw position must sit entirely inside the wall ring. Use the
+// hex across-corners as the bounding radius (conservative — the hex
+// vertices extend further than the flats).
+assert(!ENABLE_SCREW_INSERTS ||
+       len([for (p = screw_positions())
+            let (r = max(screw_nut_ac, screw_head_d) / 2)
+            if (p[0] - r < 0.3 ||
+                p[0] + r > outer_w - 0.3 ||
+                p[1] - r < 0.3 ||
+                p[1] + r > outer_d - 0.3 ||
+                (p[0] + r > wall_t - 0.3 &&
+                 p[0] - r < outer_w - wall_t + 0.3 &&
+                 p[1] + r > wall_t - 0.3 &&
+                 p[1] - r < outer_d - wall_t + 0.3)) 1]) == 0,
+       "a screw position does not sit fully inside the wall ring material");
+// Screw positions must not collide with any gasket slot footprint.
+assert(!ENABLE_SCREW_INSERTS ||
+       len([for (p = screw_positions())
+            let (r = max(screw_nut_ac, screw_head_d) / 2)
+            for (bx = back_tab_cx)
+            let (sx1 = p2c_x(bx) - (tab_len + slot_tol)/2 - r,
+                 sx2 = p2c_x(bx) + (tab_len + slot_tol)/2 + r)
+            if (p[0] >= sx1 && p[0] <= sx2 &&
+                p[1] >= outer_d - wall_t - r) 1]) == 0,
+       "a back-wall screw position overlaps a back gasket slot");
+assert(!ENABLE_SCREW_INSERTS ||
+       len([for (p = screw_positions())
+            let (r = max(screw_nut_ac, screw_head_d) / 2)
+            for (fx = front_tab_cx)
+            let (sx1 = p2c_x(fx) - (tab_len + slot_tol)/2 - r,
+                 sx2 = p2c_x(fx) + (tab_len + slot_tol)/2 + r)
+            if (p[0] >= sx1 && p[0] <= sx2 &&
+                p[1] <= wall_t + r) 1]) == 0,
+       "a front-wall screw position overlaps a front gasket slot");
+// Screw positions must keep >= 2 mm cheek to USB cutout.
+assert(!ENABLE_SCREW_INSERTS ||
+       len([for (p = screw_positions())
+            let (r = max(screw_nut_ac, screw_head_d) / 2,
+                 cheek = abs(p[0] - p2c_x(usb_plate_x)) - usb_cut_w/2 - r)
+            if (p[1] >= outer_d - wall_t - r && cheek < 2.0) 1]) == 0,
+       "a back-wall screw position leaves < 2 mm cheek to the USB cutout");
+
+// ─── Screw × tongue auto-notching invariants ───────────────────────────────
+// Same pattern as magnet × tongue checks. The notch must clear the hex
+// across-corners extent (vertices extend further than the counterbore).
+screw_notch_extent = max(screw_nut_ac, screw_head_d);
+// Every screw position must be adjacent to a wall for the notch
+// classification to work.
+assert(!(ENABLE_SCREW_INSERTS && ENABLE_OVERLAY_RABBET) ||
+       len([for (p = screw_positions())
+            if (!(p[1] <= wall_t ||
+                  p[1] >= outer_d - wall_t ||
+                  p[0] <= wall_t ||
+                  p[0] >= outer_w - wall_t)) 1]) == 0,
+       "a screw position is not adjacent to any wall — tongue auto-notch would miss it");
+SCREW_NOTCH_SEP = 1.0;
+assert(!(ENABLE_SCREW_INSERTS && ENABLE_OVERLAY_RABBET) ||
+       len([for (p = screw_positions())
+            if (p[1] <= wall_t || p[1] >= outer_d - wall_t)
+              let (m_on_front = p[1] <= wall_t,
+                   m_lo = p[0] - screw_notch_extent/2 - notch_margin,
+                   m_hi = p[0] + screw_notch_extent/2 + notch_margin)
+              for (cx = m_on_front ? front_tab_cx : back_tab_cx)
+                let (s_lo = p2c_x(cx) - (tab_len + slot_tol)/2 - notch_margin,
+                     s_hi = p2c_x(cx) + (tab_len + slot_tol)/2 + notch_margin,
+                     gap  = (m_lo > s_hi) ? (m_lo - s_hi) :
+                            (s_lo > m_hi) ? (s_lo - m_hi) : -1)
+                if (gap < SCREW_NOTCH_SEP) 1]) == 0,
+       "a front/back-wall screw notch is within 1 mm of a gasket slot notch — tongue segment collapses");
+assert(!(ENABLE_SCREW_INSERTS && ENABLE_OVERLAY_RABBET) ||
+       len([for (p = screw_positions())
+            if ((p[0] <= wall_t || p[0] >= outer_w - wall_t) &&
+                !(p[1] <= wall_t || p[1] >= outer_d - wall_t))
+              let (m_on_left = p[0] <= wall_t,
+                   m_lo = p[1] - screw_notch_extent/2 - notch_margin,
+                   m_hi = p[1] + screw_notch_extent/2 + notch_margin,
+                   s_cy = m_on_left ? left_tab_cy : right_tab_cy,
+                   s_lo = p2c_y(s_cy) - (tab_len + slot_tol)/2 - notch_margin,
+                   s_hi = p2c_y(s_cy) + (tab_len + slot_tol)/2 + notch_margin,
+                   gap  = (m_lo > s_hi) ? (m_lo - s_hi) :
+                          (s_lo > m_hi) ? (s_lo - m_hi) : -1)
+              if (gap < SCREW_NOTCH_SEP) 1]) == 0,
+       "a left/right-wall screw notch is within 1 mm of the side gasket slot notch — tongue segment collapses");
+assert(!(ENABLE_SCREW_INSERTS && ENABLE_OVERLAY_RABBET) ||
+       len([for (p = screw_positions())
+            let (on_fb = p[1] <= wall_t || p[1] >= outer_d - wall_t,
+                 lo   = on_fb
+                        ? p[0] - screw_notch_extent/2 - notch_margin
+                        : p[1] - screw_notch_extent/2 - notch_margin,
+                 hi   = on_fb
+                        ? p[0] + screw_notch_extent/2 + notch_margin
+                        : p[1] + screw_notch_extent/2 + notch_margin,
+                 span = on_fb ? outer_w : outer_d)
+            if (lo < overlay_corner_r || hi > span - overlay_corner_r) 1]) == 0,
+       "a screw notch enters the overlay's rounded outer corner region");
+
 // The key_cap_clearance expansion must not erode the main-field ↔ arrow LDR
 // rib below its structural minimum. Gap at nominal MX spacing is 4.76 mm;
 // after 2×key_cap_clearance expansion the effective rib width is
@@ -1349,14 +1520,38 @@ module magnet_notch_footprints_2d(margin) {
     }
 }
 
+// 2D notch footprints for screw/nut pockets. Same pattern as
+// magnet_notch_footprints_2d but uses the bounding extent of the hex nut
+// across-corners or counterbore (whichever is larger) and screw_positions().
+module screw_notch_footprints_2d(margin) {
+    ring_w = rabbet_w + 2 * margin;
+    w      = screw_notch_extent + 2 * margin;
+    for (p = screw_positions()) {
+        if (p[1] <= wall_t) {
+            translate([p[0] - w / 2, wall_t - rabbet_w - margin])
+                square([w, ring_w]);
+        } else if (p[1] >= outer_d - wall_t) {
+            translate([p[0] - w / 2, outer_d - wall_t - margin])
+                square([w, ring_w]);
+        } else if (p[0] <= wall_t) {
+            translate([wall_t - rabbet_w - margin, p[1] - w / 2])
+                square([ring_w, w]);
+        } else if (p[0] >= outer_w - wall_t) {
+            translate([outer_w - wall_t - margin, p[1] - w / 2])
+                square([ring_w, w]);
+        }
+    }
+}
+
 // Slot-notched tongue / recess footprints — continuous locating ring with
 // 9 gaps where the gasket slots need a clear tab-descent path, plus one
-// additional gap at every magnet pocket when ENABLE_MAGNET_POCKETS is on.
+// additional gap at every magnet/screw pocket when enabled.
 module tongue_2d() {
     difference() {
         rabbet_inner_2d();
         gasket_slot_footprints_2d(notch_margin);
         if (ENABLE_MAGNET_POCKETS) magnet_notch_footprints_2d(notch_margin);
+        if (ENABLE_SCREW_INSERTS)  screw_notch_footprints_2d(notch_margin);
     }
 }
 module recess_2d() {
@@ -1364,6 +1559,7 @@ module recess_2d() {
         rabbet_outer_2d();
         gasket_slot_footprints_2d(notch_margin);
         if (ENABLE_MAGNET_POCKETS) magnet_notch_footprints_2d(notch_margin);
+        if (ENABLE_SCREW_INSERTS)  screw_notch_footprints_2d(notch_margin);
     }
 }
 
@@ -1453,6 +1649,54 @@ module overlay_magnet_pockets() {
     }
 }
 
+// ─── Screw + nut geometry (optional, ENABLE_SCREW_INSERTS) ─────────────────
+// Same tilt-compensation approach as magnet pockets: anchor the cutting
+// solid to the extreme wall-top over the feature footprint, extend by the
+// tilt drift so the full pocket depth is preserved at both edges.
+//
+// Tray: cylindrical counterbore (screw_head_d × screw_head_depth) at the
+//   wall top, plus a clearance through-hole (screw_clear_d) extending down
+//   into the cavity.
+// Overlay: hex-shaped blind pocket (screw_nut_af across-flats ×
+//   screw_nut_depth) cut from the overlay underside. The hex prevents the
+//   glued nut from rotating during bolt tightening. Flats are oriented
+//   parallel to the wall faces (default $fn=6 orientation has flats
+//   perpendicular to Y, which suits front/back wall positions).
+
+// Tilt-drift values for the screw features (same formula as magnet pockets).
+screw_nut_tilt_drift  = screw_nut_ac * tan(tilt_angle);
+screw_nut_cyl_h       = screw_nut_depth + screw_nut_tilt_drift + 0.2;
+screw_head_tilt_drift = screw_head_d * tan(tilt_angle);
+screw_head_cyl_h      = screw_head_depth + screw_head_tilt_drift + 0.2;
+
+module tray_screw_holes() {
+    for (p = screw_positions()) {
+        // Counterbore: top at uphill edge + 0.1 mm overshoot, extends down
+        // by head depth + drift.
+        z_top_hi = top_z(p[1] + screw_head_d/2) - top_t + 0.1;
+        translate([p[0], p[1], z_top_hi - screw_head_cyl_h])
+            cylinder(d = screw_head_d, h = screw_head_cyl_h);
+        // Clearance hole: from the bottom of the counterbore down through
+        // the wall into the cavity. Oversized length for a clean through-cut.
+        z_clear_top = z_top_hi - screw_head_cyl_h + 0.01;
+        translate([p[0], p[1], z_clear_top - 20])
+            cylinder(d = screw_clear_d, h = 20);
+    }
+}
+
+module overlay_nut_pockets() {
+    for (p = screw_positions()) {
+        // Hex pocket: bottom at downhill edge − 0.1 mm undershoot, extends
+        // up by nut depth + drift. $fn=6 creates a hex prism; the default
+        // orientation places flats perpendicular to Y (parallel to front/back
+        // wall faces). The `d` parameter sets the circumscribed circle
+        // (across-corners); we derive it from the desired across-flats.
+        z_bot_lo = top_z(p[1] - screw_nut_ac/2) - top_t - 0.1;
+        translate([p[0], p[1], z_bot_lo])
+            cylinder(d = screw_nut_ac, h = screw_nut_cyl_h, $fn = 6);
+    }
+}
+
 // ─── Back-wall chamfer protection ───────────────────────────────────────────
 // The large back-bottom chamfer (chamfer_back_bottom = cb) slopes the outer
 // back face at 45° from y = d - cb at z = 0 up to y = d at z = cb. Without
@@ -1523,6 +1767,9 @@ module case_tray() {
 
             // Optional: magnet pockets sunk into the wall tops.
             if (ENABLE_MAGNET_POCKETS) tray_magnet_pockets();
+
+            // Optional: screw clearance holes + counterbores in the wall tops.
+            if (ENABLE_SCREW_INSERTS) tray_screw_holes();
         }
 
         // Optional: overlay-locating tongue standing proud above the
@@ -1561,6 +1808,10 @@ module case_overlay() {
         // Optional: magnet pockets in the overlay underside, matching
         // the tray pockets across the seam.
         if (ENABLE_MAGNET_POCKETS) overlay_magnet_pockets();
+
+        // Optional: hex nut pockets in the overlay underside, matching
+        // the tray screw holes.
+        if (ENABLE_SCREW_INSERTS) overlay_nut_pockets();
 
         // Optional: recess cut into the overlay underside that accepts
         // the tray's tongue for lateral registration.
@@ -2230,6 +2481,9 @@ module case_overlay_chamfered() {
 
         // Magnet pockets
         if (ENABLE_MAGNET_POCKETS) overlay_magnet_pockets();
+
+        // Screw nut pockets
+        if (ENABLE_SCREW_INSERTS) overlay_nut_pockets();
 
         // Rabbet recess
         if (ENABLE_OVERLAY_RABBET) overlay_recess_3d();

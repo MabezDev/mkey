@@ -58,6 +58,7 @@ The main toggles in `case.scad` control which features are included:
 | `PRINT_SUPPORTS` | `false` | Add internal anti-warp rib walls to tray (print mode only) |
 | `ENABLE_OVERLAY_RABBET` | `true` | Locating tongue/recess for X/Y registration |
 | `ENABLE_MAGNET_POCKETS` | `true` | Blind magnet pockets for overlay hold-down |
+| `ENABLE_SCREW_INSERTS` | `false` | M1.6 bolt + glued hex nut overlay retention (mutually exclusive with magnets) |
 | `ENABLE_DECORATIVE_TRIMS` | `true` | Debossed logos, pinstripe, initials |
 
 ## JLC3DP SLA submission notes
@@ -83,11 +84,11 @@ Missing any of these will compromise fit or finish.
 > **OVERLAY (mkey_overlay.stl):**
 > - Orient cosmetic-face DOWN on the build plate (the face with the key
 >   openings and display window). The underside, which carries the magnet
->   pockets, faces up.
+>   pockets (or hex nut pockets if using screw retention), faces up.
 > - Place factory supports **only on the outer vertical side walls.** No
 >   point supports on the downward-facing cosmetic face (key openings,
 >   display window rim, pinstripe groove) and no supports inside the magnet
->   pockets or display pocket on the up-facing underside. A raft under the
+>   pockets, hex nut pockets, or display pocket on the up-facing underside. A raft under the
 >   cosmetic face is acceptable provided the pinstripe groove and key
 >   openings drain during post-processing (we IPA-flush these on our end).
 > - **Apply X-axis scale compensation on this piece as well** — it must
@@ -231,3 +232,47 @@ removable, lower the overlay onto the tray dry (no gaskets, no plate).
 All six pairs should click together. If any pair repels, pop that
 magnet out and flip it — catching this before the CA sets is much
 cheaper than after.
+
+### Screw + nut retention (alternative to magnets)
+
+When `ENABLE_SCREW_INSERTS=true` (and `ENABLE_MAGNET_POCKETS=false`), the
+overlay is secured by four M1.6 bolts threading up from inside the tray
+into hex nuts glued into the overlay. Nothing is visible externally.
+
+#### Hardware (4 of each)
+
+| Part | Specification | Key dimensions |
+|------|---------------|----------------|
+| Hex nut | M1.6 DIN 934 | 3.2 mm across-flats, 1.3 mm thick |
+| Socket head cap screw | M1.6 × 3 mm ISO 4762 | 3.0 mm head dia, 1.6 mm head height |
+
+The 3 mm bolt length is load-bearing: the tilt-compensated counterbore is
+1.78 mm deep at the bolt center (not the nominal 1.5 mm — see comment in
+`case.scad`), leaving 1.22 mm of shaft for the 1.3 mm nut (97% engagement).
+A 4 mm bolt would overshoot the nut pocket ceiling and prevent the overlay
+from seating. The traverse is identical at all 4 positions — the 6° tilt
+shifts both the counterbore and mating surface equally, so front and back
+bolts are the same length.
+
+#### Nut installation
+
+1. **Dry-fit first.** Drop each nut into its hex pocket on the overlay
+   underside and confirm it sits flush or slightly below the surface.
+   The hex shape should prevent rotation by hand. If a nut is tight,
+   ream the pocket lightly with a needle file — do not force it.
+2. **Glue with gel-type CA.** Apply a thin ring of gel CA around the
+   pocket wall, press the nut in, and hold for 10 seconds. Wipe any
+   squeeze-out immediately — excess CA on the overlay seating face will
+   prevent the overlay from sitting flat on the tray.
+3. **Do not use heat-set inserts.** SLA resin warps under soldering-iron
+   temperatures. Glued hex nuts are the correct fastener for this process.
+
+#### Final assembly
+
+1. Complete the gasket + plate install (see above).
+2. Seat the overlay on the tray wall tops.
+3. From inside the tray cavity, thread each M1.6 bolt up through the
+   clearance hole and counterbore into the nut above. Tighten with a
+   1.3 mm hex key — finger-tight plus a quarter turn is sufficient.
+   Do not overtorque; the resin threads no load, but the nut cheek
+   is 0.7 mm nominal.
