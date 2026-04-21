@@ -1,21 +1,31 @@
 #!/usr/bin/env bash
 # build_stl.sh — Export print-ready STLs from case.scad using OpenSCAD CLI.
 #
+# Produces four STLs by default — one tray + one overlay for each retention
+# scheme (magnets and screws) — since both retention variants get fabricated
+# from the same order and the mating underside pockets differ between them:
+#
+#   mkey_tray_magnets.stl     tray with magnet pockets in wall tops
+#   mkey_overlay_magnets.stl  overlay with magnet pockets in underside
+#   mkey_tray_screws.stl      tray with 3-segment stepped bolt bores
+#   mkey_overlay_screws.stl   overlay with hex nut pockets in underside
+#
 # Usage:
 #   ./build_stl.sh [OPTIONS]
 #
 # Options:
-#   --piece tray|overlay|both   Which piece(s) to export (default: both)
-#   --supports                  Add breakaway cross-braces to the tray
-#   --fn N                      Override circle resolution (default: 128)
-#   --outdir DIR                Output directory (default: current directory)
-#   -h, --help                  Show this help message
+#   --piece tray|overlay|both       Which piece(s) to export (default: both)
+#   --retention magnets|screws|both Which retention variant(s) (default: both)
+#   --supports                      Add breakaway cross-braces to the tray
+#   --fn N                          Override circle resolution (default: 128)
+#   --outdir DIR                    Output directory (default: current directory)
+#   -h, --help                      Show this help message
 #
 # Examples:
-#   ./build_stl.sh                          # Export both pieces, no supports
-#   ./build_stl.sh --supports               # Export both, tray with braces
-#   ./build_stl.sh --piece overlay          # Export only the overlay
-#   ./build_stl.sh --supports --fn 96       # Faster render with lower resolution
+#   ./build_stl.sh                            # All 4 STLs, no supports
+#   ./build_stl.sh --supports                 # All 4, tray with anti-warp ribs
+#   ./build_stl.sh --retention magnets        # Magnet pair only
+#   ./build_stl.sh --piece tray --retention screws  # Just the screw tray
 
 set -euo pipefail
 
@@ -24,6 +34,7 @@ SCAD_FILE="$SCRIPT_DIR/case.scad"
 
 # Defaults
 PIECE="both"
+RETENTION="both"
 SUPPORTS="false"
 FN=128
 OUTDIR="."
@@ -35,14 +46,25 @@ usage() {
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --piece)    PIECE="$2"; shift 2 ;;
-        --supports) SUPPORTS="true"; shift ;;
-        --fn)       FN="$2"; shift 2 ;;
-        --outdir)   OUTDIR="$2"; shift 2 ;;
-        -h|--help)  usage ;;
-        *)          echo "Unknown option: $1" >&2; exit 1 ;;
+        --piece)     PIECE="$2"; shift 2 ;;
+        --retention) RETENTION="$2"; shift 2 ;;
+        --supports)  SUPPORTS="true"; shift ;;
+        --fn)        FN="$2"; shift 2 ;;
+        --outdir)    OUTDIR="$2"; shift 2 ;;
+        -h|--help)   usage ;;
+        *)           echo "Unknown option: $1" >&2; exit 1 ;;
     esac
 done
+
+case "$PIECE" in
+    tray|overlay|both) ;;
+    *) echo "Error: --piece must be tray, overlay, or both" >&2; exit 1 ;;
+esac
+
+case "$RETENTION" in
+    magnets|screws|both) ;;
+    *) echo "Error: --retention must be magnets, screws, or both" >&2; exit 1 ;;
+esac
 
 if ! command -v openscad &>/dev/null; then
     echo "Error: openscad not found in PATH." >&2
@@ -54,16 +76,24 @@ mkdir -p "$OUTDIR"
 
 render_piece() {
     local piece="$1"
-    local outfile="$2"
+    local retention="$2"
+    local outfile="$3"
     local show_tray="false"
     local show_overlay="false"
+    local magnets="false"
+    local screws="false"
 
     case "$piece" in
         tray)    show_tray="true" ;;
         overlay) show_overlay="true" ;;
     esac
 
-    echo "Rendering $piece -> $outfile (fn=$FN, supports=$SUPPORTS) ..."
+    case "$retention" in
+        magnets) magnets="true" ;;
+        screws)  screws="true" ;;
+    esac
+
+    echo "Rendering $piece/$retention -> $outfile (fn=$FN, supports=$SUPPORTS) ..."
 
     openscad \
         -o "$outfile" \
@@ -73,27 +103,32 @@ render_piece() {
         -D "SHOW_PLATE=false" \
         -D "SHOW_DISPLAY=false" \
         -D "PRINT_SUPPORTS=$SUPPORTS" \
+        -D "ENABLE_MAGNET_POCKETS=$magnets" \
+        -D "ENABLE_SCREW_INSERTS=$screws" \
         -D "\$fn=$FN" \
         "$SCAD_FILE"
 
     echo "  Done: $outfile"
 }
 
+pieces=()
 case "$PIECE" in
-    tray)
-        render_piece tray "$OUTDIR/mkey_tray.stl"
-        ;;
-    overlay)
-        render_piece overlay "$OUTDIR/mkey_overlay.stl"
-        ;;
-    both)
-        render_piece tray "$OUTDIR/mkey_tray.stl"
-        render_piece overlay "$OUTDIR/mkey_overlay.stl"
-        ;;
-    *)
-        echo "Error: --piece must be tray, overlay, or both" >&2
-        exit 1
-        ;;
+    tray)    pieces=(tray) ;;
+    overlay) pieces=(overlay) ;;
+    both)    pieces=(tray overlay) ;;
 esac
+
+retentions=()
+case "$RETENTION" in
+    magnets) retentions=(magnets) ;;
+    screws)  retentions=(screws) ;;
+    both)    retentions=(magnets screws) ;;
+esac
+
+for retention in "${retentions[@]}"; do
+    for piece in "${pieces[@]}"; do
+        render_piece "$piece" "$retention" "$OUTDIR/mkey_${piece}_${retention}.stl"
+    done
+done
 
 echo "Build complete."

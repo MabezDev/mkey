@@ -108,28 +108,41 @@ echo ""
 # ---------------------------------------------------------------------------
 #
 # Feature toggles that guard conditional asserts:
-#   ENABLE_OVERLAY_RABBET:  guards assertions 16-21, and 29-32 (when combined
-#                           with ENABLE_MAGNET_POCKETS)
-#   ENABLE_MAGNET_POCKETS:  guards assertions 22-28, and 29-32 (when combined
-#                           with ENABLE_OVERLAY_RABBET)
+#   ENABLE_OVERLAY_RABBET:  guards rabbet-specific assertions and cross-feature
+#                           assertions when combined with magnets or screws
+#   ENABLE_MAGNET_POCKETS:  guards magnet-specific assertions and cross-feature
+#                           assertions when combined with ENABLE_OVERLAY_RABBET
+#   ENABLE_SCREW_INSERTS:   guards screw-specific assertions and cross-feature
+#                           assertions when combined with ENABLE_OVERLAY_RABBET.
+#                           Mutually exclusive with ENABLE_MAGNET_POCKETS.
 #   ENABLE_DECORATIVE_TRIMS: master gate for DECO_* sub-features (no asserts
 #                            currently, but geometry changes significantly)
 #   PRINT_MODE / PRINT_SUPPORTS: changes orientation/rib geometry
 #   SHOW_TRAY / SHOW_OVERLAY: selects which piece(s) to render
 #
-# The cross product of (rabbet × magnets × decoratives × print × show) gives
-# us full coverage of every conditional assert path.
+# The retention toggles (magnets/screws) are mutually exclusive, so valid
+# retention combos are: magnets-only, screws-only, neither. The full matrix
+# is (rabbet × retention × decoratives × print × show).
 
 # --- Section 1: Core feature toggle combinations ---
-echo "--- Section 1: Feature toggle matrix (rabbet × magnets × decoratives) ---"
+echo "--- Section 1: Feature toggle matrix (rabbet × retention × decoratives) ---"
 
+# Retention combos: magnets-only, screws-only, neither (magnets+screws is invalid)
 for rabbet in true false; do
-    for magnets in true false; do
+    for retention in magnets screws none; do
+        if [[ "$retention" == "magnets" ]]; then
+            magnets=true; screws=false
+        elif [[ "$retention" == "screws" ]]; then
+            magnets=false; screws=true
+        else
+            magnets=false; screws=false
+        fi
         for deco in true false; do
-            label="rabbet=$rabbet magnets=$magnets deco=$deco"
+            label="rabbet=$rabbet retention=$retention deco=$deco"
             run_config "$label" \
                 -D "ENABLE_OVERLAY_RABBET=$rabbet" \
                 -D "ENABLE_MAGNET_POCKETS=$magnets" \
+                -D "ENABLE_SCREW_INSERTS=$screws" \
                 -D "ENABLE_DECORATIVE_TRIMS=$deco"
         done
     done
@@ -198,18 +211,26 @@ for piece_label in tray overlay; do
         show_tray=false; show_overlay=true
     fi
     for rabbet in true false; do
-        for magnets in true false; do
+        for retention in magnets screws none; do
+            if [[ "$retention" == "magnets" ]]; then
+                magnets=true; screws=false
+            elif [[ "$retention" == "screws" ]]; then
+                magnets=false; screws=true
+            else
+                magnets=false; screws=false
+            fi
             for supports in true false; do
                 if [[ "$piece_label" == "overlay" && "$supports" == "true" ]]; then
                     continue
                 fi
-                label="print=$piece_label rabbet=$rabbet magnets=$magnets supports=$supports"
+                label="print=$piece_label rabbet=$rabbet retention=$retention supports=$supports"
                 run_config "$label" \
                     -D "PRINT_MODE=true" \
                     -D "SHOW_TRAY=$show_tray" \
                     -D "SHOW_OVERLAY=$show_overlay" \
                     -D "ENABLE_OVERLAY_RABBET=$rabbet" \
                     -D "ENABLE_MAGNET_POCKETS=$magnets" \
+                    -D "ENABLE_SCREW_INSERTS=$screws" \
                     -D "PRINT_SUPPORTS=$supports"
             done
         done
