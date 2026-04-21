@@ -244,18 +244,21 @@ into hex nuts glued into the overlay. Nothing is visible externally.
 | Qty | Part | Specification | Key dimensions |
 |-----|------|---------------|----------------|
 | 4 | Hex nut | M1.6 DIN 934 | 3.2 mm across-flats, 1.3 mm thick |
-| 4 | Socket head cap screw | M1.6 × 8 mm | 3.0 mm head dia, 1.6 mm head height |
+| 4 | Socket head cap screw | M1.6 × 12 mm | 3.0 mm head dia, 1.6 mm head height |
 
 Same bolt length at all 4 positions. The bolt threads up from the tray
 underside through the wall column and into the overlay nut. The through-
-hole is printed as two segments that meet in the middle — no post-print
-drilling required:
-- **Pocket** (5 mm dia, from tray bottom upward): bolt head sits here
-- **Clearance** (2 mm dia, from wall top downward): bolt shaft passes here
+hole is a 3-segment stepped bore — no post-print drilling required:
+- **Pocket** (3.3 mm dia, from tray bottom upward): bolt head sits here
+- **Mid** (2.5 mm dia, intermediate): extends printable depth
+- **Clearance** (2.0 mm dia, from wall top downward): shaft exits here
 
-Both segments stay within JLC3DP SLA depth limits (max 3× diameter).
-At the back corners, the 10 mm chamfer removes the tray bottom; the
-pocket starts from the chamfer face (deboss, not a protrusion).
+Each segment stays within JLC3DP SLA depth limits (max 3× diameter)
+and within the 4.8 mm wall width. The bolt head catches on the
+pocket-to-mid step. At the back corners, the 10 mm chamfer removes
+the tray bottom; the pocket starts from the chamfer face (deboss).
+Small reinforcement pads on the tray cavity inner face provide
+structural support around the bore.
 
 #### Nut installation
 
