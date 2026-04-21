@@ -75,9 +75,10 @@ Missing any of these will compromise fit or finish.
 > - Internal anti-warp ribs are already modelled inside the cavity — **do
 >   not add factory supports inside the cavity.** Factory supports on the
 >   outer side walls and outer bottom are acceptable.
-> - The outer left and right side walls each carry a debossed "mKey" logo
->   centred at mid-height, mid-length (~30 × 7 mm footprint). Please keep
->   factory support contact points clear of that debossed region if possible.
+> - The outer back wall carries a debossed "mKey" logo centred
+>   horizontally, vertically between the bottom chamfer and the wall top
+>   (~30 × 7 mm footprint). Please keep factory support contact points
+>   clear of that debossed region if possible.
 > - **Apply X-axis scale compensation on this piece** — it is a 363 mm long
 >   part with critical tab-alignment slot features at both X extremes.
 >
