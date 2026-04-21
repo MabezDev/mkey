@@ -1953,21 +1953,12 @@ deco_logo_chip_border = 1.0;                         // chip frame stroke, mm.
                                                       // frame into an unreadable hairline. Grown
                                                       // 0.9 → 1.0 in the 2026-04-17 pre-fab review.
 deco_logo_chip_inner  = 2.4;                         // inner solid square side, mm
-deco_logo_text        = "mKey";
-deco_logo_text_size   = 7.5;                         // cap height, mm. Liberation Sans Bold stem
-                                                      // ≈ 0.15·cap-height, so stroke ≈ 1.125 mm
-                                                      // nominal → 0.925 mm worst-case under the
-                                                      // full ±0.2 mm SLA fab slop, still ≥ 0.8 mm
-                                                      // JLC3DP engraved-detail floor with 0.125 mm
-                                                      // margin. Grown 6.0 → 7.5 in the 2026-04-20
-                                                      // pre-fab design review: at 6.0 the stem was
-                                                      // 0.9 mm nominal / 0.7 mm worst-case, below
-                                                      // the 0.8 mm floor — the only hard JLC rule
-                                                      // violation surfaced by the review. Ref-size
-                                                      // constants below remain anchored at 5.5;
-                                                      // text_w scales linearly.
+deco_logo_text_size   = 7.5;                         // cap height, mm. SVG wordmark stem
+                                                      // ≈ 0.190·cap-height, so stroke ≈ 1.42 mm
+                                                      // nominal → 1.22 mm worst-case under the
+                                                      // full ±0.2 mm SLA fab slop — well above
+                                                      // the 0.8 mm JLC3DP engraved-detail floor.
 deco_logo_text_gap    = 1.8;                         // chip ↔ text gap, mm
-deco_logo_font        = "Liberation Sans:style=Bold";
 
 // ─── Back wall logo ─────────────────────────────────────────────────────────
 // Debossed mKey logo (chip icon + wordmark) on the outer face of the back
@@ -2049,19 +2040,22 @@ module deco_owner_initials() {
 }
 
 // ─── Logo above display ─────────────────────────────────────────────────────
-// Simplified mKey logo: a chip icon (outline frame + inner solid square) and
-// the "mKey" wordmark to its right. The raw SVG in hardware/board/assets has
-// sub-0.5 mm pin ticks that would violate the JLC3DP 0.8 mm rule; the chip is
-// redrawn here from simple primitives so every stroke meets spec. Centred on
-// the display X and positioned in the bezel between the display back edge
-// and the back wall. Cut perpendicular to the tilted overlay top.
-// Measured x-extent of "mKey" rendered in Liberation Sans Bold at cap-height
-// 5.5 mm — obtained by extruding the text and reading the STL bounding box.
-// Scales linearly with cap height. If deco_logo_text or deco_logo_font is
-// changed, re-measure (openscad -o test.stl --summary all --summary-file -
-// on a linear_extrude(1) text(...) test file) and update this constant.
-DECO_LOGO_TEXT_X_EXTENT_REF = 20.76;
-DECO_LOGO_TEXT_REF_SIZE     = 5.5;
+// mKey logo: a chip icon (outline frame + inner solid square) and the "mKey"
+// wordmark to its right. The wordmark is imported from the brand SVG
+// (assets/mkey-case-wordmark.svg, extracted from hardware/board/assets/mkey.svg)
+// so the case letterforms exactly match the PCB silkscreen / brand asset.
+// The chip icon is kept as SCAD primitives because the SVG chip frame borders
+// scale to ~0.44 mm at 7 mm chip size — below the 0.8 mm JLC3DP floor.
+// Centred on the display X and positioned in the bezel between the display
+// back edge and the back wall. Cut perpendicular to the tilted overlay top.
+
+// SVG wordmark reference geometry (from mkey-case-wordmark.svg).
+// Cap height measured from the "K" ascender: baseline y=0 to cap-top y=-32.57
+// in the original SVG path coordinate space.
+SVG_WM_CAP_H  = 32.57;   // cap height in SVG units (uppercase K)
+SVG_WM_W      = 121.92;  // SVG viewBox width (mm)
+SVG_WM_H      = 43.36;   // SVG viewBox height (mm)
+SVG_WM_BASE_Y = 10.69;   // baseline Y in OpenSCAD coords (after Y-flip import)
 
 module deco_logo_2d() {
     chip     = deco_logo_chip_size;
@@ -2069,15 +2063,14 @@ module deco_logo_2d() {
     inner_sq = deco_logo_chip_inner;
     gap      = deco_logo_text_gap;
 
-    // True text width at the current cap height, scaled from the measured
-    // reference extent. Used so chip icon + wordmark is visually centered on
-    // the display X, not biased toward one side by a bad estimate.
-    text_w  = deco_logo_text_size * DECO_LOGO_TEXT_X_EXTENT_REF / DECO_LOGO_TEXT_REF_SIZE;
+    s      = deco_logo_text_size / SVG_WM_CAP_H;
+    text_w = SVG_WM_W * s;
+
     total_w = chip + gap + text_w;
     chip_x0 = -total_w / 2;
     text_x0 = chip_x0 + chip + gap;
 
-    // Chip frame (hollow square outline)
+    // Chip frame (hollow square outline) — primitives for JLC3DP compliance
     translate([chip_x0, -chip / 2])
         difference() {
             square([chip, chip]);
@@ -2088,12 +2081,12 @@ module deco_logo_2d() {
     translate([chip_x0 + chip / 2 - inner_sq / 2, -inner_sq / 2])
         square([inner_sq, inner_sq]);
 
-    // Wordmark
-    translate([text_x0, 0])
-        text(deco_logo_text,
-             size = deco_logo_text_size,
-             halign = "left", valign = "center",
-             font = deco_logo_font);
+    // Wordmark — imported from brand SVG for exact font matching.
+    // Baseline aligned with chip bottom edge.
+    translate([text_x0, -chip / 2])
+        scale([s, s])
+            translate([0, -SVG_WM_BASE_Y])
+                import("assets/mkey-case-wordmark.svg");
 }
 
 module deco_top_logo() {
