@@ -604,26 +604,26 @@ plate_oy = wall_t + plate_gap;
 // Bottom pocket: accepts the module body, cut from the overlay underside,
 // depth = top_t − shelf_t. Module drops in from below and is held up against
 // the shelf by adhesive or a clamping backing plate.
-disp_pocket_w = disp_module_w + 2 * disp_cut_tol;   // 31.80
-disp_pocket_h = disp_module_h + 2 * disp_cut_tol;   // 37.52
-disp_pocket_r = disp_module_r + disp_cut_tol;       // 2.35
-disp_pocket_d = top_t - shelf_t;                    // 3.50 with top_t=5, shelf_t=1.5
+disp_pocket_w = disp_module_w + 2 * disp_cut_tol;   // 32.10
+disp_pocket_h = disp_module_h + 2 * disp_cut_tol;   // 37.82
+disp_pocket_r = disp_module_r + disp_cut_tol;       // 2.50
+disp_pocket_d = top_t - shelf_t;                    // 2.0 with top_t=3.5, shelf_t=1.5
 
 // Top window: visible from above, cut through the thin shelf. Asymmetric X/Y
 // offsets from the pocket, blended at the corners by a `shelf_corner_r` fillet
 // via hull-of-circles (see `display_window_2d` below) so the shelf thickness
 // transitions smoothly from shelf_frame_x along the short sides to
 // shelf_frame_y along the long sides with no sharp notches.
-disp_win_w = disp_pocket_w - 2 * shelf_frame_x;     // 29.80
-disp_win_h = disp_pocket_h - 2 * shelf_frame_y;     // 34.32
+disp_win_w = disp_pocket_w - 2 * shelf_frame_x;     // 30.10
+disp_win_h = disp_pocket_h - 2 * shelf_frame_y;     // 34.62
 
 // Assertions — stricter than before so the shelf has ±0.2 mm fab-slop margin
 // on the active-area clearance in both axes. The active area sits at
 // `disp_cut_tol + (module − active)/2` in pocket-local coordinates, so that
 // is the position the shelf inner edge must not reach even after fab slop.
 FAB_SLOP = 0.2;
-active_edge_x = disp_cut_tol + (disp_module_w - disp_active_w) / 2;   // 1.35
-active_edge_y = disp_cut_tol + (disp_module_h - disp_active_h) / 2;   // 2.41
+active_edge_x = disp_cut_tol + (disp_module_w - disp_active_w) / 2;   // 1.50
+active_edge_y = disp_cut_tol + (disp_module_h - disp_active_h) / 2;   // 2.56
 assert(shelf_frame_x + FAB_SLOP <= active_edge_x,
        "shelf_frame_x too large: under ±0.2 mm fab slop the shelf would bite active pixels in X");
 assert(shelf_frame_y + FAB_SLOP <= active_edge_y,
@@ -2033,13 +2033,13 @@ slot_top_above_plate = plate_recess + slot_open_margin;   // 2.0 + 1.5 = 3.5 mm
 slot_bot_below_plate = gasket_compressed
                      + (tab_len + slot_tol) * tan(tilt_angle) / 2
                      + FAB_SLOP + 0.05;
-                                                          // 1.5 + 0.884 + 0.2 + 0.05 = 2.634 mm
+                                                          // 1.5 + 1.072 + 0.2 + 0.05 = 2.822 mm
 slot_height          = plate_t + slot_top_above_plate + slot_bot_below_plate;
-                                                          // 1.6 + 3.5 + 2.634 = 7.734 mm
+                                                          // 1.6 + 3.5 + 2.822 = 7.922 mm
 // Slot center, relative to plate midplane. Positive = slot is offset upward.
 // (slot_top + slot_bot)/2 = plate_midplane + (slot_top_above_plate − slot_bot_below_plate)/2
 slot_center_offset   = (slot_top_above_plate - slot_bot_below_plate) / 2;
-                                                          // (3.5 − 2.634)/2 = +0.433 mm
+                                                          // (3.5 − 2.822)/2 = +0.339 mm
 
 module gasket_slots() {
     // ── Back wall slots (3) ──────────────────────────────────────────────
