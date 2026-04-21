@@ -84,7 +84,7 @@ ENABLE_MAGNET_POCKETS = true;    // cut blind magnet pockets in the tray wall
 ENABLE_DECORATIVE_TRIMS = true;   // master switch — false = all decoratives off
 DECO_BACK_LOGO          = true;   // mKey logo debossed on outer back wall
 DECO_EDGE_PINSTRIPE     = false;  // hairline groove around the overlay top edge
-DECO_OWNER_INITIALS     = false;  // initials + year debossed into the tray underside
+DECO_OWNER_INITIALS     = true;   // initials + year debossed into the tray underside
 DECO_LOGO_TOP           = false;   // mKey logo debossed on overlay top above the display
 DECO_INITIALS           = "SM";   // user-customisable owner initials
 DECO_YEAR               = "2026"; // build year stamped under the initials
@@ -1932,15 +1932,14 @@ deco_stripe_width  = 1.0;    // groove width in the plane of the top face.
                              // 2026-04-17 pre-fab review.
 
 // Owner initials + year plate
-deco_initials_size   = 8.0;                          // mm cap height (initials row)
-deco_year_size       = 8.0;                          // mm cap height (year row)
+deco_initials_size   = 9.0;                          // mm cap height (initials row)
+deco_year_size       = 9.0;                          // mm cap height (year row)
                                                       // Liberation Sans Bold stem ≈ 0.15·cap-height,
-                                                      // so stroke ≈ 1.20 mm at 8.0 mm — 0.40 mm
+                                                      // so stroke ≈ 1.35 mm at 9.0 mm — 0.55 mm
                                                       // above the JLC3DP 0.8 mm floor, well within
-                                                      // the ±0.2 mm fab slop budget on each
-                                                      // side of the glyph edge. Grown 3.8 → 5.0
-                                                      // → 5.5 → 6.0 across successive pre-fab
-                                                      // reviews (latest: 2026-04-17).
+                                                      // the ±0.2 mm fab slop budget. Bumped 8.0 → 9.0
+                                                      // to ensure counter openings (e.g. "0", "2")
+                                                      // clear the 0.8 mm detail floor.
 deco_stamp_row_gap   = 1.2;                          // mm gap between the two rows
 deco_initials_font   = "Liberation Sans:style=Bold";
 deco_initials_y_frac = 0.5;                          // 0 = front, 1 = back
@@ -1953,11 +1952,13 @@ deco_logo_chip_border = 1.0;                         // chip frame stroke, mm.
                                                       // frame into an unreadable hairline. Grown
                                                       // 0.9 → 1.0 in the 2026-04-17 pre-fab review.
 deco_logo_chip_inner  = 2.4;                         // inner solid square side, mm
-deco_logo_text_size   = 7.5;                         // cap height, mm. SVG wordmark stem
-                                                      // ≈ 0.190·cap-height, so stroke ≈ 1.42 mm
-                                                      // nominal → 1.22 mm worst-case under the
+deco_logo_text_size   = 9.0;                         // cap height, mm. SVG wordmark stem
+                                                      // ≈ 0.190·cap-height, so stroke ≈ 1.71 mm
+                                                      // nominal → 1.51 mm worst-case under the
                                                       // full ±0.2 mm SLA fab slop — well above
                                                       // the 0.8 mm JLC3DP engraved-detail floor.
+                                                      // Bumped 7.5 → 9.0 to ensure the "e" counter
+                                                      // opening clears the 0.8 mm detail floor.
 deco_logo_text_gap    = 1.8;                         // chip ↔ text gap, mm
 
 // ─── Back wall logo ─────────────────────────────────────────────────────────
