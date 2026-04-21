@@ -547,8 +547,8 @@ screw_nut_depth    = 2.5;    // hex pocket depth. Deeper than the 1.3 mm nut
                              // overlay skin above the pocket (structural,
                              // not cosmetic — the pocket is over the wall).
 screw_clear_d      = 2.0;    // M1.6 clearance hole through tray wall column
-screw_head_d       = 3.5;    // counterbore diameter on tray underside (M1.6
-                             // SHCS head OD 3.0 mm + 0.5 mm clearance)
+screw_head_d       = 3.3;    // counterbore diameter on tray underside (M1.6
+                             // SHCS head OD 3.0 mm + 0.3 mm clearance)
 screw_head_depth   = 1.5;    // counterbore depth into tray bottom
 screw_inset        = 13;     // corner inset (same geometry as magnet_inset)
 
@@ -1661,11 +1661,27 @@ module overlay_magnet_pockets() {
 screw_nut_tilt_drift = screw_nut_ac * tan(tilt_angle);
 screw_nut_cyl_h      = screw_nut_depth + screw_nut_tilt_drift + 0.2;
 
+// Local boss at each back screw position to fill the chamfer_back_bottom
+// zone and provide a flat landing for the counterbore. Without this, the
+// 10 mm back chamfer removes all material at z=0 where the back screws sit.
+// Boss diameter = screw_head_d + 2 mm cheek; height = chamfer surface Z at
+// that Y position. Front screws don't need bosses (no bottom chamfer there).
+screw_boss_d = screw_head_d + 2 * 1.0;  // 1.0 mm cheek around the counterbore
+module tray_screw_bosses() {
+    cb = chamfer_back_bottom;
+    for (p = screw_positions()) {
+        // chamfer Z at this Y: cb - distance from back outer face (in tray-ext coords)
+        chamfer_z = cb - (outer_d + tray_ext - p[1]);
+        if (chamfer_z > 0) {
+            translate([p[0], p[1], 0])
+                cylinder(d = screw_boss_d, h = chamfer_z);
+        }
+    }
+}
+
 module tray_screw_holes() {
     for (p = screw_positions()) {
         // Counterbore on tray underside: flat at z=0 (no tilt here).
-        // Extends upward from z = -0.1 (slight overshoot below bottom face)
-        // by screw_head_depth + 0.1.
         translate([p[0], p[1], -0.1])
             cylinder(d = screw_head_d, h = screw_head_depth + 0.1);
         // Clearance hole: from top of counterbore up through the entire
@@ -1770,6 +1786,10 @@ module case_tray() {
         // wall top. Unioned AFTER the cavity/slot/magnet cuts so its
         // geometry is preserved in full.
         if (ENABLE_OVERLAY_RABBET) tray_tongue_3d();
+
+        // Optional: local bosses that fill the back chamfer at the back
+        // screw positions, providing a flat counterbore landing.
+        if (ENABLE_SCREW_INSERTS && ENABLE_CHAMFERS) tray_screw_bosses();
     }
 }
 
