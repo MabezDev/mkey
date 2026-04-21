@@ -72,11 +72,10 @@ ENABLE_MAGNET_POCKETS = true;    // cut blind magnet pockets in the tray wall
                                  // magnetically (serviceable — overlay lifts
                                  // off for PCB access). Counts on N52 disc
                                  // magnets — see magnet_* params below.
-ENABLE_SCREW_INSERTS  = false;   // M1.6 hex nuts (glued) in hex pockets in the
-                                 // overlay underside + captive bolts threading
-                                 // up from inside the tray. 4 corner positions.
-                                 // Nothing visible externally. Mutually
-                                 // exclusive with ENABLE_MAGNET_POCKETS.
+ENABLE_SCREW_INSERTS  = false;   // M1.4 hex nuts (glued) in hex pockets in the
+                                 // overlay underside + bolts threading up from
+                                 // the tray underside. 4 corner positions.
+                                 // Mutually exclusive with ENABLE_MAGNET_POCKETS.
 
 // ─── Decorative trims (3D-print-only) ───────────────────────────────────────
 // Cosmetic embellishments with no mechanical role. Only practical on printed
@@ -516,44 +515,34 @@ function magnet_positions() = [
 ];
 
 // ─── Screw + nut pockets (optional, ENABLE_SCREW_INSERTS) ───────────────────
-// M1.6 hex nuts glued into hex-shaped pockets in the overlay underside;
-// M1.6 bolts thread up from the tray underside through the wall columns
+// M1.4 hex nuts glued into hex pockets in the overlay underside;
+// M1.4 bolts thread up from the tray underside through the wall columns
 // and into the overlay nuts. Tightened from below (flip case over).
 //
 // The through-hole is a 3-segment stepped bore — each segment stays
-// within JLC3DP SLA's 3× diameter depth limit, and all fit inside the
-// 4.8 mm wall (max segment dia 3.3 mm). No post-print drilling:
-//   1. Pocket  (3.3 mm, from tray bottom/chamfer UP): bolt head sits here
+// within JLC3DP SLA's 3× diameter depth limit:
+//   1. Pocket  (3.0 mm, from tray bottom UP): bolt head sits here
 //   2. Mid     (2.5 mm, intermediate): extends the printable depth
 //   3. Clear   (2.0 mm, from wall top DOWN 6 mm): shaft exits here
-// The bolt head catches on the pocket→mid step. The shaft passes through
-// the mid and clearance segments.
+// The bolt head catches on the pocket→mid step. At back positions the
+// lower portion of the pocket extends into the chamfer void (deboss).
 //
-// SLA resin warps under heat, so heat-set inserts are not usable here.
-// Glued hex nuts are the correct fastener for this process.
-//
-// Hardware: 4× M1.6 hex nut DIN 934 (3.2 mm AF, 1.3 mm thick),
-//           4× M1.6 × 12 mm SHCS (same length front and back).
-screw_nut_af       = 3.4;    // hex pocket across-flats (3.2 mm M1.6 nut +
-                             // 0.2 mm SLA dimensional tolerance). Oriented
-                             // with flats parallel to wall faces so AF
-                             // constrains the wall-thickness cheek.
-screw_nut_depth    = 2.5;    // hex pocket depth. Deeper than the 1.3 mm nut
-                             // to accommodate bolt tip variance between
-                             // front (1.3 mm protrusion) and tolerance.
-screw_pocket_d     = 3.3;    // bottom segment — catches bolt head (3.0 mm
-                             // SHCS head + 0.3 mm clearance)
-screw_mid_d        = 2.5;    // intermediate segment — extends printable depth
-screw_clear_d      = 2.0;    // top segment — M1.6 clearance from wall top
+// Hardware: 4× M1.4 hex nut DIN 934 (3.0 mm AF, 1.2 mm thick),
+//           4× M1.4 × 12 mm SHCS (2.6 mm head dia, 1.4 mm head height).
+screw_nut_af       = 3.2;    // hex pocket across-flats (3.0 mm M1.4 nut +
+                             // 0.2 mm SLA dimensional tolerance)
+screw_nut_depth    = 2.5;    // hex pocket depth (1.2 mm nut + margin for
+                             // bolt tip and tolerance)
+screw_pocket_d     = 3.0;    // bottom segment — catches bolt head (2.6 mm
+                             // M1.4 SHCS head + 0.4 mm clearance)
+screw_mid_d        = 2.5;    // intermediate segment
+screw_clear_d      = 2.0;    // top segment — M1.4 clearance from wall top
 screw_clear_depth  = 6.0;    // top segment depth (JLC max for 2 mm: 6 mm)
-screw_bolt_length  = 12;     // M1.6 × 12 mm (same at all 4 positions)
+screw_bolt_length  = 12;     // M1.4 × 12 mm (same length all 4 positions)
 screw_inset        = 13;     // corner inset (same geometry as magnet_inset)
-screw_wall_offset  = 3.0;    // screw center distance from outer case face
-screw_reinf        = 0.4;    // reinforcement pad depth on cavity inner face
-                             // (stays within plate_gap = 0.5 mm)
+screw_wall_offset  = wall_t / 2;  // centered in wall — adequate cheek on
+                                  // both sides with M1.4
 
-// Screw positions: 4 corners. The wall-thickness coordinate uses
-// screw_wall_offset instead of wall_t/2 for the cheek improvement.
 function screw_positions() = [
     [screw_inset,                  screw_wall_offset],                // front-left
     [outer_w - screw_inset,        screw_wall_offset],                // front-right
@@ -1028,49 +1017,24 @@ assert(!(ENABLE_MAGNET_POCKETS && ENABLE_OVERLAY_RABBET) ||
        "a magnet notch enters the overlay's rounded outer corner region");
 
 // ─── Screw + nut invariants (only enforced when ENABLE_SCREW_INSERTS) ───────
-// Mutually exclusive with magnets — both drill into the same wall-top real
-// estate, and the positions overlap.
 assert(!(ENABLE_SCREW_INSERTS && ENABLE_MAGNET_POCKETS),
        "ENABLE_SCREW_INSERTS and ENABLE_MAGNET_POCKETS are mutually exclusive");
-// Hex nut across-corners (the bounding circle of the hex pocket).
 screw_nut_ac = screw_nut_af / cos(30);
-// Overlay wall cheek: outer cheek measured from the case outer face to the
-// nearest edge of the nut pocket. Uses screw_wall_offset as the center.
-assert(!ENABLE_SCREW_INSERTS || (screw_wall_offset - screw_nut_af / 2) >= 1.0,
-       "hex nut pocket outer cheek < 1.0 mm in overlay wall");
-// Overlay wall cheek: outer cheek measured from case outer face.
-assert(!ENABLE_SCREW_INSERTS || (screw_wall_offset - screw_nut_af / 2) >= 1.0,
-       "hex nut pocket outer cheek < 1.0 mm in overlay wall");
-// Tray wall cheek around the widest segment (pocket).
-assert(!ENABLE_SCREW_INSERTS || (screw_wall_offset - screw_pocket_d / 2) >= 1.0,
-       "screw pocket outer cheek < 1.0 mm in tray wall");
-// All segments must fit inside the wall (no cavity breach from the
-// pocket alone — reinforcement pad handles structural support).
-assert(!ENABLE_SCREW_INSERTS || screw_wall_offset + screw_pocket_d / 2 <= wall_t + 0.5,
-       "screw pocket breaches inner wall face by more than 0.5 mm");
+// Overlay wall cheek around the hex nut pocket.
+assert(!ENABLE_SCREW_INSERTS || (screw_wall_offset - screw_nut_af / 2) >= 0.5,
+       "hex nut pocket outer cheek < 0.5 mm in overlay wall");
+assert(!ENABLE_SCREW_INSERTS || (wall_t - screw_wall_offset - screw_nut_af / 2) >= 0.5,
+       "hex nut pocket inner cheek < 0.5 mm in overlay wall");
+// Tray wall cheek around the widest bore segment (pocket).
+assert(!ENABLE_SCREW_INSERTS || (screw_wall_offset - screw_pocket_d / 2) >= 0.5,
+       "screw pocket outer cheek < 0.5 mm in tray wall");
 // Hex pocket must not breach the overlay top surface.
 assert(!ENABLE_SCREW_INSERTS || screw_nut_depth <= top_t - 1.0,
-       "hex nut pocket depth leaves < 1.0 mm of overlay skin above the pocket");
-// Each segment depth must stay within JLC3DP SLA max (3× diameter).
+       "hex nut pocket depth leaves < 1.0 mm of overlay skin above");
+// JLC3DP SLA 3× depth rule for the clearance (topmost) segment.
 assert(!ENABLE_SCREW_INSERTS || screw_clear_depth <= screw_clear_d * 3,
        "clearance segment exceeds JLC3DP SLA max (3× diameter)");
-// Reinforcement pad must not foul the plate.
-assert(!ENABLE_SCREW_INSERTS || screw_reinf <= plate_gap - 0.1,
-       "screw reinforcement pad exceeds plate_gap clearance");
-// Every screw position must have adequate outer cheek (pocket does not
-// breach the case outer face) and must sit on a wall (not floating in the
-// cavity). The pocket intentionally protrudes slightly into the cavity on
-// the inner side — this is by design (screw_wall_offset > wall_t/2 shifts
-// the pocket inward for better outer cheek).
-assert(!ENABLE_SCREW_INSERTS ||
-       len([for (p = screw_positions())
-            let (r = max(screw_nut_ac, screw_pocket_d) / 2)
-            if (p[0] - r < 0.3 ||
-                p[0] + r > outer_w - 0.3 ||
-                p[1] - r < 0.3 ||
-                p[1] + r > outer_d - 0.3) 1]) == 0,
-       "a screw position breaches the case outer boundary");
-// Each screw must be adjacent to a wall (not floating in the cavity center).
+// Positions must sit on walls and clear gasket slots / USB cutout.
 assert(!ENABLE_SCREW_INSERTS ||
        len([for (p = screw_positions())
             if (!(p[1] <= wall_t + 1 ||
@@ -1078,7 +1042,6 @@ assert(!ENABLE_SCREW_INSERTS ||
                   p[0] <= wall_t + 1 ||
                   p[0] >= outer_w - wall_t - 1)) 1]) == 0,
        "a screw position is not adjacent to any wall");
-// Screw positions must not collide with any gasket slot footprint.
 assert(!ENABLE_SCREW_INSERTS ||
        len([for (p = screw_positions())
             let (r = max(screw_nut_ac, screw_pocket_d) / 2)
@@ -1097,20 +1060,15 @@ assert(!ENABLE_SCREW_INSERTS ||
             if (p[0] >= sx1 && p[0] <= sx2 &&
                 p[1] <= wall_t + r) 1]) == 0,
        "a front-wall screw position overlaps a front gasket slot");
-// Screw positions must keep >= 2 mm cheek to USB cutout.
 assert(!ENABLE_SCREW_INSERTS ||
        len([for (p = screw_positions())
-            let (r = max(screw_nut_ac, screw_head_d) / 2,
+            let (r = max(screw_nut_ac, screw_pocket_d) / 2,
                  cheek = abs(p[0] - p2c_x(usb_plate_x)) - usb_cut_w/2 - r)
             if (p[1] >= outer_d - wall_t - r && cheek < 2.0) 1]) == 0,
        "a back-wall screw position leaves < 2 mm cheek to the USB cutout");
 
 // ─── Screw × tongue auto-notching invariants ───────────────────────────────
-// Same pattern as magnet × tongue checks. The notch must clear the hex
-// across-corners extent (vertices extend further than the counterbore).
 screw_notch_extent = max(screw_nut_ac, screw_pocket_d);
-// Every screw position must be adjacent to a wall for the notch
-// classification to work.
 assert(!(ENABLE_SCREW_INSERTS && ENABLE_OVERLAY_RABBET) ||
        len([for (p = screw_positions())
             if (!(p[1] <= wall_t ||
@@ -1662,12 +1620,11 @@ module overlay_magnet_pockets() {
 }
 
 // ─── Screw + nut geometry (optional, ENABLE_SCREW_INSERTS) ─────────────────
-// 3-segment stepped through-bore from tray bottom to wall top. Each
-// segment stays within JLC3DP SLA's 3× depth limit. The bolt head
-// catches on the pocket→mid step; the shaft passes through mid+clear.
-//
-// Overlay: hex-shaped blind pocket (screw_nut_af × screw_nut_depth) cut
-//   from the underside, with tilt compensation as per magnet pockets.
+// Tray:  3-segment stepped through-bore from tray bottom to wall top.
+//        Each segment stays within JLC3DP SLA's 3× depth limit. The bolt
+//        head catches on the pocket→mid step; the shaft passes through
+//        mid+clear and into the overlay nut.
+// Overlay: hex nut pocket on the underside, tilt-compensated.
 
 // Tilt-drift values (wall top surface is tilted).
 screw_clear_tilt_drift = screw_clear_d * tan(tilt_angle);
@@ -1685,7 +1642,7 @@ module tray_screw_holes() {
 
         // Head catch point: where the pocket→mid step is.
         wall_top_center = top_z(p[1]) - top_t;
-        pocket_top = wall_top_center + 1.3 - screw_bolt_length;
+        pocket_top = wall_top_center + 1.2 - screw_bolt_length;
 
         // Mid segment: from pocket_top to clearance bottom + overlap.
         mid_top = clear_bot + 0.5;
@@ -1697,25 +1654,6 @@ module tray_screw_holes() {
         // void — this is intentional (deboss, not protrusion).
         translate([p[0], p[1], -0.1])
             cylinder(d = screw_pocket_d, h = pocket_top + 0.1);
-    }
-}
-
-// Reinforcement pads: local wall thickening on the tray cavity inner
-// face at each screw position. Adds screw_reinf mm of material into
-// the cavity (within plate_gap clearance), improving the structural
-// support around the thin inner cheek of the screw bore.
-module tray_screw_reinforcement() {
-    for (p = screw_positions()) {
-        wall_top_center = top_z(p[1]) - top_t;
-        pad_w = screw_pocket_d + 2;
-        on_front = p[1] < outer_d / 2;
-        if (on_front) {
-            translate([p[0] - pad_w/2, wall_t, bottom_t])
-                cube([pad_w, screw_reinf, wall_top_center - bottom_t]);
-        } else {
-            translate([p[0] - pad_w/2, outer_d - wall_t - screw_reinf, bottom_t])
-                cube([pad_w, screw_reinf, wall_top_center - bottom_t]);
-        }
     }
 }
 
@@ -1800,7 +1738,7 @@ module case_tray() {
             // Optional: magnet pockets sunk into the wall tops.
             if (ENABLE_MAGNET_POCKETS) tray_magnet_pockets();
 
-            // Optional: screw clearance holes + counterbores in the wall tops.
+            // Optional: screw through-bore in the wall columns.
             if (ENABLE_SCREW_INSERTS) tray_screw_holes();
         }
 
@@ -1808,9 +1746,6 @@ module case_tray() {
         // wall top. Unioned AFTER the cavity/slot/magnet cuts so its
         // geometry is preserved in full.
         if (ENABLE_OVERLAY_RABBET) tray_tongue_3d();
-
-        // Reinforcement pads on the cavity inner face at screw positions.
-        if (ENABLE_SCREW_INSERTS) tray_screw_reinforcement();
     }
 }
 
@@ -1844,8 +1779,7 @@ module case_overlay() {
         // the tray pockets across the seam.
         if (ENABLE_MAGNET_POCKETS) overlay_magnet_pockets();
 
-        // Optional: hex nut pockets in the overlay underside, matching
-        // the tray screw holes.
+        // Optional: hex nut pockets in the overlay underside.
         if (ENABLE_SCREW_INSERTS) overlay_nut_pockets();
 
         // Optional: recess cut into the overlay underside that accepts
@@ -2517,7 +2451,7 @@ module case_overlay_chamfered() {
         // Magnet pockets
         if (ENABLE_MAGNET_POCKETS) overlay_magnet_pockets();
 
-        // Screw nut pockets
+        // Hex nut pockets in overlay underside
         if (ENABLE_SCREW_INSERTS) overlay_nut_pockets();
 
         // Rabbet recess

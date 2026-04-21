@@ -58,7 +58,7 @@ The main toggles in `case.scad` control which features are included:
 | `PRINT_SUPPORTS` | `false` | Add internal anti-warp rib walls to tray (print mode only) |
 | `ENABLE_OVERLAY_RABBET` | `true` | Locating tongue/recess for X/Y registration |
 | `ENABLE_MAGNET_POCKETS` | `true` | Blind magnet pockets for overlay hold-down |
-| `ENABLE_SCREW_INSERTS` | `false` | M1.6 bolt + glued hex nut overlay retention (mutually exclusive with magnets) |
+| `ENABLE_SCREW_INSERTS` | `false` | M1.4 bolt + glued hex nut overlay retention (mutually exclusive with magnets) |
 | `ENABLE_DECORATIVE_TRIMS` | `true` | Debossed logos, pinstripe, initials |
 
 ## JLC3DP SLA submission notes
@@ -236,29 +236,28 @@ cheaper than after.
 ### Screw + nut retention (alternative to magnets)
 
 When `ENABLE_SCREW_INSERTS=true` (and `ENABLE_MAGNET_POCKETS=false`), the
-overlay is secured by four M1.6 bolts threading up from inside the tray
-into hex nuts glued into the overlay. Nothing is visible externally.
+overlay is secured by four M1.4 bolts threading up from inside the tray
+into hex nuts glued into the overlay. Nothing is visible externally — bolt
+heads sit in pockets on the tray underside (hidden against the desk),
+and the overlay top surface is flush.
 
 #### Hardware (4 of each)
 
 | Qty | Part | Specification | Key dimensions |
 |-----|------|---------------|----------------|
-| 4 | Hex nut | M1.6 DIN 934 | 3.2 mm across-flats, 1.3 mm thick |
-| 4 | Socket head cap screw | M1.6 × 12 mm | 3.0 mm head dia, 1.6 mm head height |
+| 4 | Hex nut | M1.4 DIN 934 | 3.0 mm across-flats, 1.2 mm thick |
+| 4 | Socket head cap screw | M1.4 × 12 mm | 2.6 mm head dia, 1.4 mm head height |
 
 Same bolt length at all 4 positions. The bolt threads up from the tray
 underside through the wall column and into the overlay nut. The through-
 hole is a 3-segment stepped bore — no post-print drilling required:
-- **Pocket** (3.3 mm dia, from tray bottom upward): bolt head sits here
-- **Mid** (2.5 mm dia, intermediate): extends printable depth
+- **Pocket** (3.0 mm dia, from tray bottom upward): bolt head sits here
+- **Mid** (2.5 mm dia, intermediate): extends the printable depth
 - **Clearance** (2.0 mm dia, from wall top downward): shaft exits here
 
-Each segment stays within JLC3DP SLA depth limits (max 3× diameter)
-and within the 4.8 mm wall width. The bolt head catches on the
-pocket-to-mid step. At the back corners, the 10 mm chamfer removes
-the tray bottom; the pocket starts from the chamfer face (deboss).
-Small reinforcement pads on the tray cavity inner face provide
-structural support around the bore.
+Each segment stays within JLC3DP SLA depth limits (max 3× diameter).
+At the back corners, the 10 mm chamfer removes the tray bottom; the
+pocket starts from the chamfer face (deboss).
 
 #### Nut installation
 
@@ -279,8 +278,8 @@ structural support around the bore.
 2. Seat the overlay on the tray wall tops (nuts face down, aligning
    with the clearance holes in the tray walls).
 3. Flip the assembled case upside-down.
-4. Insert the M1.6 × 8 mm bolts into all 4 pocket holes from below
-   and tighten into the overlay nuts with a 1.3 mm hex key. Finger-
+4. Insert the M1.4 × 12 mm bolts into all 4 pocket holes from below
+   and tighten into the overlay nuts with a 1.25 mm hex key. Finger-
    tight plus a quarter turn is sufficient.
 5. Flip the case back upright. The bolt heads sit in the pocket
    recesses on the tray underside, hidden against the desk.
