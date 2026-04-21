@@ -83,8 +83,15 @@ run_config() {
 
     # -o /dev/null with .csg extension triggers compile-only (no CGAL render).
     # All assert() calls run during compilation.
+    #
+    # OpenSCAD 2021.01 has a bug where .csg export returns exit 0 even when
+    # a top-level assert() fires — stderr still prints "ERROR: Assertion ...
+    # failed" but the process exits cleanly. We must grep the log for that
+    # marker or every broken assertion reads as PASS here while .stl export
+    # (which does exit 1) silently fails downstream.
     local dummy_out="$TMPDIR_BASE/config_${TOTAL}.csg"
-    if openscad -o "$dummy_out" "${defs[@]}" -D '$fn=8' "$SCAD_FILE" >"$logfile" 2>&1; then
+    if openscad -o "$dummy_out" "${defs[@]}" -D '$fn=8' "$SCAD_FILE" >"$logfile" 2>&1 \
+       && ! grep -q '^ERROR:' "$logfile"; then
         PASS=$((PASS + 1))
         if $VERBOSE; then
             echo "PASS"
