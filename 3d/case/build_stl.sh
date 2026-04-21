@@ -70,7 +70,6 @@ render_piece() {
         -D "PRINT_MODE=true" \
         -D "SHOW_TRAY=$show_tray" \
         -D "SHOW_OVERLAY=$show_overlay" \
-        -D "SHOW_RETAINER=false" \
         -D "SHOW_PLATE=false" \
         -D "SHOW_DISPLAY=false" \
         -D "PRINT_SUPPORTS=$SUPPORTS" \

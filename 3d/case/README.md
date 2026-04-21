@@ -36,7 +36,7 @@ optimal 3D printing:
   the build plate — this gives the best surface finish on both SLA resin and FDM.
 
 - **Tray**: Printed bottom-down (the bottom is already flat at Z=0). With
-  `--supports`, five internal rib walls are added inside the cavity, running
+  `--supports`, six internal rib walls are added inside the cavity, running
   front-to-back. These grow simultaneously with the tray walls during the
   SLA build, creating T-sections that resist the 363 mm long walls from
   bowing under cure shrinkage. After post-cure: score each rib along the
@@ -133,7 +133,7 @@ Order of operations when the parts arrive from JLC3DP:
 
 ### Anti-warp rib breakaway (tray)
 
-The tray ships with 5 internal ribs, each cut with scored necks at the
+The tray ships with 6 internal ribs, each cut with scored necks at the
 front wall, back wall, and floor. Expected removal sequence:
 
 1. Enter the tray cavity from the open top with a #11 craft blade.

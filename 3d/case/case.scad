@@ -35,7 +35,6 @@ $fn = 48;
 // ─── Rendering switches ──────────────────────────────────────────────────────
 SHOW_TRAY       = true;    // piece 1: bottom + walls
 SHOW_OVERLAY    = true;    // piece 2: top surface
-SHOW_RETAINER   = false;   // piece 3: display retainer (fabricate separately)
 SHOW_PLATE      = false;   // ghost plate for fit check
 SHOW_DISPLAY    = false;   // ghost display for fit check
 SHOW_SECTION    = false;   // cross-section cut for inspection
@@ -43,7 +42,7 @@ EXPLODE         = 2;       // set >0 to separate overlay from tray (mm)
 
 // ─── Print-mode switches ────────────────────────────────────────────────────
 // When PRINT_MODE is true, the assembly renders print-oriented pieces:
-//   - Overlay is flattened (5° tilt removed) and flipped cosmetic-face-down
+//   - Overlay is flattened (6° tilt removed) and flipped cosmetic-face-down
 //   - Tray is unchanged in orientation (bottom is already flat)
 // When exporting STLs for manufacturing, set PRINT_MODE=true and render one
 // piece at a time (SHOW_TRAY xor SHOW_OVERLAY).
@@ -83,8 +82,8 @@ ENABLE_MAGNET_POCKETS = true;    // cut blind magnet pockets in the tray wall
 // silently drops every decorative cut, so hardwood builds or "naked" prints
 // use the exact same file with one toggle.
 ENABLE_DECORATIVE_TRIMS = true;   // master switch — false = all decoratives off
-DECO_SIDE_LOGO          = true;   // mKey logo debossed on both outer side walls
-DECO_EDGE_PINSTRIPE     = true;   // hairline groove around the overlay top edge
+DECO_BACK_LOGO          = true;   // mKey logo debossed on outer back wall
+DECO_EDGE_PINSTRIPE     = false;  // hairline groove around the overlay top edge
 DECO_OWNER_INITIALS     = true;   // initials + year debossed into the tray underside
 DECO_LOGO_TOP           = false;   // mKey logo debossed on overlay top above the display
 DECO_INITIALS           = "SM";   // user-customisable owner initials
@@ -153,11 +152,12 @@ right_tab_ext = 1.764;
 //   - toppoplcd.com (TT172LMN10A datasheet)
 //
 // DISPLAY MOUNTING ARRANGEMENT — IMPORTANT (non-obvious, load-bearing):
-//   The display module seats in the OVERLAY HOUSING (display_cutout +
-//   display_retainer), NOT in the plate. It is inserted from above and
-//   held against the retainer lip from below. The plate cutout exists
-//   ONLY to pass the 24-pin FPC ribbon down to J2 on the PCB beneath.
-//   The module body never passes through the plate cutout.
+//   The display module seats in a blind pocket cut into the OVERLAY
+//   underside (see display_cutout), NOT in the plate. It is inserted
+//   from below and adhered with glue to the shelf underside so its
+//   glass face stays pressed against the top window. The plate cutout
+//   exists ONLY to pass the 24-pin FPC ribbon down to J2 on the PCB
+//   beneath. The module body never passes through the plate cutout.
 //
 //   Consequence: the plate cutout dimensions (31.500 × 37.200) only need
 //   to clear the ribbon, not the 31.5×37.22 module body. The nominal
@@ -229,7 +229,7 @@ usb_opening_h = 3.26;               // receptacle opening height
 // =============================================================================
 
 // ─── Tilt ────────────────────────────────────────────────────────────────────
-tilt_angle = 5;   // degrees, back raised
+tilt_angle = 6;   // degrees, back raised
 
 // ─── Tolerances ──────────────────────────────────────────────────────────────
 plate_gap     = 0.5;    // clearance between plate edge and inner wall (per side)
@@ -274,10 +274,6 @@ shelf_corner_r = 1.2;   // radius of the curved inner corners of the window.
                         // corners, and small enough that the window corner
                         // arc stays inside the pocket arc (verified by
                         // assertion below).
-retainer_t    = 1.2;    // separately-fabricated backing plate that clamps the
-                        // module UP against the shelf from below (optional;
-                        // adhesive can replace it).
-
 // ─── Walls ───────────────────────────────────────────────────────────────────
 // The tray and overlay can have different outer wall thicknesses. The overlay
 // (and all inner geometry: cavity, plate, magnets, tongue) uses overlay_wall_t.
@@ -288,20 +284,8 @@ overlay_wall_t = 4.8;   // wall thickness for overlay and inner geometry
 tray_wall_t    = 5.3;   // wall thickness for tray outer shell (extend outward)
 tray_ext       = tray_wall_t - overlay_wall_t;  // 0.5mm outward extension
 wall_t         = overlay_wall_t;  // alias for backward compat (inner geometry)
-bottom_t  = 3.5;    // bottom plate thickness
-top_t     = 5.0;    // top surface thickness (display cover area).
-                    // Bumped from 3.0 → 5.0 to stiffen the 4.16 mm main-field ↔
-                    // arrow-L/D/R rib, which is the weakest cross-section in
-                    // the overlay. Section modulus scales as thickness²:
-                    // (5/3)² = 2.78× bending stiffness on that rib at zero
-                    // layout cost. Downside: display glass recess grows from
-                    // 1.44 mm (top_t=3) to 3.44 mm (top_t=5), a deeper well.
-                    // ALSO: fabricate the overlay blank with grain running
-                    // along Y (front-to-back, ~110 mm direction), not X — the
-                    // 4.16 mm rib and the 23 mm row3↔arrow-UP bezel both run
-                    // in Y, so Y-grain makes them along-grain (~6× ⊥→∥
-                    // hardwood strength jump). Combined the rib is ~17×
-                    // stronger than the unfixed baseline.
+bottom_t  = 3.0;    // bottom plate thickness
+top_t     = 3.5;    // top surface thickness (display cover area)
 
 // ─── Internal ────────────────────────────────────────────────────────────────
 plate_recess     = 2.0;    // plate top sits this far below the TRAY WALL TOP
@@ -314,7 +298,51 @@ component_h      = 3.5;    // tallest component below PCB (ESP32-S3-WROOM-1: 3.2
 bottom_clearance = 2.0;    // air gap below components
 
 // ─── Gasket ──────────────────────────────────────────────────────────────────
-gasket_compressed = 1.5;   // working thickness when loaded
+gasket_compressed = 1.5;   // nominal compressed thickness used to size
+                            // slot_bot_below_plate (Section 8). Represents the
+                            // "design target" gasket under load.
+
+// ─── Installed gasket scheme (as-built, for plate Z alignment) ───────────────
+// The slot is sized generously (drop-in headroom above, tilt + gasket budget
+// below), so where the plate actually settles depends on which foam strips go
+// in and how they compress. The tab rests on the BOTTOM gasket, so the
+// installed plate Z is:
+//   plate_bot_installed = slot_bot + bot_gasket_installed
+//                       = plate_bot_nominal − (slot_bot_below_plate − bot_gasket_installed)
+// A thinner installed gasket than the slot_bot_below_plate budget drops the
+// plate below nominal; the USB receptacle is bonded to the PCB which rides
+// the switches which are bonded to the plate, so USB drops with it.
+//
+// This build uses a thicker foam strip underneath and a thin cushion on top,
+// so the plate drops only a fraction of a mm. `usb_z_center` shifts by
+// `plate_z_installed_offset` (see Section 5) to keep the USB opening near
+// the centre of the case cutout after assembly.
+bot_gasket_installed = 1.5;   // compressed bottom gasket thickness at mid-slot
+                               // (matches gasket_compressed — the maximum that
+                               // fits in slot_bot_below_plate under tilt+slop
+                               // at the downhill side-slot end)
+top_gasket_installed = 0.5;   // compressed top gasket thickness (thin cap)
+
+// ─── Slot clearance (hoisted) ────────────────────────────────────────────────
+// Defined here (rather than with the rest of the slot geometry in Section 8)
+// because plate_z_installed_offset (Section 5) needs it, and OpenSCAD
+// top-level variable bodies don't forward-reference. The rest of slot_*
+// (slot_depth, slot_open_margin, …) stay in Section 8 with their asserts.
+slot_tol     = 0.6;    // clearance around tab (per side, length direction).
+                       // Bumped from 0.4 → 0.6 in the 2026-04-16 JLC3DP pre-fab
+                       // review: the ±0.3% tolerance band on >100 mm features
+                       // (case X = 363 mm) translates to ~1 mm of positional
+                       // drift at the outermost tab (rightmost front tab center
+                       // at case-X ≈ 320 mm), which would jam a 0.2 mm-play
+                       // slot. 0.6 gives 0.3 mm play per side — enough to
+                       // absorb uniform shrinkage of ±0.3% over the 320 mm
+                       // reach without losing the snug compression fit. Used
+                       // in conjunction with a JLC3DP X-axis scale-comp order
+                       // note; belt-and-braces if the factory skips it.
+                       //
+                       // Earlier: 0.3 → 0.4 in the 2026-04-14 review (0.3 was
+                       // exactly equal to the ±0.2 mm fab slop budget, leaving
+                       // zero play under worst-case slop).
 
 // ─── USB cutout ──────────────────────────────────────────────────────────────
 usb_cut_w = 15.0;   // wide for thick aftermarket cables
@@ -337,12 +365,20 @@ y_split = 41.0;   // plate-local Y for the L-shape horizontal step
 x_split = 290.0;  // plate-local X where narrow section right edge is
 
 // ─── Overhang ────────────────────────────────────────────────────────────────
-// Reduced from 4.0 → 2.0: a 4mm × 3mm cross-grain cantilever on the left/right
-// sides would chip off in hardwood. 2 mm is still visually present and safer.
-overhang = 2.0;   // top overlay overhang beyond tray walls (mm)
+// Set to tray_ext so overlay outer edge aligns flush with tray outer edge
+overhang = tray_ext;  // top overlay overhang beyond tray walls (mm)
 
 // ─── Corner rounding ─────────────────────────────────────────────────────────
-overlay_corner_r = 3.0;    // outer corner radius of overlay
+overlay_corner_r = 0.75;   // outer corner radius of overlay (overridden by chamfer when ENABLE_CHAMFERS)
+tray_corner_r    = 0.75;   // outer corner radius of tray (overridden by chamfer when ENABLE_CHAMFERS)
+
+// ─── Edge chamfers ──────────────────────────────────────────────────────────
+// Chamfers prevent chipping during IPA wash and improve hand-feel.
+// Primary chamfer on top edges, secondary edge break on all sharp edges.
+chamfer_top_primary   = 1.2;   // mm, 45° chamfer on overlay/tray top edges (1.0-1.5 spec)
+chamfer_edge_break    = 0.2;   // mm, minimum chamfer on all remaining sharp edges
+chamfer_back_bottom   = 10.0;  // mm, large triangular chamfer on tray bottom back edge (must be < pad_inset)
+ENABLE_CHAMFERS       = true;  // master switch for all chamfer geometry
 
 // ─── Overlay locating rabbet (optional, ENABLE_OVERLAY_RABBET) ──────────────
 // INVERTED ("tongue") geometry: a small ridge of wood stands proud ABOVE
@@ -379,27 +415,31 @@ overlay_corner_r = 3.0;    // outer corner radius of overlay
 // therefore has up to 9 + 4 = 13 gaps; each remaining segment is still
 // fully supported by solid wall material and separated from every
 // neighbouring gap by several mm of wood (asserted below).
-rabbet_w = 2.2;      // ring width in the wall-depth direction (outer ring
+rabbet_w = 2.4;      // ring width in the wall-depth direction (outer ring
                      // of wood/resin removed from the wall top). The
-                     // tongue itself is `rabbet_w − 2·rabbet_tol` = 1.7 mm
+                     // tongue itself is `rabbet_w − 2·rabbet_tol` = 1.8 mm
                      // wide. Must leave a ≥1.5 mm rest cheek for the
                      // overlay outboard of the tongue (wall_t − rabbet_w
-                     // = 2.6 mm here, well above the floor).
+                     // = 2.4 mm here, well above the floor).
                      // Grown 1.8 → 2.0 in the 2026-04-14 JLC3DP review
                      // so the tongue met JLC3DP's 1.5 mm snap-feature
                      // recommendation exactly. Grown 2.0 → 2.2 in the
-                     // 2026-04-17 review to add 0.2 mm margin over that
-                     // floor — absorbs the full ±0.2 mm SLA fab slop
-                     // so the printed tongue never narrows below 1.5 mm.
+                     // 2026-04-17 review to add 0.2 mm margin. Grown
+                     // 2.2 → 2.4 in the 2026-04-20 pre-fab review so
+                     // the rabbet_tol increase to 0.30 keeps tongue at
+                     // 1.8 mm nominal / 1.6 mm worst-case (above 1.5).
 rabbet_h = 1.5;      // tongue height above the wall top (= recess depth
                      // into the overlay underside). Grown from 1.0 → 1.5
                      // in the 2026-04-14 JLC3DP review to meet the same
                      // 1.5 mm snap-feature recommendation. Still leaves
                      // top_t − rabbet_h = 3.5 mm of overlay slab above
                      // the recess floor (≫ the 1.0 mm structural floor).
-rabbet_tol = 0.25;   // per-side clearance between the tongue and the
-                     // recess. 0.25 mm gives a sliding hand-seat fit
-                     // with no binding under ±0.2 mm fab slop.
+rabbet_tol = 0.30;   // per-side clearance between the tongue and the
+                     // recess. Grown from 0.25 → 0.30 in the 2026-04-20
+                     // pre-fab review: at 0.25 the worst-case clearance
+                     // was 0.05 mm/side (both pieces at +0.2 mm), below
+                     // JLC3DP's 0.2 mm static-assembly rule. 0.30 gives
+                     // 0.10 mm/side worst-case (total 0.20 mm).
 notch_margin = 0.5;  // extra plan-view clearance added around each slot
                      // footprint when notching the tongue / recess, so
                      // the plate tab has a finger of sliding room when
@@ -412,7 +452,7 @@ notch_margin = 0.5;  // extra plan-view clearance added around each slot
 // rabbet seam and hold the overlay down.
 //
 // Default sizing targets 2 mm Ø × 1 mm N52 discs (pull force ≈ 80 g each;
-// 6 of them give ~480 g of holding force — plenty for a 5° tilted keyboard
+// 6 of them give ~480 g of holding force — plenty for a 6° tilted keyboard
 // that only has to fight gravity + light typing vibration).
 //
 // Downsized from Ø3×2 → Ø2×1 in the 2026-04-17 JLC3DP pre-fab review:
@@ -427,7 +467,10 @@ notch_margin = 0.5;  // extra plan-view clearance added around each slot
 // hole rule with 0.2 mm slop AND leaves a 1.15 mm nominal wall cheek
 // (0.95 mm worst case — comfortably above the 0.8 mm wall floor).
 magnet_d      = 2.3;    // pocket diameter. 2.0 mm nominal magnet + 0.3 mm
-                        // JLC3DP hole-tolerance allowance + 0.2 mm epoxy slop.
+                        // JLC3DP hole-tolerance allowance. Accepted risk:
+                        // worst-case pocket (2.3 − 0.3 = 2.0 mm) gives zero
+                        // clearance; slightly oversized magnets may need
+                        // light reaming. Acceptable for a press-fit pocket.
 magnet_depth  = 2.0;    // pocket depth (Z). Meets JLC3DP's Ø↔depth minimum
                         // (h ≥ Ø for small holes: Ø2.0 → h ≥ 2.0 mm) and
                         // fully captures the 1 mm-thick magnet with 1 mm
@@ -471,9 +514,26 @@ function magnet_positions() = [
 // SECTION 5: DERIVED DIMENSIONS
 // =============================================================================
 
-// Total depth below plate surface
-depth_below = switch_depth + pin_depth + pcb_t + component_h + bottom_clearance;
-// = 5.0 + 3.3 + 1.6 + 3.5 + 2.0 = 15.4 mm
+// ─── Empirical plate+PCB stack measurements ───────────────────────────────
+// Prototype measurements of the assembled plate + PCB + components stack.
+// These drive the vertical space allocated below the plate.
+//
+// FRONT of case: from plate bottom down to the lowest bottom-side component
+// tip. This feeds `internal_h` directly via `depth_below` below — shrinking
+// it reduces the whole case height.
+//
+// BACK of case (USB-C + ESP32-S3-WROOM-1 area): from the lowest bottom-side
+// component up to the highest top-side component (USB receptacle body /
+// ESP32 module can). The 6° tilt raises the plate at the back so more
+// vertical space is available; this measurement is enforced by assertion
+// against `back_plate_bottom_z − bottom_t` (see derived section below),
+// not by feeding `internal_h`.
+stack_h_front   = 7.0;   // empirical, measured at front wall
+stack_h_back    = 13.0;  // empirical, measured at back (USB/processor)
+stack_clearance = 1.5;   // required air gap at both front and back
+
+// Total depth below plate surface (plate bottom to case floor top).
+depth_below = stack_h_front + stack_clearance;  // 8.5 mm
 
 // Total internal height from case floor to case top.
 // Stack-up, bottom to top:
@@ -557,13 +617,50 @@ assert(pocket_corner_clearance <= disp_pocket_r,
 // mid-mount HRO TYPE-C-31-M-12 receptacle, whose opening center sits on
 // the PCB midplane.
 back_wall_inner_y   = outer_d - wall_t;
-back_plate_top_z    = plate_z(back_wall_inner_y);
-back_plate_bottom_z = back_plate_top_z - plate_t;
-pcb_top_z           = back_plate_bottom_z - switch_depth;
-usb_z_center        = pcb_top_z - pcb_t / 2;
+back_plate_top_z    = plate_z(back_wall_inner_y);          // nominal
+back_plate_bottom_z = back_plate_top_z - plate_t;          // nominal
+pcb_top_z           = back_plate_bottom_z - switch_depth;  // nominal
+
+// Installed plate Z drift — see `bot_gasket_installed` in Section 4.
+//
+// The plate rests on its DOWNHILL tab edge (side slots run along Y, so
+// the tab's -Y end sits (tab_len/2 + slot_tol)·tan(tilt) below the slot
+// center plate midplane even at nominal Z). `slot_bot_below_plate`
+// already reserves that tilt drop plus a gasket-compressed budget plus
+// FAB_SLOP + 0.05 safety buffer:
+//     slot_bot_below_plate = gasket_compressed
+//                          + (tab_len + slot_tol)·tan(tilt)/2
+//                          + FAB_SLOP + 0.05
+// With an installed gasket of exactly gasket_compressed thickness, the
+// plate only drops by the FAB_SLOP + 0.05 buffer. A thinner installed
+// gasket drops it further by (gasket_compressed − bot_gasket_installed).
+// Simplifying:
+//     plate_drop = bot_gasket_installed
+//                − gasket_compressed − FAB_SLOP − 0.05
+// The USB receptacle rides the plate, so the cutout shifts with it.
+plate_z_installed_offset = bot_gasket_installed
+                         - gasket_compressed - FAB_SLOP - 0.05;
+
+// USB cutout is centred on the INSTALLED USB position (= nominal + offset),
+// not the design-nominal plate Z. The receptacle moves down with the plate
+// under the gasket scheme, so the cutout follows it.
+usb_z_center        = pcb_top_z - pcb_t / 2 + plate_z_installed_offset;
 usb_cut_z_bot       = usb_z_center - usb_cut_h / 2;
 usb_cut_z_top       = usb_z_center + usb_cut_h / 2;
 back_wall_top_z     = back_h - top_t;  // tray wall top at the back
+
+// Back-wall vertical budget: from case-floor top to plate bottom at the back
+// wall must accommodate the 13 mm PCB+USB+ESP32 stack plus 1.5 mm of
+// clearance. The tilt raises the plate at the back by (outer_d − wall_t) ·
+// tan(tilt_angle), so this is naturally looser than depth_below at the front
+// — but if someone shrinks tilt_angle, depth_below, or raises bottom_t in the
+// future, this assert catches the regression before it reaches fab.
+back_avail_h = back_plate_bottom_z - bottom_t;
+assert(back_avail_h >= stack_h_back + stack_clearance,
+       str("Back-wall stack clash: available ", back_avail_h,
+           " mm < required ", stack_h_back + stack_clearance,
+           " mm (", stack_h_back, " mm stack + ", stack_clearance,
+           " mm clearance). Increase tilt_angle, depth_below, or reduce bottom_t."));
 
 // Overlay overhang dimensions
 overlay_w       = outer_w + 2 * overhang;
@@ -902,6 +999,42 @@ assert(usb_cut_z_bot >= bottom_t + 0.3,
 assert(usb_cut_z_top <= back_wall_top_z - 0.3,
        "USB cutout pierces the tray wall top at the back within fab slop");
 
+// ─── Installed gasket scheme sanity ──────────────────────────────────────
+// Bottom gasket must fit within the slot_bot_below_plate budget at the
+// downhill end of the side slots. slot_bot_below_plate equals
+// gasket_compressed + tilt + FAB_SLOP + 0.05 (defined Section 8) — that
+// formula is evaluated inline inside this assert body so forward refs
+// work. If the installed gasket is thicker than that, it over-compresses
+// at the downhill end.
+assert(bot_gasket_installed
+       + (tab_len + slot_tol) * tan(tilt_angle) / 2 + FAB_SLOP
+       <= slot_bot_below_plate,
+       str("bot_gasket_installed (", bot_gasket_installed,
+           " mm) too thick — exceeds slot_bot_below_plate (",
+           slot_bot_below_plate,
+           " mm) at downhill side-slot end. Reduce installed thickness, bump gasket_compressed, or trim the foam strip."));
+// Top gasket must fit in the slot_top_above_plate headroom above the plate.
+assert(top_gasket_installed <= slot_top_above_plate,
+       "top_gasket_installed exceeds slot_top_above_plate — top foam doesn't fit");
+// Even if the actual installed gasket differs from bot_gasket_installed by
+// up to 0.5 mm, a ~3 mm-tall USB port must still sit inside the cutout
+// with fab-slop margin. The cutout is 8 mm tall, half-height 4 mm, so
+// USB_half(1.5) + drift(0.5) + slop(0.2) = 2.2 mm ≤ 4 mm — plenty.
+USB_PORT_H_WORST = 3.0;
+GASKET_DRIFT_TOL = 0.5;
+assert(USB_PORT_H_WORST / 2 + GASKET_DRIFT_TOL + FAB_SLOP <= usb_cut_h / 2,
+       str("usb_cut_h (", usb_cut_h,
+           " mm) too small: USB port + plate-Z drift + fab slop exceeds half-height"));
+// Cross-check the simplified plate_z_installed_offset (Section 5) against
+// the full derivation from slot_bot_below_plate (Section 8). The plate
+// rests on its downhill tab edge, so only the FAB_SLOP + 0.05 safety
+// buffer in slot_bot_below_plate becomes drop when bot_gasket_installed
+// matches gasket_compressed.
+assert(plate_z_installed_offset ==
+       bot_gasket_installed + (tab_len + slot_tol) * tan(tilt_angle) / 2
+       - slot_bot_below_plate,
+       "plate_z_installed_offset formula (Section 5) drifted from slot_bot_below_plate (Section 8) — the tilt term must cancel");
+
 // ─── USB-C cutout X invariants ───────────────────────────────────────────
 // The cut must sit inside the back wall's X extent with enough wood on each
 // side that a ±0.5 mm PCB placement slop can't run it off the cheek.
@@ -959,15 +1092,8 @@ assert(abs(disp_active_ox - (disp_module_w - disp_active_w) / 2) < 0.01 &&
        abs(disp_active_oy - (disp_module_h - disp_active_h) / 2) < 0.01,
        "active area not centered in module — top window will be off-center vs active pixels");
 
-// ─── Retainer fits in pocket under glass ─────────────────────────────────
-// Retainer is glued to the overlay underside at the bottom of the pocket,
-// and the module (disp_glass_t thick) sits above it pressed against the
-// shelf. Retainer thickness is bounded by (pocket depth − glass thickness).
-assert(retainer_t <= disp_pocket_d - disp_glass_t,
-       "retainer too thick to fit in pocket beneath the module glass");
-
 // ─── Bottom pad recess fab-slop margin ───────────────────────────────────
-// Pad recesses are 1 mm deep in a 3.5 mm floor, leaving 2.5 mm nominal. Under
+// Pad recesses are 0.8 mm deep in a 3.0 mm floor, leaving 2.2 mm nominal. Under
 // ±0.2 mm hand-tool depth slop, ensure ≥ 2 mm floor remains over the pads.
 assert(bottom_t - pad_d - FAB_SLOP >= 2.0,
        "bottom pad recess leaves < 2.0 mm floor under ±0.2 mm fab slop");
@@ -1297,10 +1423,10 @@ module overlay_recess_3d() {
 // the cylinder length by the tilt drift so the full `magnet_depth` is
 // preserved at the OTHER extreme. Result: clean hole through the tilted
 // plane everywhere in the pocket footprint.
-magnet_tilt_drift = magnet_d * tan(tilt_angle);   // ≈ 0.22 mm for Ø2.5, 5°
+magnet_tilt_drift = magnet_d * tan(tilt_angle);   // ≈ 0.24 mm for Ø2.3, 6°
 magnet_cyl_h      = magnet_depth + magnet_tilt_drift + 0.2;   // ≈ 2.68 mm
 
-// top_z() is monotonic in y (5° tilt, increasing toward the back), so the
+// top_z() is monotonic in y (6° tilt, increasing toward the back), so the
 // uphill edge of every pocket is at y = p[1] + magnet_d/2 regardless of
 // which wall the magnet sits on, and the downhill edge is p[1] − magnet_d/2.
 
@@ -1327,6 +1453,42 @@ module overlay_magnet_pockets() {
     }
 }
 
+// ─── Back-wall chamfer protection ───────────────────────────────────────────
+// The large back-bottom chamfer (chamfer_back_bottom = cb) slopes the outer
+// back face at 45° from y = d - cb at z = 0 up to y = d at z = cb. Without
+// protection, this slope punches through the back wall inside the chamfer
+// band (z in [bottom_t, cb]) — at z = bottom_t the outer face lands cb −
+// bottom_t mm inside the cavity back face and the nominal 5.3 mm back wall
+// becomes a negative number (a through-slit).
+//
+// Fix: locally pull the cavity back inner face forward so the back wall
+// stays a uniform tray_wall_t slab inside the chamfer band. The inner face
+// is chamfered parallel to the outer chamfer, offset by tray_wall_t, and
+// meets the straight upper cavity exactly at z = cb (no step). The chamfer
+// region at the back of the cavity (z = bottom_t..cb, roughly 7×5.3 mm in
+// y×z cross-section) is solid material. Nothing in the original cavity is
+// lost: the plate + PCB components all sit at z ≥ bottom_t + depth_below
+// (= 11.5 mm at the front, higher at the back), so the filled-in triangle
+// is empty cavity space that was never used.
+module back_wall_chamfer_fill() {
+    cb = chamfer_back_bottom;
+    cavity_back_y = outer_d - wall_t;           // straight cavity back (z ≥ cb)
+    front_bot_y   = cavity_back_y - (cb - bottom_t);  // inner chamfer foot @ z=bottom_t
+    // X covers the full cavity width plus a 1 mm overhang each side so the
+    // triangular prism cleanly subtracts from the rectangular cavity cutout.
+    x_lo = wall_t - 1;
+    x_hi = outer_w - wall_t + 1;
+    eps  = 0.001;
+    hull() {
+        // Top apex edge at (y = cavity_back_y, z = cb), spanning X.
+        translate([x_lo, cavity_back_y - eps, cb])
+            cube([x_hi - x_lo, eps, eps]);
+        // Bottom base rectangle at z = bottom_t, spanning full triangle base in Y.
+        translate([x_lo, front_bot_y, bottom_t])
+            cube([x_hi - x_lo, cavity_back_y - front_bot_y, eps]);
+    }
+}
+
 // ─── PIECE 1: TRAY (bottom + walls) ─────────────────────────────────────────
 module case_tray() {
     union() {
@@ -1334,15 +1496,24 @@ module case_tray() {
             // Outer shell — extended by tray_ext on all sides for thicker walls.
             // Top face at wall_top (= top_z − top_t) so the overlay's flat
             // underside sits directly on the wall cheek.
-            translate([-tray_ext, -tray_ext, 0])
-                wedge_box(outer_w + 2*tray_ext, outer_d + 2*tray_ext,
-                          front_h - top_t, back_h - top_t);
+            // Use chamfered or rounded corners based on ENABLE_CHAMFERS.
+            if (ENABLE_CHAMFERS)
+                tray_outer_shell_chamfered();
+            else
+                translate([-tray_ext, -tray_ext, 0])
+                    rounded_wedge_box(outer_w + 2*tray_ext, outer_d + 2*tray_ext,
+                              front_h - top_t, back_h - top_t, tray_corner_r);
 
-            // Inner cavity (fully open top) — position unchanged, uses wall_t
-            translate([wall_t, wall_t, bottom_t])
-                wedge_box(inner_w, inner_d,
-                          front_h + 10,
-                          back_h  + 10);
+            // Inner cavity (fully open top). The straight wedge cavity is
+            // reduced near the back wall in the chamfer band (z < cb) so the
+            // outer chamfer has material to eat without breaching the cavity.
+            difference() {
+                translate([wall_t, wall_t, bottom_t])
+                    wedge_box(inner_w, inner_d,
+                              front_h + 10,
+                              back_h  + 10);
+                if (ENABLE_CHAMFERS) back_wall_chamfer_fill();
+            }
 
             // Gasket tab slots (cut into the walls)
             gasket_slots();
@@ -1375,11 +1546,11 @@ module case_overlay() {
                               overlay_corner_r);
 
         // Remove everything below top_t (keep only the top slab)
-        translate([-overhang - 0.01, -overhang - 0.01, 0])
-            rounded_wedge_box(overlay_w + 0.02, overlay_d + 0.02,
-                              overlay_front_h - top_t,
-                              overlay_back_h  - top_t,
-                              overlay_corner_r + 0.01);
+        // Use non-rounded wedge to avoid affecting outer corner radius
+        translate([-overhang - 0.01, -overhang - 0.01, -0.01])
+            wedge_box(overlay_w + 0.02, overlay_d + 0.02,
+                      overlay_front_h - top_t + 0.01,
+                      overlay_back_h  - top_t + 0.01);
 
         // Key opening: union of per-keycap rectangles
         key_opening();
@@ -1422,9 +1593,13 @@ module case_complete() {
 // (typically 1-2 mm radius) so this does not affect key travel.
 
 // 2D footprint of the key opening with rounded corners.
+// Both convex (outer) and concave (inner) corners are rounded:
+//   offset(r=-r) offset(delta=r) rounds concave corners (e.g., arrow T-junction)
+//   offset(r=r) offset(delta=-r) rounds convex corners (e.g., rectangle corners)
 module key_opening_2d() {
     t = key_cap_clearance;
     offset(r = key_corner_r) offset(delta = -key_corner_r)
+    offset(r = -key_corner_r) offset(delta = key_corner_r)
         for (r = key_rects) {
             x1 = r[0] - t;  y1 = r[1] - t;
             x2 = r[2] + t;  y2 = r[3] + t;
@@ -1492,21 +1667,16 @@ module display_cutout() {
                     square([disp_pocket_w, disp_pocket_h]);
 
         // Top window: cuts cleanly through the shelf, from (local z = −shelf_t − ε)
-        // to (local z = +ε) — the shelf is exactly the top `shelf_t` mm of the
-        // overlay slab in the normal direction. The 2D shape is a hull of four
-        // shelf_corner_r circles sitting in the window bbox corners, giving a
-        // rounded rectangle whose inner corners are a smooth curve regardless
-        // of the shelf_frame_{x,y} asymmetry.
+        // to above the chamfered top surface. Extra height added to ensure the
+        // cutout clears any chamfer geometry on the top edges.
         translate([-disp_win_w / 2, -disp_win_h / 2, -shelf_t - 0.01])
-            linear_extrude(height = shelf_t + 0.02)
+            linear_extrude(height = shelf_t + chamfer_top_primary + 0.1)
                 display_window_2d();
     }
 }
 
 // 2D footprint of the top window. Hull of four circles of radius
 // shelf_corner_r placed at the inner corners of the window bounding box.
-// Used by both display_cutout (overlay window) and display_retainer (backing
-// clamp inner opening) so the two always match.
 module display_window_2d() {
     for_x = [shelf_corner_r, disp_win_w - shelf_corner_r];
     for_y = [shelf_corner_r, disp_win_h - shelf_corner_r];
@@ -1518,30 +1688,7 @@ module display_window_2d() {
     }
 }
 
-// ─── 7e. Display backing clamp (optional, separately fabricated) ────────────
-// Flat picture-frame piece (1.2 mm plywood, brass, or 3D-printed) that slots
-// into the bottom of the display pocket and clamps the module UP against the
-// shelf underside. Outer outline = pocket size; inner window clears the
-// module's FPC ribbon area. Glue or screw to the overlay underside once the
-// module is seated. Optional — adhesive on the module glass / shelf can do
-// the same job if you prefer.
-module display_retainer() {
-    difference() {
-        // Outer outline matches the pocket footprint.
-        linear_extrude(height = retainer_t)
-            offset(r=disp_pocket_r) offset(delta=-disp_pocket_r)
-                square([disp_pocket_w, disp_pocket_h]);
-        // Inner opening matches the overlay's top window exactly, so the
-        // clamp never encroaches on any part that would be visible or
-        // block the FPC ribbon.
-        translate([(disp_pocket_w - disp_win_w) / 2,
-                   (disp_pocket_h - disp_win_h) / 2, -0.1])
-            linear_extrude(height = retainer_t + 0.2)
-                display_window_2d();
-    }
-}
-
-// ─── 7f. USB-C cutout ───────────────────────────────────────────────────────
+// ─── 7e. USB-C cutout ───────────────────────────────────────────────────────
 module usb_cutout() {
     // USB exits through the back wall. Z geometry is computed at top level
     // (see `usb_z_center` and friends) so the invariant asserts share the
@@ -1605,45 +1752,33 @@ assert(slot_bot_below_plate >=
        gasket_compressed + (tab_len + slot_tol) * tan(tilt_angle) / 2 + FAB_SLOP,
        "slot_bot_below_plate too small: downhill end of side slot has gasket headroom < gasket_compressed under tilt + fab slop");
 
-// Slot dimensions
-slot_tol     = 0.6;    // clearance around tab (per side, length direction).
-                       // Bumped from 0.4 → 0.6 in the 2026-04-16 JLC3DP pre-fab
-                       // review: the ±0.3% tolerance band on >100 mm features
-                       // (case X = 363 mm) translates to ~1 mm of positional
-                       // drift at the outermost tab (rightmost front tab center
-                       // at case-X ≈ 320 mm), which would jam a 0.2 mm-play
-                       // slot. 0.6 gives 0.3 mm play per side — enough to
-                       // absorb uniform shrinkage of ±0.3% over the 320 mm
-                       // reach without losing the snug compression fit. Used
-                       // in conjunction with a JLC3DP X-axis scale-comp order
-                       // note; belt-and-braces if the factory skips it.
-                       //
-                       // Earlier: 0.3 → 0.4 in the 2026-04-14 review (0.3 was
-                       // exactly equal to the ±0.2 mm fab slop budget, leaving
-                       // zero play under worst-case slop).
-slot_depth   = 1.5;    // how deep the slot goes into the wall.
+// Slot dimensions — note: slot_tol is hoisted to Section 4 because the
+// USB-cutout Z calculation needs it. The rest of the slot geometry stays
+// here with its invariant asserts above.
+slot_depth   = 1.7;    // how deep the slot goes into the wall.
                        // Measured tab penetration into the wall is 1.25..1.33 mm
                        // (tab_ext 1.749..1.828 mm, minus plate_gap 0.5 mm), so
-                       // 1.5 mm captures the tab with ~0.17 mm back clearance.
-                       // Reduced from 2.5 mm because 2.5 mm left only 2.3 mm
-                       // of outboard wall cheek on 4.8 mm walls, with 7 slots
-                       // running 20 mm each along front+back — a chip-off
-                       // hazard in hardwood. 1.5 mm depth leaves 3.3 mm cheek.
+                       // 1.7 mm captures the tab with ~0.37 mm back clearance.
+                       // Grown from 1.5 → 1.7 in the 2026-04-20 pre-fab review:
+                       // 0.17 mm clearance was inside the 0.093% SLA shrink
+                       // threshold — cavity shrink bottoms the left tab against
+                       // the slot back wall, defeating gasket isolation.
+                       // 1.7 mm depth leaves 3.1 mm cheek (above 3.0 mm floor).
 slot_open_margin = 1.5;    // mm slot top extends ABOVE the tray wall top at
                            // the slot's center-Y. Turns each slot into an
                            // open-top channel so the plate can drop in from
                            // above. Bumped from 0.5 mm because the LEFT/RIGHT
-                           // slots run ALONG the 5° tilt axis (Y), so the
+                           // slots run ALONG the 6° tilt axis (Y), so the
                            // wall top rises over the slot's length. Over the
                            // 20.10 mm slot length the uphill end sits
-                           // L·tan(5°)/2 = 0.88 mm above slot center, so the
+                           // L·tan(6°)/2 = 1.06 mm above slot center, so the
                            // flat-topped slot box must clear ≥0.88 mm of
                            // wall-top rise. With slot_open_margin = 1.5 mm
                            // the uphill wall-top is 0.62 mm BELOW the slot
                            // top — comfortably above ±0.2 mm fab slop on
                            // both wall and tab. Front/back slots run along X
                            // (no tilt drift) so they only see a
-                           // 4.8·tan(5°) = 0.42 mm rise across wall thickness.
+                           // 4.8·tan(6°) = 0.50 mm rise across wall thickness.
 // Slot is sized ASYMMETRICALLY about plate midplane. The two constraints
 // (drop-in clearance above wall top, gasket headroom below the plate) have
 // nothing to do with each other, so a symmetric slot wastes wood — every
@@ -1671,7 +1806,7 @@ slot_top_above_plate = plate_recess + slot_open_margin;   // 2.0 + 1.5 = 3.5 mm
 // slot_bot_below_plate: sized so the bottom gasket (gasket_compressed =
 // 1.5 mm) still fits under the plate at the downhill end of the SIDE slots
 // (which run along Y / the tilt axis). Over the (tab_len+slot_tol)/2 =
-// 10.10 mm half-length, the plate bottom descends by 10.10·tan(5°) = 0.884
+// 10.10 mm half-length, the plate bottom descends by 10.10·tan(6°) = 1.061
 // mm; add FAB_SLOP (0.2) and a small machining margin (0.05). The front/back
 // slots run along X and have no tilt drift, so they inherit the side-slot
 // sizing for free.
@@ -1751,18 +1886,19 @@ module gasket_slots() {
 // `edge_chamfers()` module was removed in the 2026-04-14 review.
 
 // Bottom rubber pad recesses (for anti-slip, no legs per spec)
-pad_d   = 1.0;     // recess depth
+pad_d   = 0.8;     // recess depth (0.8 mm keeps ≥2.0 mm bottom floor under ±0.2 fab slop)
 pad_w   = 30.0;    // pad width
 pad_h   = 10.0;    // pad length (front-back)
 pad_inset = 15.0;  // inset from edges
 
 module bottom_pad_recesses() {
     // Four pad recesses near the corners (aligned with extended tray shell)
+    // Back pads offset by chamfer_back_bottom to stay on flat bottom surface
     positions = [
-        [-tray_ext + pad_inset, -tray_ext + pad_inset],                                        // front-left
-        [outer_w + tray_ext - pad_inset - pad_w, -tray_ext + pad_inset],                       // front-right
-        [-tray_ext + pad_inset, outer_d + tray_ext - pad_inset - pad_h],                       // back-left
-        [outer_w + tray_ext - pad_inset - pad_w, outer_d + tray_ext - pad_inset - pad_h]       // back-right
+        [-tray_ext + pad_inset, -tray_ext + pad_inset],                                                          // front-left
+        [outer_w + tray_ext - pad_inset - pad_w, -tray_ext + pad_inset],                                         // front-right
+        [-tray_ext + pad_inset, outer_d + tray_ext - chamfer_back_bottom - pad_inset - pad_h],                   // back-left
+        [outer_w + tray_ext - pad_inset - pad_w, outer_d + tray_ext - chamfer_back_bottom - pad_inset - pad_h]   // back-right
     ];
 
     for (pos = positions) {
@@ -1796,15 +1932,14 @@ deco_stripe_width  = 1.0;    // groove width in the plane of the top face.
                              // 2026-04-17 pre-fab review.
 
 // Owner initials + year plate
-deco_initials_size   = 8.0;                          // mm cap height (initials row)
-deco_year_size       = 8.0;                          // mm cap height (year row)
+deco_initials_size   = 9.0;                          // mm cap height (initials row)
+deco_year_size       = 9.0;                          // mm cap height (year row)
                                                       // Liberation Sans Bold stem ≈ 0.15·cap-height,
-                                                      // so stroke ≈ 0.90 mm at 6.0 mm — 0.10 mm
-                                                      // above the JLC3DP 0.8 mm floor, enough to
-                                                      // survive half the ±0.2 mm fab slop on each
-                                                      // side of the glyph edge. Grown 3.8 → 5.0
-                                                      // → 5.5 → 6.0 across successive pre-fab
-                                                      // reviews (latest: 2026-04-17).
+                                                      // so stroke ≈ 1.35 mm at 9.0 mm — 0.55 mm
+                                                      // above the JLC3DP 0.8 mm floor, well within
+                                                      // the ±0.2 mm fab slop budget. Bumped 8.0 → 9.0
+                                                      // to ensure counter openings (e.g. "0", "2")
+                                                      // clear the 0.8 mm detail floor.
 deco_stamp_row_gap   = 1.2;                          // mm gap between the two rows
 deco_initials_font   = "Liberation Sans:style=Bold";
 deco_initials_y_frac = 0.5;                          // 0 = front, 1 = back
@@ -1817,48 +1952,39 @@ deco_logo_chip_border = 1.0;                         // chip frame stroke, mm.
                                                       // frame into an unreadable hairline. Grown
                                                       // 0.9 → 1.0 in the 2026-04-17 pre-fab review.
 deco_logo_chip_inner  = 2.4;                         // inner solid square side, mm
-deco_logo_text        = "mKey";
-deco_logo_text_size   = 6.0;                         // cap height, mm. Liberation Sans Bold stem
-                                                      // ≈ 0.15·cap-height, so stroke ≈ 0.90 mm —
-                                                      // 0.10 mm above the 0.8 mm readable floor.
-                                                      // Grown 5.5 → 6.0 in the 2026-04-17 review.
-                                                      // Ref-size constants below remain anchored
-                                                      // at 5.5; text_w scales linearly.
+deco_logo_text_size   = 9.0;                         // cap height, mm. SVG wordmark stem
+                                                      // ≈ 0.190·cap-height, so stroke ≈ 1.71 mm
+                                                      // nominal → 1.51 mm worst-case under the
+                                                      // full ±0.2 mm SLA fab slop — well above
+                                                      // the 0.8 mm JLC3DP engraved-detail floor.
+                                                      // Bumped 7.5 → 9.0 to ensure the "e" counter
+                                                      // opening clears the 0.8 mm detail floor.
 deco_logo_text_gap    = 1.8;                         // chip ↔ text gap, mm
-deco_logo_font        = "Liberation Sans:style=Bold";
 
-// ─── Side wall logo ─────────────────────────────────────────────────────────
-// Debossed mKey logo (chip icon + wordmark) on the outer face of the left
-// (X=0) and right (X=outer_w) walls. Reuses deco_logo_2d() — same 2D shape
-// as the top-face logo so the two read identically. The outer face is
-// flat-vertical, so no tilt compensation is needed. The logo is centered
-// along the wall in Y and vertically placed so it sits inside the wall
-// height at Y = outer_d/2 (the mid-point, where wall height equals the
-// average of front_h-top_t and back_h-top_t).
-module deco_side_logo() {
-    wall_top_mid = (front_h + back_h) / 2 - top_t;
-    z_center = wall_top_mid / 2;
-    y_center = outer_d / 2;
+// ─── Back wall logo ─────────────────────────────────────────────────────────
+// Debossed mKey logo (chip icon + wordmark) on the outer face of the back
+// wall. Reuses deco_logo_2d() — same 2D shape as the top-face logo so the
+// two read identically. Centred horizontally and vertically placed in the
+// flat zone between the large back-bottom chamfer (chamfer_back_bottom) and
+// the tray wall top (back_h − top_t). The 2D shape is mirrored in X before
+// extrusion so the text reads correctly when viewed from behind (+Y).
+module deco_back_logo() {
+    z_center = (chamfer_back_bottom + back_wall_top_z) / 2;
+    x_center = outer_w / 2;
 
-    // LEFT wall — readable from −X (aligned with extended tray shell)
-    translate([-tray_ext + deco_cut_depth, y_center, z_center])
-        rotate([90, 0, -90])
+    translate([x_center, outer_d + tray_ext, z_center])
+        rotate([90, 0, 0])
             linear_extrude(height = deco_cut_depth + 0.1)
-                deco_logo_2d();
-
-    // RIGHT wall — readable from +X (aligned with extended tray shell)
-    translate([outer_w + tray_ext - deco_cut_depth, y_center, z_center])
-        rotate([90, 0, 90])
-            linear_extrude(height = deco_cut_depth + 0.1)
-                deco_logo_2d();
+                mirror([1, 0])
+                    deco_logo_2d();
 }
 
 // ─── Overlay edge pinstripe ─────────────────────────────────────────────────
 // A thin picture-frame groove running just inside the rounded outer edge of
 // the overlay top. Built as a 2D frame, extruded to a vertical prism, then
 // rotated by tilt_angle around the front-bottom X axis so the prism's "top"
-// face sits on the tilted overlay top plane. At 5° tilt the prism is
-// essentially vertical — groove width remains 0.8 mm to within <0.01 mm.
+// face sits on the tilted overlay top plane. At 6° tilt the prism is
+// essentially vertical — groove width remains 1.0 mm to within <0.01 mm.
 module deco_pinstripe_frame_2d() {
     difference() {
         translate([-overhang, -overhang])
@@ -1915,19 +2041,22 @@ module deco_owner_initials() {
 }
 
 // ─── Logo above display ─────────────────────────────────────────────────────
-// Simplified mKey logo: a chip icon (outline frame + inner solid square) and
-// the "mKey" wordmark to its right. The raw SVG in hardware/board/assets has
-// sub-0.5 mm pin ticks that would violate the JLC3DP 0.8 mm rule; the chip is
-// redrawn here from simple primitives so every stroke meets spec. Centred on
-// the display X and positioned in the bezel between the display back edge
-// and the back wall. Cut perpendicular to the tilted overlay top.
-// Measured x-extent of "mKey" rendered in Liberation Sans Bold at cap-height
-// 5.5 mm — obtained by extruding the text and reading the STL bounding box.
-// Scales linearly with cap height. If deco_logo_text or deco_logo_font is
-// changed, re-measure (openscad -o test.stl --summary all --summary-file -
-// on a linear_extrude(1) text(...) test file) and update this constant.
-DECO_LOGO_TEXT_X_EXTENT_REF = 20.76;
-DECO_LOGO_TEXT_REF_SIZE     = 5.5;
+// mKey logo: a chip icon (outline frame + inner solid square) and the "mKey"
+// wordmark to its right. The wordmark is imported from the brand SVG
+// (assets/mkey-case-wordmark.svg, extracted from hardware/board/assets/mkey.svg)
+// so the case letterforms exactly match the PCB silkscreen / brand asset.
+// The chip icon is kept as SCAD primitives because the SVG chip frame borders
+// scale to ~0.44 mm at 7 mm chip size — below the 0.8 mm JLC3DP floor.
+// Centred on the display X and positioned in the bezel between the display
+// back edge and the back wall. Cut perpendicular to the tilted overlay top.
+
+// SVG wordmark reference geometry (from mkey-case-wordmark.svg).
+// Cap height measured from the "K" ascender: baseline y=0 to cap-top y=-32.57
+// in the original SVG path coordinate space.
+SVG_WM_CAP_H  = 32.57;   // cap height in SVG units (uppercase K)
+SVG_WM_W      = 121.92;  // SVG viewBox width (mm)
+SVG_WM_H      = 43.36;   // SVG viewBox height (mm)
+SVG_WM_BASE_Y = 10.69;   // baseline Y in OpenSCAD coords (after Y-flip import)
 
 module deco_logo_2d() {
     chip     = deco_logo_chip_size;
@@ -1935,15 +2064,14 @@ module deco_logo_2d() {
     inner_sq = deco_logo_chip_inner;
     gap      = deco_logo_text_gap;
 
-    // True text width at the current cap height, scaled from the measured
-    // reference extent. Used so chip icon + wordmark is visually centered on
-    // the display X, not biased toward one side by a bad estimate.
-    text_w  = deco_logo_text_size * DECO_LOGO_TEXT_X_EXTENT_REF / DECO_LOGO_TEXT_REF_SIZE;
+    s      = deco_logo_text_size / SVG_WM_CAP_H;
+    text_w = SVG_WM_W * s;
+
     total_w = chip + gap + text_w;
     chip_x0 = -total_w / 2;
     text_x0 = chip_x0 + chip + gap;
 
-    // Chip frame (hollow square outline)
+    // Chip frame (hollow square outline) — primitives for JLC3DP compliance
     translate([chip_x0, -chip / 2])
         difference() {
             square([chip, chip]);
@@ -1954,12 +2082,12 @@ module deco_logo_2d() {
     translate([chip_x0 + chip / 2 - inner_sq / 2, -inner_sq / 2])
         square([inner_sq, inner_sq]);
 
-    // Wordmark
-    translate([text_x0, 0])
-        text(deco_logo_text,
-             size = deco_logo_text_size,
-             halign = "left", valign = "center",
-             font = deco_logo_font);
+    // Wordmark — imported from brand SVG for exact font matching.
+    // Baseline aligned with chip bottom edge.
+    translate([text_x0, -chip / 2])
+        scale([s, s])
+            translate([0, -SVG_WM_BASE_Y])
+                import("assets/mkey-case-wordmark.svg");
 }
 
 module deco_top_logo() {
@@ -1976,40 +2104,162 @@ module deco_top_logo() {
 }
 
 // =============================================================================
+// SECTION 10c: EDGE CHAMFERS
+// =============================================================================
+// Chamfers prevent chipping during IPA wash/handling and improve tactile feel.
+// Primary chamfer on overlay top edges (1.0-1.5mm), secondary edge break (0.2mm)
+// on all sharp edges.
+//
+// Implementation: minkowski sum with an octahedron kernel creates uniform 45°
+// chamfers on all edges with proper mitered corners. The overlay body is shrunk
+// by the chamfer amount, then minkowski'd with the kernel to restore size while
+// adding chamfers.
+
+// ─── Chamfer kernel (octahedron for 45° chamfers) ───────────────────────────
+// An octahedron centered at origin with vertices at ±c on each axis creates
+// perfect 45° chamfers when used in a minkowski sum.
+module chamfer_octahedron(c) {
+    // Scale a unit octahedron to size c
+    scale([c, c, c])
+        polyhedron(
+            points = [[1,0,0], [-1,0,0], [0,1,0], [0,-1,0], [0,0,1], [0,0,-1]],
+            faces = [[0,2,4], [0,4,3], [0,3,5], [0,5,2],
+                     [1,4,2], [1,3,4], [1,5,3], [1,2,5]]
+        );
+}
+
+// ─── Chamfered wedge box ────────────────────────────────────────────────────
+// Generic chamfered wedge box using minkowski with octahedron.
+// Creates a wedge with chamfer c on all edges.
+module chamfered_wedge_box(w, d, h_front, h_back, c) {
+    minkowski() {
+        intersection() {
+            // Shrunk wedge
+            translate([c, c, c])
+                wedge_box(w - 2*c, d - 2*c, h_front - 2*c, h_back - 2*c);
+            // Vertical prism to clip the wedge (height limited to prevent
+            // minkowski from extending above original top surface)
+            translate([c, c, 0])
+                linear_extrude(height = max(h_front, h_back) - c)
+                    square([w - 2*c, d - 2*c]);
+        }
+        chamfer_octahedron(c);
+    }
+}
+
+// ─── Chamfered overlay body ─────────────────────────────────────────────────
+// Creates the overlay outer shell with built-in chamfers using minkowski.
+module overlay_body_chamfered() {
+    c = chamfer_top_primary;
+    translate([-overhang, -overhang, 0])
+        chamfered_wedge_box(overlay_w, overlay_d,
+                            overlay_front_h, overlay_back_h, c);
+}
+
+// ─── Chamfered tray outer shell ─────────────────────────────────────────────
+// Creates the tray outer shell with chamfered VERTICAL and BOTTOM edges.
+// Top edges remain sharp for overlay seating.
+// Back bottom edge has a much larger chamfer (chamfer_back_bottom) for a
+// triangular cutout look, while sides stay at chamfer_top_primary.
+module tray_outer_shell_chamfered() {
+    c = chamfer_top_primary;
+    cb = chamfer_back_bottom;  // large back chamfer
+    w = outer_w + 2*tray_ext;
+    d = outer_d + 2*tray_ext;
+
+    // 2D footprint with chamfered corners (45° cuts at each corner)
+    module tray_footprint_chamfered() {
+        polygon([
+            [c, 0], [w - c, 0],           // front edge
+            [w, c], [w, d - c],           // right edge
+            [w - c, d], [c, d],           // back edge
+            [0, d - c], [0, c]            // left edge
+        ]);
+    }
+
+    // 2D footprint shrunk for bottom surface - sides shrink by c, back shrinks by cb
+    module tray_footprint_shrunk() {
+        polygon([
+            [c + c, c], [w - c - c, c],           // front edge (shrunk by c)
+            [w - c, c + c], [w - c, d - cb - c],  // right edge (back corner uses cb)
+            [w - c - c, d - cb], [c + c, d - cb], // back edge (shrunk by cb)
+            [c, d - cb - c], [c, c + c]           // left edge (back corner uses cb)
+        ]);
+    }
+
+    translate([-tray_ext, -tray_ext, 0])
+    union() {
+        // Bottom chamfer: hull from shrunk footprint at Z=0 to full at Z=cb
+        // This creates the triangular back chamfer while keeping sides at c
+        hull() {
+            linear_extrude(height = 0.01)
+                tray_footprint_shrunk();
+            translate([0, 0, cb])
+                linear_extrude(height = 0.01)
+                    tray_footprint_chamfered();
+        }
+        // Upper body: wedge with chamfered-corner footprint
+        intersection() {
+            translate([0, 0, cb])
+                wedge_box(w, d, front_h - top_t - cb, back_h - top_t - cb);
+            linear_extrude(height = back_h)
+                tray_footprint_chamfered();
+        }
+    }
+}
+
+// ─── Overlay with chamfers (replaces case_overlay for chamfered version) ────
+// Uses minkowski-based overlay_body_chamfered() for proper 45° chamfers with
+// mitered corners. Internal cutouts are then subtracted.
+module case_overlay_chamfered() {
+    difference() {
+        // Full overlay body with chamfered edges via minkowski
+        overlay_body_chamfered();
+
+        // Remove everything below top_t (keep only the top slab)
+        translate([-overhang - 0.01, -overhang - 0.01, -0.01])
+            wedge_box(overlay_w + 0.02, overlay_d + 0.02,
+                      overlay_front_h - top_t + 0.01,
+                      overlay_back_h  - top_t + 0.01);
+
+        // Key opening
+        key_opening();
+
+        // Display cutout
+        display_cutout();
+
+        // Magnet pockets
+        if (ENABLE_MAGNET_POCKETS) overlay_magnet_pockets();
+
+        // Rabbet recess
+        if (ENABLE_OVERLAY_RABBET) overlay_recess_3d();
+    }
+}
+
+// =============================================================================
 // SECTION 11: COMPLETE CASE WITH FINISHING
 // =============================================================================
 
 module case_tray_finished() {
     difference() {
         case_tray();
-        // Bottom chamfers and pad recesses apply to tray only.
-        // Chamfers align with extended tray shell (tray_ext offset).
-        bc = 0.5;
-        // Front bottom chamfer
-        translate([-tray_ext - 0.1, -tray_ext - 0.1, -0.1])
-            rotate([-45, 0, 0])
-                cube([outer_w + 2*tray_ext + 0.2, bc * 1.42, bc * 1.42]);
-        // Back bottom chamfer
-        translate([-tray_ext - 0.1, outer_d + tray_ext + 0.1, -0.1])
-            rotate([-45, 0, 0])
-                translate([0, -bc * 1.42, 0])
-                    cube([outer_w + 2*tray_ext + 0.2, bc * 1.42, bc * 1.42]);
         bottom_pad_recesses();
 
         // ─── Decorative trims (tray) ────────────────────────────────────────
         if (ENABLE_DECORATIVE_TRIMS) {
-            if (DECO_SIDE_LOGO)      deco_side_logo();
+            if (DECO_BACK_LOGO)      deco_back_logo();
             if (DECO_OWNER_INITIALS) deco_owner_initials();
         }
     }
 }
 
 module case_overlay_finished() {
-    // No CAD chamfers — the rounded corners make simple planar cuts
-    // produce artifacts at the corners. Chamfers/edge breaks will be
-    // applied during finishing (sanding/routing) on the physical piece.
     difference() {
-        case_overlay();
+        // Use chamfered body when ENABLE_CHAMFERS is on
+        if (ENABLE_CHAMFERS)
+            case_overlay_chamfered();
+        else
+            case_overlay();
 
         // ─── Decorative trims (overlay) ─────────────────────────────────────
         if (ENABLE_DECORATIVE_TRIMS) {
@@ -2024,12 +2274,12 @@ module case_overlay_finished() {
 // =============================================================================
 // When PRINT_MODE is true, these wrappers re-orient the finished pieces for
 // optimal 3D printing:
-//   - Overlay: flattened (5° tilt removed), flipped cosmetic-face-down
+//   - Overlay: flattened (6° tilt removed), flipped cosmetic-face-down
 //   - Tray: orientation unchanged (bottom already flat); optional breakaway
 //     cross-braces added when PRINT_SUPPORTS is true
 
 // ─── Print-oriented overlay ─────────────────────────────────────────────────
-// Undo the 5° wedge tilt so the overlay lies perfectly flat, then flip it
+// Undo the 6° wedge tilt so the overlay lies perfectly flat, then flip it
 // upside-down so the cosmetic top surface (key opening / display window)
 // faces the build plate for the best surface finish on SLA and FDM.
 //
@@ -2039,7 +2289,7 @@ module case_overlay_print() {
     // After case_overlay_finished(), the overlay sits in design position:
     //   X: -overhang .. overlay_w - overhang
     //   Y: -overhang .. overlay_d - overhang
-    //   Z: overlay_front_h - top_t .. overlay_back_h  (tilted 5°)
+    //   Z: overlay_front_h - top_t .. overlay_back_h  (tilted 6°)
     //
     // Step 1: rotate -tilt_angle around X to flatten the top/bottom faces.
     // Step 2: rotate 180° around Y to flip cosmetic face down (preserves
@@ -2156,6 +2406,26 @@ wall_perf_len    = 2.0;  // length of each wall gap (mm, Z direction)
 // largest span is ~67 mm (left wall to rib 1).
 rib_cx = [71.5, 120.2, 161.8, 207.8, 252.0, 294.5];
 
+// ─── Rib-in-chamfer guards ──────────────────────────────────────────────────
+// The back-bottom chamfer pulls the outer shell forward below z = cb.
+// Ribs are clipped to the chamfer-fill inner face (see print_support_rib).
+// These assertions verify the clipped ribs stay inside the shell and retain
+// enough span for anti-warp bracing.
+if (PRINT_SUPPORTS && ENABLE_CHAMFERS) {
+    _rib_trim_depth      = max(0, chamfer_back_bottom - bottom_t) + rib_neck_len;
+    _rib_floor_span      = inner_d - _rib_trim_depth;
+    assert(_rib_floor_span >= 2 * rib_neck_len,
+           str("Rib span at floor after chamfer trim (", _rib_floor_span,
+               " mm) below 2× rib_neck_len (", 2 * rib_neck_len,
+               " mm) — ribs too short for bracing"));
+    _rib_back_clipped    = outer_d - wall_t - _rib_trim_depth;
+    _shell_back_at_floor = outer_d + tray_ext - chamfer_back_bottom + bottom_t;
+    assert(_rib_back_clipped <= _shell_back_at_floor,
+           str("Clipped rib back face (Y=", _rib_back_clipped,
+               ") overshoots chamfered shell (Y=", _shell_back_at_floor,
+               ") at z=bottom_t — ribs protrude through back wall"));
+}
+
 module print_support_ribs() {
     for (cx = rib_cx)
         print_support_rib(cx);
@@ -2213,11 +2483,7 @@ module print_support_rib(cx) {
         }
 
         // Breakaway neck at floor: thin the rib's bottom edge from rib_t
-        // to rib_neck for the first rib_neck_len mm of Z. Without this,
-        // the rib's full bottom edge (~100 mm) is fused to the floor and
-        // cannot be snapped out without destroying the floor finish.
-        // Spans the full Y length; overlaps harmlessly with the front/back
-        // wall necks in the corners.
+        // to rib_neck for the first rib_neck_len mm of Z.
         for (side = [0, 1]) {
             neck_cut_w = (rib_t - rib_neck) / 2;
             translate([cx - rib_t / 2 + side * (rib_t - neck_cut_w) - 0.01 * (1 - side),
@@ -2227,6 +2493,15 @@ module print_support_rib(cx) {
                       span + 0.02,
                       rib_neck_len + 0.01]);
         }
+
+        // Corner breaks: fully remove the rib where the wall and floor
+        // neck zones overlap so each neck snaps against a single surface.
+        // Front-floor corner
+        translate([cx - rib_t / 2 - 0.01, y0 - 0.01, z_floor - 0.01])
+            cube([rib_t + 0.02, rib_neck_len + 0.02, rib_neck_len + 0.01]);
+        // Back-floor corner
+        translate([cx - rib_t / 2 - 0.01, y1 - rib_neck_len - 0.01, z_floor - 0.01])
+            cube([rib_t + 0.02, rib_neck_len + 0.02, rib_neck_len + 0.01]);
 
         // Floor neck perforations: punch full-width through-gaps along
         // the floor neck so the continuous seam becomes discrete
@@ -2252,6 +2527,19 @@ module print_support_rib(cx) {
                        y1 - rib_neck_len - 0.01,
                        z_floor + i * wall_seg_z_b + (i - 1) * wall_perf_len])
                 cube([rib_t + 0.02, rib_neck_len + 0.02, wall_perf_len]);
+
+        // Detach rib from the chamfered inner back wall below z = cb.
+        // A diagonal trim following the chamfer-fill face would leave an
+        // angled attachment that's hard to snap; instead cut straight so
+        // the rib simply doesn't reach the back wall in the chamfer band.
+        if (ENABLE_CHAMFERS) {
+            _cb_h = chamfer_back_bottom - z_floor;
+            _cb_d = _cb_h + rib_neck_len;
+            translate([cx - rib_t/2 - 0.01,
+                       y1 - _cb_d,
+                       z_floor - 0.01])
+                cube([rib_t + 0.02, _cb_d + 0.01, _cb_h + 0.01]);
+        }
     }
 }
 
@@ -2313,23 +2601,6 @@ module assembly() {
                       case_overlay_finished();
     }
 
-    if (SHOW_RETAINER) {
-        // Backing clamp sits at the bottom of the (tilted) display pocket.
-        // display_retainer() extrudes upward from its local z=0, so placing
-        // that origin at local z = −top_t (overlay underside) puts the
-        // retainer flush with the overlay bottom, occupying the bottom
-        // retainer_t of the pocket.
-        rcx = p2c_x(disp_cx);
-        rcy = p2c_y(disp_cy);
-        translate([rcx, rcy, top_z(rcy)])
-        rotate([tilt_angle, 0, 0])
-        color("Goldenrod", 0.9)
-        translate([-disp_pocket_w / 2,
-                   -disp_pocket_h / 2,
-                   -top_t + EXPLODE * 0.5])
-            display_retainer();
-    }
-
     if (SHOW_PLATE)
         translate([0, 0, EXPLODE * 0.5])
             plate_ghost();
@@ -2353,7 +2624,7 @@ if (SHOW_SECTION) {
 
 // ─── Dimension echo (for verification) ──────────────────────────────────────
 echo("=== CASE DIMENSIONS ===");
-echo(str("Overlay outer: ", outer_w, " x ", outer_d, " mm"));
+echo(str("Overlay outer: ", overlay_w, " x ", overlay_d, " mm"));
 echo(str("Tray outer: ", outer_w + 2*tray_ext, " x ", outer_d + 2*tray_ext, " mm (extended by ", tray_ext, " mm per side)"));
 echo(str("Height: ", front_h, "-", back_h, " mm (front-back)"));
 echo(str("Tray wall: ", tray_wall_t, " mm, Overlay wall: ", overlay_wall_t, " mm, Bottom: ", bottom_t, " mm, Top surface: ", top_t, " mm"));
@@ -2364,3 +2635,12 @@ echo(str("Display top window: ", disp_win_w, " x ", disp_win_h, " mm (corner r="
 echo(str("USB cutout: ", usb_cut_w, " x ", usb_cut_h, " mm at back wall"));
 echo(str("Internal depth below plate: ", depth_below, " mm"));
 echo(str("Plate recess below tray wall top: ", plate_recess, " mm"));
+echo(str("Back stack budget: avail ", back_avail_h, " mm vs need ",
+         stack_h_back + stack_clearance, " mm (", stack_h_back,
+         " + ", stack_clearance, "), margin ",
+         back_avail_h - (stack_h_back + stack_clearance), " mm"));
+echo(str("Installed gasket: ", bot_gasket_installed, " mm bottom + ",
+         top_gasket_installed, " mm top → plate Z offset ",
+         plate_z_installed_offset, " mm (USB cutout tracks this)"));
+echo(str("USB cutout Z: ", usb_cut_z_bot, "-", usb_cut_z_top,
+         " mm (centre ", usb_z_center, " mm)"));
