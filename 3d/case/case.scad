@@ -565,13 +565,29 @@ function magnet_positions() = [
 //   the updated pocket_top formula (see below) reaches the pocket
 //   CEILING, guaranteeing full nut engagement regardless of where the
 //   nut cures.
-screw_nut_af       = 3.2;    // hex pocket across-flats (3.0 mm M1.4 nut +
-                             // 0.2 mm SLA dimensional tolerance)
+screw_nut_af       = 3.4;    // hex pocket across-flats (3.0 mm M1.4 nut +
+                             // 0.4 mm headroom so worst-case JLC3DP
+                             // ±0.3 mm hole shrink still clears the nut).
+                             // Grown 3.2 → 3.4 in the 2026-04-21 warnings
+                             // review: at 3.2 the worst-case pocket shrank
+                             // to AF 2.9 (below nominal 3.0 nut AF), risking
+                             // a pocket that simply will not accept the nut.
+                             // Overlay cheek stays above the 0.5 mm assert
+                             // floor (2.4 − 1.7 = 0.7 mm nominal).
 screw_nut_depth    = 2.5;    // hex pocket depth (nut 1.2 mm + headroom
                              // for the bolt tip to exit above the nut
                              // without bottoming in solid overlay)
-screw_pocket_d     = 3.0;    // bottom segment — catches bolt head (2.6 mm
-                             // M1.4 SHCS head + 0.4 mm clearance)
+screw_pocket_d     = 3.4;    // bottom segment — catches bolt head (2.6 mm
+                             // M1.4 SHCS head + 0.8 mm clearance so JLC3DP
+                             // ±0.3 mm hole shrink still leaves ≥0.2 mm/side
+                             // static-assembly clearance even against the
+                             // hardware head's upper tolerance band).
+                             // Grown 3.0 → 3.4 in the 2026-04-21 warnings
+                             // review: at 3.0 the worst-case pocket shrank
+                             // to 2.7 mm and the 2.6 mm head had 0.05 mm/side
+                             // clearance — below the 0.2 mm static floor.
+                             // Tray cavity cheek stays above the 0.5 mm assert
+                             // floor (2.4 − 1.7 = 0.7 mm nominal).
 screw_mid_d        = 2.0;    // intermediate segment (reduced from 2.5:
                              // JLC3DP ±0.3 mm hole tolerance could grow
                              // 2.5 to 2.8, larger than the 2.6 mm SHCS
