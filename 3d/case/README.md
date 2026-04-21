@@ -239,24 +239,17 @@ When `ENABLE_SCREW_INSERTS=true` (and `ENABLE_MAGNET_POCKETS=false`), the
 overlay is secured by four M1.6 bolts threading up from inside the tray
 into hex nuts glued into the overlay. Nothing is visible externally.
 
-#### Hardware (4 nuts + 2 bolt lengths)
+#### Hardware (4 of each)
 
 | Qty | Part | Specification | Key dimensions |
 |-----|------|---------------|----------------|
 | 4 | Hex nut | M1.6 DIN 934 | 3.2 mm across-flats, 1.3 mm thick |
-| 2 | Socket head cap screw | M1.6 × 16 mm | Front corners |
-| 2 | Socket head cap screw | M1.6 × 25 mm | Back corners |
+| 4 | Socket head cap screw | M1.6 × 3 mm | 3.0 mm head dia, 1.6 mm head height |
 
-The 6° tilt makes the front wall ~15 mm and back wall ~27 mm tall, so
-front and back bolts are different lengths. The bolts enter from the tray
-underside (desk-facing bottom), pass up through the wall columns, and
-thread into the nuts in the overlay. The nut pocket is deepened to 2.5 mm
-(vs the 1.3 mm nut) to widen the bolt-length tolerance window:
-
-| Position | Bolt window | Standard size | Ceiling clearance |
-|----------|-------------|---------------|-------------------|
-| Front (×2) | 13.85–16.35 mm | 16 mm | 0.35 mm |
-| Back (×2) | 25.00–27.50 mm | 25 mm | 2.50 mm |
+Same bolt length at all 4 positions. The bolt is a captive pin inserted
+from the wall top — head catches on a step 3.2 mm below the surface,
+shaft protrudes 1.5 mm above for full nut engagement (1.3 mm + 0.2 mm).
+Total hole depth 3.2 mm, within JLC3DP SLA limits (max 6 mm for 2 mm dia).
 
 #### Nut installation
 
@@ -274,13 +267,12 @@ thread into the nuts in the overlay. The nut pocket is deepened to 2.5 mm
 #### Final assembly
 
 1. Complete the gasket + plate install (see above).
-2. Seat the overlay on the tray wall tops (nuts face down, aligning
-   with the clearance holes in the tray walls).
-3. Flip the assembled case upside-down.
-4. Insert the 16 mm bolts into the two front-corner counterbores and
-   the 25 mm bolts into the two back-corner counterbores. Tighten with
-   a 1.3 mm hex key — finger-tight plus a quarter turn is sufficient.
-   Do not overtorque; the resin threads no load, but the nut cheek
-   is 0.7 mm nominal.
-5. Flip the case back upright. The bolt heads sit flush in the
-   counterbores on the tray underside, hidden against the desk.
+2. Drop 4× M1.6 × 3 mm bolts into the tray wall-top holes (tip-first
+   from above — the shaft passes through the narrow clearance section,
+   the head catches on the wider counterbore step below).
+3. Place the overlay on the tray — the bolt tips protruding above the
+   wall tops snap into the glued hex nuts, mechanically locking the
+   overlay. No tightening needed.
+4. To remove the overlay: push each bolt down through the clearance
+   hole with a thin pin or probe (e.g. a 1.5 mm hex key), disengaging
+   the tip from the nut. Then lift the overlay off.

@@ -517,47 +517,49 @@ function magnet_positions() = [
 
 // ─── Screw + nut pockets (optional, ENABLE_SCREW_INSERTS) ───────────────────
 // M1.6 hex nuts glued into hex-shaped pockets in the overlay underside;
-// M1.6 bolts thread upward from the tray underside (desk-facing bottom)
-// through clearance holes in the wall columns and into the overlay nuts.
-// The bolt heads sit in counterbores recessed into the tray bottom, hidden
-// against the desk. The hex pocket prevents the nut from spinning during
-// tightening; CA glue locks it permanently. 4 corners only — positive
-// mechanical engagement doesn't need mid-wall reinforcement to resist bow.
+// M1.6 captive bolts drop into the tray wall top and snap into the nuts
+// when the overlay is placed. The bolt is a captive pin — head catches on
+// a step in the tray wall, shaft protrudes above the wall top into the nut.
+// No tightening required (gaskets provide compression, bolts prevent lift).
+//
+// Hole arrangement (from wall top surface, going DOWN into the tray wall):
+//   1. Clearance hole: screw_clear_d × screw_clear_depth  (shaft passes here)
+//   2. Counterbore:    screw_head_d  × screw_head_depth   (head sits here)
+// Total depth 3.2 mm — within JLC3DP SLA max (6 mm for 2 mm dia holes).
 //
 // SLA resin warps under heat, so heat-set inserts are not usable here.
 // Glued hex nuts are the correct fastener for this process.
 //
-// Hardware: M1.6 hex nut DIN 934 (3.2 mm AF, 1.3 mm thick),
-//           M1.6 × 16 mm SHCS for front corners,
-//           M1.6 × 25 mm SHCS for back corners.
-// The 6° tilt makes the front wall ~15 mm and back wall ~27 mm tall, so
-// front and back bolts are different lengths. The nut pocket is deepened
-// to 2.5 mm (1.0 mm overlay skin) to widen the bolt-length window enough
-// for standard sizes to fit:
-//   Front: window [13.85, 16.35] → M1.6 × 16 (0.35 mm ceiling clearance)
-//   Back:  window [25.00, 27.50] → M1.6 × 25 (2.50 mm ceiling clearance)
+// Hardware: 4× M1.6 hex nut DIN 934 (3.2 mm AF, 1.3 mm thick),
+//           4× M1.6 × 3 mm SHCS (same length front and back).
+// Bolt stack-up: 1.5 mm shaft in clearance + 1.5 mm tip above wall top
+// (full 1.3 mm nut engagement + 0.2 mm spare).
 screw_nut_af       = 3.4;    // hex pocket across-flats (3.2 mm M1.6 nut +
                              // 0.2 mm SLA dimensional tolerance). Oriented
                              // with flats parallel to wall faces so AF
                              // constrains the wall-thickness cheek.
-screw_nut_depth    = 2.5;    // hex pocket depth. Deeper than the 1.3 mm nut
-                             // to widen the bolt-length tolerance window for
-                             // standard bolt sizes entering from the tray
-                             // underside. Leaves top_t − 2.5 = 1.0 mm of
-                             // overlay skin above the pocket (structural,
-                             // not cosmetic — the pocket is over the wall).
-screw_clear_d      = 2.0;    // M1.6 clearance hole through tray wall column
-screw_head_d       = 3.3;    // counterbore diameter on tray underside (M1.6
-                             // SHCS head OD 3.0 mm + 0.3 mm clearance)
-screw_head_depth   = 1.5;    // counterbore depth into tray bottom
+screw_nut_depth    = 1.5;    // hex pocket depth (1.3 mm nut + 0.2 mm glue
+                             // headroom). Leaves top_t − 1.5 = 2.0 mm of
+                             // overlay skin above the pocket.
+screw_clear_d      = 2.0;    // M1.6 clearance hole in tray wall top
+screw_clear_depth  = 1.5;    // clearance hole depth (bolt shaft length in hole)
+screw_head_d       = 3.3;    // counterbore diameter (M1.6 SHCS head OD
+                             // 3.0 mm + 0.3 mm clearance)
+screw_head_depth   = 1.7;    // counterbore depth (1.6 mm head + 0.1 mm recess
+                             // so the head sits fully below the wall top)
 screw_inset        = 13;     // corner inset (same geometry as magnet_inset)
+screw_wall_offset  = 3.0;    // screw center distance from outer case face.
+                             // Shifted inward from wall_t/2 = 2.4 to improve
+                             // the overlay nut outer cheek from 0.7 → 1.3 mm
+                             // (closer to JLC3DP's 1.5 mm fastener rule).
 
-// Screw positions: 4 corners, same layout function pattern as magnet_positions.
+// Screw positions: 4 corners. The wall-thickness coordinate uses
+// screw_wall_offset instead of wall_t/2 for the cheek improvement.
 function screw_positions() = [
-    [screw_inset,                  wall_t / 2],              // front-left
-    [outer_w - screw_inset,        wall_t / 2],              // front-right
-    [screw_inset,                  outer_d - wall_t / 2],    // back-left
-    [outer_w - screw_inset,        outer_d - wall_t / 2],    // back-right
+    [screw_inset,                  screw_wall_offset],                // front-left
+    [outer_w - screw_inset,        screw_wall_offset],                // front-right
+    [screw_inset,                  outer_d - screw_wall_offset],      // back-left
+    [outer_w - screw_inset,        outer_d - screw_wall_offset],      // back-right
 ];
 
 // =============================================================================
@@ -1033,35 +1035,41 @@ assert(!(ENABLE_SCREW_INSERTS && ENABLE_MAGNET_POCKETS),
        "ENABLE_SCREW_INSERTS and ENABLE_MAGNET_POCKETS are mutually exclusive");
 // Hex nut across-corners (the bounding circle of the hex pocket).
 screw_nut_ac = screw_nut_af / cos(30);
-// Overlay wall cheek: hex pocket AF constrains wall-thickness direction.
-// Same 0.6 mm floor as magnet cheek (blind pocket in a solid body, not a
-// freestanding snap feature).
-assert(!ENABLE_SCREW_INSERTS || (wall_t - screw_nut_af) / 2 >= 0.6,
-       "hex nut pocket leaves < 0.6 mm cheek in overlay wall");
-// Tray wall cheek around the counterbore.
-assert(!ENABLE_SCREW_INSERTS || (tray_wall_t - screw_head_d) / 2 >= 0.8,
-       "screw counterbore leaves < 0.8 mm cheek in tray wall");
+// Overlay wall cheek: outer cheek measured from the case outer face to the
+// nearest edge of the nut pocket. Uses screw_wall_offset as the center.
+assert(!ENABLE_SCREW_INSERTS || (screw_wall_offset - screw_nut_af / 2) >= 1.0,
+       "hex nut pocket outer cheek < 1.0 mm in overlay wall");
+// Tray wall cheek around the counterbore (outer side).
+assert(!ENABLE_SCREW_INSERTS || (screw_wall_offset - screw_head_d / 2) >= 1.0,
+       "screw counterbore outer cheek < 1.0 mm in tray wall");
 // Hex pocket must not breach the overlay top surface.
 assert(!ENABLE_SCREW_INSERTS || screw_nut_depth <= top_t - 1.0,
        "hex nut pocket depth leaves < 1.0 mm of overlay skin above the pocket");
-// Counterbore on the tray underside must not breach the cavity floor.
-assert(!ENABLE_SCREW_INSERTS || screw_head_depth <= bottom_t - 1.0,
-       "screw counterbore depth exceeds bottom_t with < 1.0 mm floor remaining");
-// Every screw position must sit entirely inside the wall ring. Use the
-// hex across-corners as the bounding radius (conservative — the hex
-// vertices extend further than the flats).
+// Total hole depth (clearance + counterbore) must stay within JLC3DP SLA
+// max hole depth for the clearance diameter (6 mm for 2 mm dia holes).
+assert(!ENABLE_SCREW_INSERTS || (screw_clear_depth + screw_head_depth) <= 6.0,
+       "screw hole total depth exceeds JLC3DP SLA max (6 mm for 2 mm dia)");
+// Every screw position must have adequate outer cheek (pocket does not
+// breach the case outer face) and must sit on a wall (not floating in the
+// cavity). The pocket intentionally protrudes slightly into the cavity on
+// the inner side — this is by design (screw_wall_offset > wall_t/2 shifts
+// the pocket inward for better outer cheek).
 assert(!ENABLE_SCREW_INSERTS ||
        len([for (p = screw_positions())
             let (r = max(screw_nut_ac, screw_head_d) / 2)
             if (p[0] - r < 0.3 ||
                 p[0] + r > outer_w - 0.3 ||
                 p[1] - r < 0.3 ||
-                p[1] + r > outer_d - 0.3 ||
-                (p[0] + r > wall_t - 0.3 &&
-                 p[0] - r < outer_w - wall_t + 0.3 &&
-                 p[1] + r > wall_t - 0.3 &&
-                 p[1] - r < outer_d - wall_t + 0.3)) 1]) == 0,
-       "a screw position does not sit fully inside the wall ring material");
+                p[1] + r > outer_d - 0.3) 1]) == 0,
+       "a screw position breaches the case outer boundary");
+// Each screw must be adjacent to a wall (not floating in the cavity center).
+assert(!ENABLE_SCREW_INSERTS ||
+       len([for (p = screw_positions())
+            if (!(p[1] <= wall_t + 1 ||
+                  p[1] >= outer_d - wall_t - 1 ||
+                  p[0] <= wall_t + 1 ||
+                  p[0] >= outer_w - wall_t - 1)) 1]) == 0,
+       "a screw position is not adjacent to any wall");
 // Screw positions must not collide with any gasket slot footprint.
 assert(!ENABLE_SCREW_INSERTS ||
        len([for (p = screw_positions())
@@ -1646,61 +1654,44 @@ module overlay_magnet_pockets() {
 }
 
 // ─── Screw + nut geometry (optional, ENABLE_SCREW_INSERTS) ─────────────────
-// Bolt enters from the tray underside (z=0), passes up through the wall
-// column, exits the wall top, and threads into a hex nut glued in the
-// overlay underside. Assembly: flip case upside-down, insert bolts, tighten.
+// Captive bolt in the tray wall top. The bolt is inserted tip-first from
+// the wall top surface. The shaft passes through a narrow clearance hole,
+// then the head catches on the wider counterbore step below. The shaft
+// protrudes above the wall top into the overlay nut pocket.
 //
-// Tray: counterbore (screw_head_d × screw_head_depth) at the tray underside
-//   (flat, no tilt compensation needed), plus a clearance through-hole
-//   (screw_clear_d) from the counterbore top all the way up through the
-//   wall to above the tilted wall top.
+// Tray (from wall top surface, going DOWN):
+//   1. Clearance: screw_clear_d × screw_clear_depth
+//   2. Counterbore: screw_head_d × screw_head_depth
+//   Total: 3.2 mm — within JLC3DP SLA max (6 mm for 2 mm dia).
+//
 // Overlay: hex-shaped blind pocket (screw_nut_af × screw_nut_depth) cut
-//   from the overlay underside, with tilt compensation as per magnet pockets.
+//   from the underside, with tilt compensation as per magnet pockets.
 
-// Tilt-drift values for the overlay nut pocket.
-screw_nut_tilt_drift = screw_nut_ac * tan(tilt_angle);
-screw_nut_cyl_h      = screw_nut_depth + screw_nut_tilt_drift + 0.2;
-
-// Local boss at each back screw position to fill the chamfer_back_bottom
-// zone and provide a flat landing for the counterbore. Without this, the
-// 10 mm back chamfer removes all material at z=0 where the back screws sit.
-// Boss diameter = screw_head_d + 2 mm cheek; height = chamfer surface Z at
-// that Y position. Front screws don't need bosses (no bottom chamfer there).
-screw_boss_d = screw_head_d + 2 * 1.0;  // 1.0 mm cheek around the counterbore
-module tray_screw_bosses() {
-    cb = chamfer_back_bottom;
-    for (p = screw_positions()) {
-        // chamfer Z at this Y: cb - distance from back outer face (in tray-ext coords)
-        chamfer_z = cb - (outer_d + tray_ext - p[1]);
-        if (chamfer_z > 0) {
-            translate([p[0], p[1], 0])
-                cylinder(d = screw_boss_d, h = chamfer_z);
-        }
-    }
-}
+// Tilt-drift values for the tray clearance hole (exits through tilted
+// wall top) and the overlay nut pocket.
+screw_clear_tilt_drift = screw_clear_d * tan(tilt_angle);
+screw_clear_cyl_h      = screw_clear_depth + screw_clear_tilt_drift + 0.2;
+screw_head_cyl_h       = screw_head_depth + screw_clear_tilt_drift + 0.2;
+screw_nut_tilt_drift   = screw_nut_ac * tan(tilt_angle);
+screw_nut_cyl_h        = screw_nut_depth + screw_nut_tilt_drift + 0.2;
 
 module tray_screw_holes() {
     for (p = screw_positions()) {
-        // Counterbore on tray underside: flat at z=0 (no tilt here).
-        translate([p[0], p[1], -0.1])
-            cylinder(d = screw_head_d, h = screw_head_depth + 0.1);
-        // Clearance hole: from top of counterbore up through the entire
-        // wall column to above the tilted wall top. Tilt compensation at
-        // the top: the hole must exit cleanly through the tilted surface,
-        // so extend well past the highest point of the wall top at this Y.
-        z_wall_top_hi = top_z(p[1] + screw_clear_d/2) - top_t + 0.1;
-        translate([p[0], p[1], screw_head_depth - 0.01])
-            cylinder(d = screw_clear_d, h = z_wall_top_hi - screw_head_depth + 0.02);
+        // Clearance hole at the wall top. Tilt-compensated: anchor to the
+        // uphill edge so the hole exits cleanly through the tilted surface.
+        z_top_hi = top_z(p[1] + screw_clear_d/2) - top_t + 0.1;
+        translate([p[0], p[1], z_top_hi - screw_clear_cyl_h])
+            cylinder(d = screw_clear_d, h = screw_clear_cyl_h);
+        // Counterbore below the clearance hole. Same tilt anchor.
+        translate([p[0], p[1], z_top_hi - screw_clear_cyl_h - screw_head_cyl_h + 0.01])
+            cylinder(d = screw_head_d, h = screw_head_cyl_h);
     }
 }
 
 module overlay_nut_pockets() {
     for (p = screw_positions()) {
-        // Hex pocket: bottom at downhill edge − 0.1 mm undershoot, extends
-        // up by nut depth + drift. $fn=6 creates a hex prism; the default
-        // orientation places flats perpendicular to Y (parallel to front/back
-        // wall faces). The `d` parameter sets the circumscribed circle
-        // (across-corners); we derive it from the desired across-flats.
+        // Hex pocket on the overlay underside. Tilt-compensated: bottom at
+        // the downhill edge − 0.1 mm undershoot.
         z_bot_lo = top_z(p[1] - screw_nut_ac/2) - top_t - 0.1;
         translate([p[0], p[1], z_bot_lo])
             cylinder(d = screw_nut_ac, h = screw_nut_cyl_h, $fn = 6);
@@ -1786,10 +1777,6 @@ module case_tray() {
         // wall top. Unioned AFTER the cavity/slot/magnet cuts so its
         // geometry is preserved in full.
         if (ENABLE_OVERLAY_RABBET) tray_tongue_3d();
-
-        // Optional: local bosses that fill the back chamfer at the back
-        // screw positions, providing a flat counterbore landing.
-        if (ENABLE_SCREW_INSERTS && ENABLE_CHAMFERS) tray_screw_bosses();
     }
 }
 
