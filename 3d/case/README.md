@@ -111,6 +111,13 @@ Missing any of these will compromise fit or finish.
 >   pockets, hex nut pockets, or display pocket on the up-facing underside. A raft under the
 >   cosmetic face is acceptable provided the pinstripe groove and key
 >   openings drain during post-processing (we IPA-flush these on our end).
+> - **RAFT KEEP-OUT under the display window:** Please keep the raft
+>   contact area clear of the ~32 × 38 mm region centred on the display
+>   window cutout on the down-facing cosmetic face. The picture-frame
+>   around the window is a 1.0 × 1.5 mm cross-grain rib — raft peel
+>   forces can fracture it during support removal. An island of bare
+>   build-plate under the window (with supports only on the surrounding
+>   slab) is preferred.
 >
 > Please confirm orientations AND the X-axis scale compensation in the
 > pre-build screenshots before starting the build.
@@ -159,14 +166,18 @@ front wall, back wall, and floor. Expected removal sequence:
    (Y ≈ 4.8–6.8 mm) and back-wall neck (Y ≈ 104–106 mm) if the factory
    hasn't left them pre-thinned — usually the necks print thin enough to
    snap directly.
-3. Work a flush-cutter into each wall-neck perforation gap (2 mm Z-height)
-   and snip the thin webs (3 per wall). Do front wall first, then back.
+3. Work a **precision / micro flush-cutter** (jaw thickness ≤1.5 mm —
+   e.g. Xuron 2175, Tamiya Sharp Pointed, or similar) into each
+   wall-neck perforation gap (2 mm Z-height) and snip the thin webs
+   (3 per wall). Do front wall first, then back. Standard hobby
+   flush-cutters will NOT fit the 2 mm gap and will chip the wall.
 4. With the rib free at both walls, twist it around the floor axis — the
    6 × 13.5 × 1 mm floor webs shear one at a time as the 4 mm punched
    perforations propagate the crack.
-5. Lift the rib out, flush-sand the 30 total floor stubs with a sanding
-   stick parallel to the wall (not perpendicular — the stick will catch
-   adjacent stubs otherwise).
+5. Lift the rib out, flush-sand the 36 total floor stubs (6 webs × 6
+   ribs; the two end webs of each rib are ~11.5 mm and the four middle
+   webs are ~13.5 mm) with a sanding stick parallel to the wall (not
+   perpendicular — the stick will catch adjacent stubs otherwise).
 
 **Never saw down from above.** The 0.5 mm gap between rib top and wall top
 is too tight for a flush-cut blade and risks nicking the overlay seat.
@@ -211,9 +222,12 @@ seated if the top gaskets are placed first.
 2. **Drop the plate in, front-first.** With 9 tabs engaging 9 slots
    simultaneously, a pure vertical descent is harder than a two-stage
    descent. Engage the 4 front tabs first (lower end of the tilted case),
-   then pivot the plate back and down so the 3 back tabs and 2 side tabs
-   drop into their slots together. The 0.6 mm per-side slot tolerance
-   and 1.5 mm open-top margin accommodate this motion.
+   then **lower the plate straight down** — the 3 back tabs and 2 side
+   tabs drop into their slots simultaneously. Do NOT pivot about the
+   front tabs: a rotational descent swings the side tabs through ~3 mm
+   of Z and can bind them against the wall top, which has only 1.5 mm
+   of open-top margin. The 0.6 mm per-side slot tolerance accommodates
+   the straight-down motion.
 3. **Top gaskets second.** Press a second gasket strip onto the top of
    each tab, filling the remaining slot height.
 4. **Overlay caps the stack.** Seating the overlay on the wall tops
@@ -236,8 +250,8 @@ one per tray pocket and one per matching overlay pocket. Each pair must
    the attracting pole downward toward its tray mate. Test by holding
    the magnet with its eventual-up face touching the reference's
    marked face: it should **attract**.
-4. **Retain with thin CA glue (mandatory, not optional).** The 1.15 mm
-   nominal cheek between pocket and outer wall (0.95 mm worst-case after
+4. **Retain with thin CA glue (mandatory, not optional).** The 1.25 mm
+   nominal cheek between pocket and outer wall (1.05 mm worst-case after
    SLA shrink) is too thin to rely on press-fit alone — any walk-out
    during thermal cycling or drop shock can chip the cheek. Use gel-type
    CA so it doesn't wick into the pocket and onto the seam, and press a
@@ -304,8 +318,14 @@ pocket starts from the chamfer face (deboss).
 2. Seat the overlay on the tray wall tops (nuts face down, aligning
    with the clearance holes in the tray walls).
 3. Flip the assembled case upside-down.
-4. Insert the M1.4 × 12 mm bolts into all 4 pocket holes from below
+4. Insert the M1.4 × 14 mm bolts into all 4 pocket holes from below
    and tighten into the overlay nuts with a 1.25 mm hex key. Finger-
-   tight plus a quarter turn is sufficient.
+   tight plus a quarter turn is sufficient. **Hand-torque only — do
+   NOT use a torque driver or electric screwdriver.** The bolt head
+   bears on a 0.3 mm radial annulus between the Ø3.4 mm pocket and
+   Ø2.0 mm mid segments (~2.2 mm² contact area); over-tightening will
+   crush that step into the SLA resin and wander the pocket, which is
+   not serviceable. If an overlay feels loose after the quarter turn,
+   STOP and inspect — you will not fix it by tightening harder.
 5. Flip the case back upright. The bolt heads sit in the pocket
    recesses on the tray underside, hidden against the desk.
