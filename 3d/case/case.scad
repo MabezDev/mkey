@@ -18,6 +18,30 @@
 //   window / key opening) DOWN toward the build plate — face-down gives
 //   the smoothest surface finish on both SLA resin and FDM.
 //
+// ╔════════════════════════════════════════════════════════════════════════╗
+// ║  MANDATORY ORDER-NOTE REQUIREMENT — X-AXIS SCALE COMPENSATION         ║
+// ║                                                                        ║
+// ║  Before uploading `mkey_tray.stl` and `mkey_overlay.stl` to JLC3DP,   ║
+// ║  you MUST paste the X-axis scale-compensation request into the        ║
+// ║  order-note / manufacturer-instructions field. Without it, the parts  ║
+// ║  will not assemble. This is not a preference; it is a hard build      ║
+// ║  gate.                                                                 ║
+// ║                                                                        ║
+// ║  Why: the case outer_w is 363 mm. JLC3DP SLA tolerance over 100 mm    ║
+// ║  is ±0.3% of the dimension → ±1.09 mm worst-case drift on X. The      ║
+// ║  plate (FR4 PCB) is already fabricated and DOES NOT scale; printed    ║
+// ║  slots at the outermost tabs can drift ~0.96 mm relative to their     ║
+// ║  tabs, blowing past `slot_tol = 0.6 mm/side` and the 0.5 mm USB       ║
+// ║  cheek and the 0.3 mm magnet-pocket wall margin. With per-piece       ║
+// ║  X-scale compensation applied by JLC3DP, residual drift stays inside  ║
+// ║  the tolerances the geometry was designed around.                     ║
+// ║                                                                        ║
+// ║  Action: see README.md §"JLC3DP SLA submission notes" — paste the     ║
+// ║  full order-note block verbatim, do not abridge, and verify JLC3DP's  ║
+// ║  pre-build screenshot confirms the scale compensation before          ║
+// ║  production starts.                                                   ║
+// ╚════════════════════════════════════════════════════════════════════════╝
+//
 // Coordinate system (case frame):
 //   X = left to right (0 = left case edge)
 //   Y = front to back (0 = front edge, positive toward back / USB side)
@@ -522,26 +546,59 @@ function magnet_positions() = [
 // The through-hole is a 3-segment stepped bore — each segment stays
 // within JLC3DP SLA's 3× diameter depth limit:
 //   1. Pocket  (3.0 mm, from tray bottom UP): bolt head sits here
-//   2. Mid     (2.5 mm, intermediate): extends the printable depth
+//   2. Mid     (2.0 mm, intermediate): extends the printable depth
 //   3. Clear   (2.0 mm, from wall top DOWN 6 mm): shaft exits here
 // The bolt head catches on the pocket→mid step. At back positions the
 // lower portion of the pocket extends into the chamfer void (deboss).
 //
 // Hardware: 4× M1.4 hex nut DIN 934 (3.0 mm AF, 1.2 mm thick),
-//           4× M1.4 × 12 mm SHCS (2.6 mm head dia, 1.4 mm head height).
-screw_nut_af       = 3.2;    // hex pocket across-flats (3.0 mm M1.4 nut +
-                             // 0.2 mm SLA dimensional tolerance)
-screw_nut_depth    = 2.5;    // hex pocket depth (1.2 mm nut + margin for
-                             // bolt tip and tolerance)
-screw_pocket_d     = 3.0;    // bottom segment — catches bolt head (2.6 mm
-                             // M1.4 SHCS head + 0.4 mm clearance)
+//           4× M1.4 × 14 mm SHCS (2.6 mm head dia, 1.4 mm head height).
+//
+// Why 14 mm not 12 mm (changed 2026-04-21 pre-fab review):
+//   The overlay nut pocket is 2.5 mm deep (screw_nut_depth) but the nut
+//   is only 1.2 mm thick, leaving 1.3 mm of axial play. Install sequence:
+//   user flips the overlay underside-up, drops nut into the upward-facing
+//   pocket — gravity pulls the nut to the pocket FLOOR (furthest from the
+//   mouth). In assembled orientation the floor is the deepest point into
+//   the overlay slab. A 12 mm bolt placed the tip only 1.2 mm past the
+//   wall top, missing a floor-seated nut by ~0.6 mm. A 14 mm bolt plus
+//   the updated pocket_top formula (see below) reaches the pocket
+//   CEILING, guaranteeing full nut engagement regardless of where the
+//   nut cures.
+screw_nut_af       = 3.4;    // hex pocket across-flats (3.0 mm M1.4 nut +
+                             // 0.4 mm headroom so worst-case JLC3DP
+                             // ±0.3 mm hole shrink still clears the nut).
+                             // Grown 3.2 → 3.4 in the 2026-04-21 warnings
+                             // review: at 3.2 the worst-case pocket shrank
+                             // to AF 2.9 (below nominal 3.0 nut AF), risking
+                             // a pocket that simply will not accept the nut.
+                             // Overlay cheek stays above the 0.5 mm assert
+                             // floor (2.4 − 1.7 = 0.7 mm nominal).
+screw_nut_depth    = 2.5;    // hex pocket depth (nut 1.2 mm + headroom
+                             // for the bolt tip to exit above the nut
+                             // without bottoming in solid overlay)
+screw_pocket_d     = 3.4;    // bottom segment — catches bolt head (2.6 mm
+                             // M1.4 SHCS head + 0.8 mm clearance so JLC3DP
+                             // ±0.3 mm hole shrink still leaves ≥0.2 mm/side
+                             // static-assembly clearance even against the
+                             // hardware head's upper tolerance band).
+                             // Grown 3.0 → 3.4 in the 2026-04-21 warnings
+                             // review: at 3.0 the worst-case pocket shrank
+                             // to 2.7 mm and the 2.6 mm head had 0.05 mm/side
+                             // clearance — below the 0.2 mm static floor.
+                             // Tray cavity cheek stays above the 0.5 mm assert
+                             // floor (2.4 − 1.7 = 0.7 mm nominal).
 screw_mid_d        = 2.0;    // intermediate segment (reduced from 2.5:
                              // JLC3DP ±0.3 mm hole tolerance could grow
                              // 2.5 to 2.8, larger than the 2.6 mm SHCS
                              // head — bolt would fall through the step)
 screw_clear_d      = 2.0;    // top segment — M1.4 clearance from wall top
 screw_clear_depth  = 6.0;    // top segment depth (JLC max for 2 mm: 6 mm)
-screw_bolt_length  = 12;     // M1.4 × 12 mm (same length all 4 positions)
+screw_bolt_length  = 14;     // M1.4 × 14 mm (same length all 4 positions).
+                             // Bumped 12 → 14 with updated pocket_top
+                             // formula so the bolt tip reaches the nut-
+                             // pocket ceiling and engages the nut even
+                             // when the nut cures at the pocket floor.
 screw_inset        = 13;     // corner inset (same geometry as magnet_inset)
 screw_wall_offset  = wall_t / 2;  // centered in wall — adequate cheek on
                                   // both sides with M1.4
@@ -1037,6 +1094,15 @@ assert(!ENABLE_SCREW_INSERTS || screw_nut_depth <= top_t - 1.0,
 // JLC3DP SLA 3× depth rule for the clearance (topmost) segment.
 assert(!ENABLE_SCREW_INSERTS || screw_clear_depth <= screw_clear_d * 3,
        "clearance segment exceeds JLC3DP SLA max (3× diameter)");
+// Bolt must reach the nut-pocket ceiling to guarantee full thread
+// engagement regardless of where the nut cures in the 2.5 mm-deep pocket.
+// screw_nut_pocket_ceiling is the Z-offset of the pocket's deepest point
+// above wall_top_center. The minimum wall-top Z is front_h − top_t at the
+// front wall, so any bolt of length ≤ that + pocket_ceiling fits in the
+// wall column without pocket_top dropping below the tray bottom.
+assert(!ENABLE_SCREW_INSERTS ||
+       screw_bolt_length >= screw_nut_pocket_ceiling + 10.0,
+       "screw_bolt_length too short — bolt tip will not reach nut-pocket ceiling, risking zero thread engagement if nut cures at the pocket floor");
 // Positions must sit on walls and clear gasket slots / USB cutout.
 assert(!ENABLE_SCREW_INSERTS ||
        len([for (p = screw_positions())
@@ -1321,7 +1387,12 @@ assert(_switches_covered == len(MX_SWITCHES),
 
 // Coverage is count-based, so a copy-paste that duplicates one switch and
 // drops another would still pass. Guard against that directly.
-assert(len([for (i = [0:len(MX_SWITCHES)-1])
+// Range MUST stop at len-2: when i = len-1 the inner range becomes [len:len-1]
+// which OpenSCAD 2021.01 silently treats as reversed, yields undef j, and
+// trips this very assert with a spurious "duplicate" message. .csg compile
+// still exits 0 under that bug, so test_configs.sh never caught it — .stl
+// export does exit 1 and produces no file, which is how it was discovered.
+assert(len([for (i = [0:len(MX_SWITCHES)-2])
             for (j = [i+1:len(MX_SWITCHES)-1])
             if (abs(MX_SWITCHES[i][0] - MX_SWITCHES[j][0]) < 0.01 &&
                 abs(MX_SWITCHES[i][1] - MX_SWITCHES[j][1]) < 0.01) 1]) == 0,
@@ -1635,6 +1706,18 @@ screw_clear_cyl_h      = screw_clear_depth + screw_clear_tilt_drift + 0.2;
 screw_nut_tilt_drift   = screw_nut_ac * tan(tilt_angle);
 screw_nut_cyl_h        = screw_nut_depth + screw_nut_tilt_drift + 0.2;
 
+// Z-distance from wall_top_center up to the CEILING of the overlay nut
+// pocket (the deepest point of the pocket cavity into the overlay slab).
+// The pocket cylinder bottom sits at the downhill-corner overlay underside
+// minus a 0.1 mm undercut: that is (screw_nut_ac/2)·tan(tilt) + 0.1 BELOW
+// wall_top_center. The cylinder extends upward by screw_nut_cyl_h. So the
+// ceiling sits at screw_nut_cyl_h − (screw_nut_ac/2)·tan(tilt) − 0.1 above
+// wall_top_center. Bolt tip must reach this Z to guarantee the bolt
+// engages the nut no matter where inside the pocket the nut is glued.
+screw_nut_pocket_ceiling = screw_nut_cyl_h
+                         - (screw_nut_ac / 2) * tan(tilt_angle)
+                         - 0.1;
+
 module tray_screw_holes() {
     for (p = screw_positions()) {
         // Clearance (top segment): from wall top going DOWN.
@@ -1644,8 +1727,11 @@ module tray_screw_holes() {
             cylinder(d = screw_clear_d, h = screw_clear_cyl_h);
 
         // Head catch point: where the pocket→mid step is.
+        // Bolt tip target = wall_top_center + screw_nut_pocket_ceiling so
+        // the tip reaches the top of the overlay nut pocket regardless of
+        // where in the pocket the nut settles during CA cure.
         wall_top_center = top_z(p[1]) - top_t;
-        pocket_top = wall_top_center + 1.2 - screw_bolt_length;
+        pocket_top = wall_top_center + screw_nut_pocket_ceiling - screw_bolt_length;
 
         // Mid segment: from pocket_top to clearance bottom + overlap.
         mid_top = clear_bot + 0.5;

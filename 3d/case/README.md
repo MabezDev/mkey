@@ -63,11 +63,32 @@ The main toggles in `case.scad` control which features are included:
 
 ## JLC3DP SLA submission notes
 
+> [!IMPORTANT]
+> **X-AXIS SCALE COMPENSATION IS A HARD BUILD GATE.** Do not upload the
+> STLs unless you have pasted the full order-note block below into the
+> JLC3DP manufacturer-instructions field AND confirmed on the pre-build
+> screenshot that JLC3DP applied the compensation on both pieces.
+> Skipping this does not produce a looser fit — it produces parts that
+> **physically cannot assemble**. The plate PCB is fabricated and frozen
+> at its true size; the printed case without X-scale comp drifts up to
+> ±1.09 mm over the 363 mm case length, which blows past every outer
+> tolerance budget in the design (slot play, USB cheek, magnet margins).
+>
+> The geometry has belt-and-braces room for ±0.3 mm of residual post-
+> compensation drift, not the raw ±1.09 mm uncompensated drift.
+
 Paste the following instructions into the JLC3DP order-note / manufacturer-
 instructions field when uploading `mkey_tray.stl` and `mkey_overlay.stl`.
 Missing any of these will compromise fit or finish.
 
 > Two-piece keyboard case, SLA standard resin.
+>
+> **MANDATORY — X-AXIS SCALE COMPENSATION ON BOTH PIECES:** Apply JLC3DP's
+> per-batch X-axis scale compensation on BOTH `mkey_tray.stl` and
+> `mkey_overlay.stl`. The case is 363 mm long and mates to a
+> pre-fabricated FR4 PCB at tab positions spanning the full length; any
+> asymmetric or uncompensated shrinkage will prevent assembly. Please
+> confirm the compensation in your pre-build screenshots.
 >
 > **TRAY (mkey_tray.stl):**
 > - Orient bottom-face DOWN on the build plate (the flat ~363 × 111 mm face).
@@ -77,10 +98,8 @@ Missing any of these will compromise fit or finish.
 >   outer side walls and outer bottom are acceptable.
 > - The outer back wall carries a debossed "mKey" logo centred
 >   horizontally, vertically between the bottom chamfer and the wall top
->   (~30 × 7 mm footprint). Please keep factory support contact points
+>   (~43 × 9 mm footprint). Please keep factory support contact points
 >   clear of that debossed region if possible.
-> - **Apply X-axis scale compensation on this piece** — it is a 363 mm long
->   part with critical tab-alignment slot features at both X extremes.
 >
 > **OVERLAY (mkey_overlay.stl):**
 > - Orient cosmetic-face DOWN on the build plate (the face with the key
@@ -92,12 +111,16 @@ Missing any of these will compromise fit or finish.
 >   pockets, hex nut pockets, or display pocket on the up-facing underside. A raft under the
 >   cosmetic face is acceptable provided the pinstripe groove and key
 >   openings drain during post-processing (we IPA-flush these on our end).
-> - **Apply X-axis scale compensation on this piece as well** — it must
->   register into the tray's locating rabbet at both X extremes; asymmetric
->   scaling would prevent the two pieces mating.
+> - **RAFT KEEP-OUT under the display window:** Please keep the raft
+>   contact area clear of the ~32 × 38 mm region centred on the display
+>   window cutout on the down-facing cosmetic face. The picture-frame
+>   around the window is a 1.0 × 1.5 mm cross-grain rib — raft peel
+>   forces can fracture it during support removal. An island of bare
+>   build-plate under the window (with supports only on the surrounding
+>   slab) is preferred.
 >
-> Please confirm orientations in the prep screenshots before starting the
-> build.
+> Please confirm orientations AND the X-axis scale compensation in the
+> pre-build screenshots before starting the build.
 
 **Why X-scale compensation is mandatory:** JLC3DP SLA has ±0.3% length
 tolerance above 100 mm. At the 363 mm case X-axis that's ±1.09 mm worst
@@ -143,14 +166,18 @@ front wall, back wall, and floor. Expected removal sequence:
    (Y ≈ 4.8–6.8 mm) and back-wall neck (Y ≈ 104–106 mm) if the factory
    hasn't left them pre-thinned — usually the necks print thin enough to
    snap directly.
-3. Work a flush-cutter into each wall-neck perforation gap (2 mm Z-height)
-   and snip the thin webs (3 per wall). Do front wall first, then back.
+3. Work a **precision / micro flush-cutter** (jaw thickness ≤1.5 mm —
+   e.g. Xuron 2175, Tamiya Sharp Pointed, or similar) into each
+   wall-neck perforation gap (2 mm Z-height) and snip the thin webs
+   (3 per wall). Do front wall first, then back. Standard hobby
+   flush-cutters will NOT fit the 2 mm gap and will chip the wall.
 4. With the rib free at both walls, twist it around the floor axis — the
    6 × 13.5 × 1 mm floor webs shear one at a time as the 4 mm punched
    perforations propagate the crack.
-5. Lift the rib out, flush-sand the 30 total floor stubs with a sanding
-   stick parallel to the wall (not perpendicular — the stick will catch
-   adjacent stubs otherwise).
+5. Lift the rib out, flush-sand the 36 total floor stubs (6 webs × 6
+   ribs; the two end webs of each rib are ~11.5 mm and the four middle
+   webs are ~13.5 mm) with a sanding stick parallel to the wall (not
+   perpendicular — the stick will catch adjacent stubs otherwise).
 
 **Never saw down from above.** The 0.5 mm gap between rib top and wall top
 is too tight for a flush-cut blade and risks nicking the overlay seat.
@@ -195,9 +222,12 @@ seated if the top gaskets are placed first.
 2. **Drop the plate in, front-first.** With 9 tabs engaging 9 slots
    simultaneously, a pure vertical descent is harder than a two-stage
    descent. Engage the 4 front tabs first (lower end of the tilted case),
-   then pivot the plate back and down so the 3 back tabs and 2 side tabs
-   drop into their slots together. The 0.6 mm per-side slot tolerance
-   and 1.5 mm open-top margin accommodate this motion.
+   then **lower the plate straight down** — the 3 back tabs and 2 side
+   tabs drop into their slots simultaneously. Do NOT pivot about the
+   front tabs: a rotational descent swings the side tabs through ~3 mm
+   of Z and can bind them against the wall top, which has only 1.5 mm
+   of open-top margin. The 0.6 mm per-side slot tolerance accommodates
+   the straight-down motion.
 3. **Top gaskets second.** Press a second gasket strip onto the top of
    each tab, filling the remaining slot height.
 4. **Overlay caps the stack.** Seating the overlay on the wall tops
@@ -220,8 +250,8 @@ one per tray pocket and one per matching overlay pocket. Each pair must
    the attracting pole downward toward its tray mate. Test by holding
    the magnet with its eventual-up face touching the reference's
    marked face: it should **attract**.
-4. **Retain with thin CA glue (mandatory, not optional).** The 1.15 mm
-   nominal cheek between pocket and outer wall (0.95 mm worst-case after
+4. **Retain with thin CA glue (mandatory, not optional).** The 1.25 mm
+   nominal cheek between pocket and outer wall (1.05 mm worst-case after
    SLA shrink) is too thin to rely on press-fit alone — any walk-out
    during thermal cycling or drop shock can chip the cheek. Use gel-type
    CA so it doesn't wick into the pocket and onto the seam, and press a
@@ -247,14 +277,23 @@ and the overlay top surface is flush.
 | Qty | Part | Specification | Key dimensions |
 |-----|------|---------------|----------------|
 | 4 | Hex nut | M1.4 DIN 934 | 3.0 mm across-flats, 1.2 mm thick |
-| 4 | Socket head cap screw | M1.4 × 12 mm | 2.6 mm head dia, 1.4 mm head height |
+| 4 | Socket head cap screw | M1.4 × 14 mm | 2.6 mm head dia, 1.4 mm head height |
 
 Same bolt length at all 4 positions. The bolt threads up from the tray
 underside through the wall column and into the overlay nut. The through-
 hole is a 3-segment stepped bore — no post-print drilling required:
 - **Pocket** (3.0 mm dia, from tray bottom upward): bolt head sits here
-- **Mid** (2.5 mm dia, intermediate): extends the printable depth
+- **Mid** (2.0 mm dia, intermediate): extends the printable depth
 - **Clearance** (2.0 mm dia, from wall top downward): shaft exits here
+
+**Bolt length note:** M1.4 × 14 mm (not 12 mm). The overlay nut pocket is
+2.5 mm deep to give the bolt tip headroom to exit above the nut. The nut
+itself is only 1.2 mm thick, so it can cure anywhere inside that pocket.
+A 12 mm bolt places the tip only 1.2 mm past the wall top — enough for a
+nut at the pocket mouth, but not for a nut that gravity pulled to the
+pocket floor during CA cure (overlay is flipped underside-up during nut
+install). 14 mm guarantees full thread engagement no matter where the
+nut settles.
 
 Each segment stays within JLC3DP SLA depth limits (max 3× diameter).
 At the back corners, the 10 mm chamfer removes the tray bottom; the
@@ -279,8 +318,14 @@ pocket starts from the chamfer face (deboss).
 2. Seat the overlay on the tray wall tops (nuts face down, aligning
    with the clearance holes in the tray walls).
 3. Flip the assembled case upside-down.
-4. Insert the M1.4 × 12 mm bolts into all 4 pocket holes from below
+4. Insert the M1.4 × 14 mm bolts into all 4 pocket holes from below
    and tighten into the overlay nuts with a 1.25 mm hex key. Finger-
-   tight plus a quarter turn is sufficient.
+   tight plus a quarter turn is sufficient. **Hand-torque only — do
+   NOT use a torque driver or electric screwdriver.** The bolt head
+   bears on a 0.3 mm radial annulus between the Ø3.4 mm pocket and
+   Ø2.0 mm mid segments (~2.2 mm² contact area); over-tightening will
+   crush that step into the SLA resin and wander the pocket, which is
+   not serviceable. If an overlay feels loose after the quarter turn,
+   STOP and inspect — you will not fix it by tightening harder.
 5. Flip the case back upright. The bolt heads sit in the pocket
    recesses on the tray underside, hidden against the desk.
