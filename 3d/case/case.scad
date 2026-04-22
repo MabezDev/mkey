@@ -1262,6 +1262,17 @@ assert(usb_cut_z_bot >= bottom_t + 0.3,
        "USB cutout pierces (or touches) the case floor within fab slop");
 assert(usb_cut_z_top <= back_wall_top_z - 0.3,
        "USB cutout pierces the tray wall top at the back within fab slop");
+// Chamfer fill ramp must stay below the USB cutout and the PCB bottom.
+assert(!ENABLE_CHAMFERS ||
+       chamfer_back_bottom + chamfer_fill_min_y < usb_cut_z_bot,
+       str("chamfer fill ramp top (z=", chamfer_back_bottom + chamfer_fill_min_y,
+           ") reaches USB cutout bottom (z=", usb_cut_z_bot, ")"));
+assert(!ENABLE_CHAMFERS ||
+       chamfer_back_bottom + chamfer_fill_min_y + stack_clearance
+           <= pcb_top_z - pcb_t,
+       str("chamfer fill ramp top (z=", chamfer_back_bottom + chamfer_fill_min_y,
+           ") + stack_clearance (", stack_clearance,
+           ") breaches PCB bottom (z=", pcb_top_z - pcb_t, ")"));
 
 // ─── Installed gasket scheme sanity ──────────────────────────────────────
 // Bottom gasket must fit within the slot_bot_below_plate budget at the
