@@ -456,12 +456,21 @@ rabbet_w = 2.4;      // ring width in the wall-depth direction (outer ring
                      // 2.2 → 2.4 in the 2026-04-20 pre-fab review so
                      // the rabbet_tol increase to 0.30 keeps tongue at
                      // 1.8 mm nominal / 1.6 mm worst-case (above 1.5).
-rabbet_h = 1.5;      // tongue height above the wall top (= recess depth
-                     // into the overlay underside). Grown from 1.0 → 1.5
-                     // in the 2026-04-14 JLC3DP review to meet the same
-                     // 1.5 mm snap-feature recommendation. Still leaves
-                     // top_t − rabbet_h = 3.5 mm of overlay slab above
-                     // the recess floor (≫ the 1.0 mm structural floor).
+rabbet_h = 1.5;      // tongue height above the wall top. Grown from
+                     // 1.0 → 1.5 in the 2026-04-14 JLC3DP review to meet
+                     // the 1.5 mm snap-feature recommendation. Still
+                     // leaves top_t − rabbet_h = 2.0 mm of overlay slab
+                     // above the recess floor (≫ the 1.0 mm structural
+                     // floor).
+rabbet_h_tol = 0.5;  // extra Z depth in the recess beyond the tongue
+                     // height, absorbing ±0.2 mm fab tolerance on BOTH
+                     // pieces. Without this the tongue and recess are
+                     // the same height: worst-case (+0.2 on tongue,
+                     // −0.2 on recess) lifts the overlay 0.4 mm off the
+                     // wall cheek. 0.5 mm gives 0.1 mm margin in the
+                     // worst case. Recess depth = rabbet_h + rabbet_h_tol
+                     // = 2.0 mm; overlay slab above = top_t − 2.0 = 1.5 mm
+                     // (above the 1.0 mm structural floor).
 rabbet_tol = 0.30;   // per-side clearance between the tongue and the
                      // recess. Grown from 0.25 → 0.30 in the 2026-04-20
                      // pre-fab review: at 0.25 the worst-case clearance
@@ -479,9 +488,14 @@ notch_margin = 0.5;  // extra plan-view clearance added around each slot
 // or epoxied into each pocket; tray and overlay magnets attract across the
 // rabbet seam and hold the overlay down.
 //
-// Default sizing targets 2 mm Ø × 1 mm N52 discs (pull force ≈ 80 g each;
-// 6 of them give ~480 g of holding force — plenty for a 6° tilted keyboard
-// that only has to fight gravity + light typing vibration).
+// Default sizing targets 2 mm Ø × 1 mm N52 discs. Magnet-to-magnet pull
+// force at contact (0 mm gap) is ~40-50 g per pair; 6 pairs give ~240-300 g
+// of holding force. Combined with overlay weight (~170 g) this is adequate
+// for a 6° tilted keyboard fighting gravity + light typing vibration.
+// CRITICAL: magnets MUST be glued flush with the pocket mouth (use a flat
+// reference plate during CA cure). If magnets sink to the pocket floor the
+// 1 mm recess per side creates a 2 mm air gap, dropping force to ~3-5 g per
+// pair (~18-30 g total) — insufficient to hold the overlay.
 //
 // Downsized from Ø3×2 → Ø2×1 in the 2026-04-17 JLC3DP pre-fab review:
 // JLC3DP SLA hole-feature tolerance is ±0.3 mm (not the ±0.2 mm used for
@@ -892,8 +906,8 @@ assert(!ENABLE_OVERLAY_RABBET || rabbet_w - 2 * rabbet_tol >= 0.5,
 // Tongue height must leave enough overlay slab above the recess; too short
 // and the tongue can't register, too tall and the overlay slab thins below
 // structural minimum at the recess floor.
-assert(!ENABLE_OVERLAY_RABBET || (rabbet_h >= 0.5 && rabbet_h <= top_t - 1.0),
-       "rabbet_h out of range — must be ≥0.5 mm and leave ≥1.0 mm of overlay slab above the recess");
+assert(!ENABLE_OVERLAY_RABBET || (rabbet_h >= 0.5 && rabbet_h + rabbet_h_tol <= top_t - 1.0),
+       "rabbet_h + rabbet_h_tol out of range — must leave ≥1.0 mm of overlay slab above the recess");
 assert(!ENABLE_OVERLAY_RABBET || rabbet_tol >= 0.15,
        "rabbet_tol below 0.15 mm — tongue will bind in the recess under ±0.2 mm fab slop");
 // The tongue/recess are notched at each slot Y with a plan-view margin of
@@ -1080,7 +1094,9 @@ assert(!(ENABLE_MAGNET_POCKETS && ENABLE_OVERLAY_RABBET) ||
 assert(!(ENABLE_SCREW_INSERTS && ENABLE_MAGNET_POCKETS),
        "ENABLE_SCREW_INSERTS and ENABLE_MAGNET_POCKETS are mutually exclusive");
 screw_nut_ac = screw_nut_af / cos(30);
-// Overlay wall cheek around the hex nut pocket.
+// Overlay wall cheek around the hex nut pocket. The hex is rotated 30° so
+// flats face the wall-depth direction (±Y). Wall cheek is therefore at the
+// AF dimension, not AC, maximizing material in the thin direction.
 assert(!ENABLE_SCREW_INSERTS || (screw_wall_offset - screw_nut_af / 2) >= 0.5,
        "hex nut pocket outer cheek < 0.5 mm in overlay wall");
 assert(!ENABLE_SCREW_INSERTS || (wall_t - screw_wall_offset - screw_nut_af / 2) >= 0.5,
@@ -1628,19 +1644,22 @@ module tray_tongue_3d() {
 }
 
 // Recess: negative tilted ring-slab cut INTO the overlay underside. In
-// `recess_2d()` footprint. Lower Z bound extends 0.01 mm below the overlay
-// underside so the subtraction cleanly pierces the underside plane rather
-// than touching it coplanarly (CGAL produces degenerate topology for
-// exactly-coincident faces, resulting in spurious extra volumes).
+// `recess_2d()` footprint. Uses `rabbet_h + rabbet_h_tol` so the recess
+// is deeper than the tongue, absorbing Z-direction fab tolerance on both
+// pieces (see rabbet_h_tol comment above). Lower Z bound extends 0.01 mm
+// below the overlay underside so the subtraction cleanly pierces the
+// underside plane rather than touching it coplanarly (CGAL produces
+// degenerate topology for exactly-coincident faces).
 module overlay_recess_3d() {
+    recess_total = rabbet_h + rabbet_h_tol;
     intersection() {
         translate([0, 0, -1])
             linear_extrude(height = back_h + 10)
                 recess_2d();
         difference() {
             wedge_box(outer_w, outer_d,
-                      front_h - top_t + rabbet_h,
-                      back_h  - top_t + rabbet_h);
+                      front_h - top_t + recess_total,
+                      back_h  - top_t + recess_total);
             wedge_box(outer_w, outer_d,
                       front_h - top_t - 0.01,
                       back_h  - top_t - 0.01);
@@ -1664,7 +1683,7 @@ module overlay_recess_3d() {
 // preserved at the OTHER extreme. Result: clean hole through the tilted
 // plane everywhere in the pocket footprint.
 magnet_tilt_drift = magnet_d * tan(tilt_angle);   // ≈ 0.24 mm for Ø2.3, 6°
-magnet_cyl_h      = magnet_depth + magnet_tilt_drift + 0.2;   // ≈ 2.68 mm
+magnet_cyl_h      = magnet_depth + magnet_tilt_drift + 0.2;   // ≈ 2.44 mm
 
 // top_z() is monotonic in y (6° tilt, increasing toward the back), so the
 // uphill edge of every pocket is at y = p[1] + magnet_d/2 regardless of
@@ -1752,6 +1771,7 @@ module overlay_nut_pockets() {
         // the downhill edge − 0.1 mm undershoot.
         z_bot_lo = top_z(p[1] - screw_nut_ac/2) - top_t - 0.1;
         translate([p[0], p[1], z_bot_lo])
+            rotate([0, 0, 30])
             cylinder(d = screw_nut_ac, h = screw_nut_cyl_h, $fn = 6);
     }
 }
