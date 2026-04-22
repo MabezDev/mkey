@@ -1874,12 +1874,9 @@ module overlay_nut_pockets() {
 // becomes a negative number (a through-slit).
 //
 // Fix: locally pull the cavity back inner face forward so the back wall
-// stays at least tray_wall_t inside the chamfer band. The fill cross-section
-// is a trapezoid (not a triangle): at z = cb the inner face sits
-// chamfer_fill_min_y mm forward of cavity_back_y so the apex never thins
-// below the JLC3DP SLA minimum wall. The wall grows from tray_wall_t at
-// z = bottom_t to tray_wall_t + chamfer_fill_min_y at z = cb. The extra
-// thickness eats into unused cavity space (plate + PCB sit at z ≥ 11.5 mm).
+// stays at least tray_wall_t inside the chamfer band. The fill is a
+// trapezoid (z = bottom_t..cb) topped by a ramp (z = cb..cb + min_y)
+// that returns flush to cavity_back_y — no step, no knife-edge.
 module back_wall_chamfer_fill() {
     cb = chamfer_back_bottom;
     cavity_back_y = outer_d - wall_t;           // straight cavity back (z ≥ cb)
@@ -1888,13 +1885,22 @@ module back_wall_chamfer_fill() {
     x_lo = wall_t - 1;
     x_hi = outer_w - wall_t + 1;
     eps  = 0.001;
-    hull() {
-        // Top shelf at z = cb: min_y deep in Y (blunted, no knife-edge).
-        translate([x_lo, cavity_back_y - min_y, cb])
-            cube([x_hi - x_lo, min_y + eps, eps]);
-        // Bottom base rectangle at z = bottom_t, spanning full trapezoid base in Y.
-        translate([x_lo, front_bot_y, bottom_t])
-            cube([x_hi - x_lo, cavity_back_y - front_bot_y, eps]);
+    union() {
+        // Main fill: trapezoid from z = bottom_t to z = cb.
+        hull() {
+            translate([x_lo, cavity_back_y - min_y, cb])
+                cube([x_hi - x_lo, min_y + eps, eps]);
+            translate([x_lo, front_bot_y, bottom_t])
+                cube([x_hi - x_lo, cavity_back_y - front_bot_y, eps]);
+        }
+        // Ramp: returns the blunted shelf to cavity_back_y over min_y mm
+        // of Z so the transition is a 45° slope instead of a step.
+        hull() {
+            translate([x_lo, cavity_back_y - min_y, cb])
+                cube([x_hi - x_lo, min_y + eps, eps]);
+            translate([x_lo, cavity_back_y - eps, cb + min_y])
+                cube([x_hi - x_lo, eps, eps]);
+        }
     }
 }
 
