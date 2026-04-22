@@ -1887,8 +1887,10 @@ module back_wall_chamfer_fill() {
     eps  = 0.001;
     hull() {
         // Top apex edge at (y = cavity_back_y, z = cb), spanning X.
+        // Extend 0.01 mm above cb so the fill overlaps the straight
+        // cavity wall and avoids a coplanar tessellation seam.
         translate([x_lo, cavity_back_y - eps, cb])
-            cube([x_hi - x_lo, eps, eps]);
+            cube([x_hi - x_lo, eps, 0.01 + eps]);
         // Bottom base rectangle at z = bottom_t, spanning full triangle base in Y.
         translate([x_lo, front_bot_y, bottom_t])
             cube([x_hi - x_lo, cavity_back_y - front_bot_y, eps]);
