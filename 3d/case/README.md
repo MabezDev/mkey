@@ -287,10 +287,11 @@ and the overlay top surface is flush.
 
 Same bolt length at all 4 positions. The bolt threads up from the tray
 underside through the wall column and into the overlay nut. The through-
-hole is a 3-segment stepped bore — no post-print drilling required:
-- **Pocket** (3.0 mm dia, from tray bottom upward): bolt head sits here
-- **Mid** (2.0 mm dia, intermediate): extends the printable depth
-- **Clearance** (2.0 mm dia, from wall top downward): shaft exits here
+hole is a 4-segment stepped bore — no post-print drilling required:
+- **Pocket** (3.4 mm dia, from tray bottom upward): bolt head sits here
+- **Mid** (2.0 mm dia, intermediate): head catches on pocket→mid step
+- **Lower clearance** (2.5 mm dia, 4.0 mm): wider pass-through
+- **Upper clearance** (2.0 mm dia, 2.0 mm from wall top): shaft alignment
 
 **Bolt length note:** M1.4 × 14 mm (not 12 mm). The overlay nut pocket is
 2.5 mm deep to give the bolt tip headroom to exit above the nut. The nut
@@ -301,7 +302,8 @@ pocket floor during CA cure (overlay is flipped underside-up during nut
 install). 14 mm guarantees full thread engagement no matter where the
 nut settles.
 
-Each segment stays within JLC3DP SLA depth limits (max 3× diameter).
+Each segment stays within JLC3DP SLA depth limits (max 3× diameter) even
+under worst-case ±0.3 mm hole-tolerance shrink.
 At the back corners, the 10 mm chamfer removes the tray bottom; the
 pocket starts from the chamfer face (deboss).
 

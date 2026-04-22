@@ -557,13 +557,18 @@ function magnet_positions() = [
 // M1.4 bolts thread up from the tray underside through the wall columns
 // and into the overlay nuts. Tightened from below (flip case over).
 //
-// The through-hole is a 3-segment stepped bore — each segment stays
-// within JLC3DP SLA's 3× diameter depth limit:
-//   1. Pocket  (3.0 mm, from tray bottom UP): bolt head sits here
-//   2. Mid     (2.0 mm, intermediate): extends the printable depth
-//   3. Clear   (2.0 mm, from wall top DOWN 6 mm): shaft exits here
-// The bolt head catches on the pocket→mid step. At back positions the
-// lower portion of the pocket extends into the chamfer void (deboss).
+// The through-hole is a 4-segment stepped bore — each segment stays
+// within JLC3DP SLA's 3× diameter depth limit even under worst-case
+// ±0.3 mm hole-tolerance shrink:
+//   1. Pocket      (Ø3.4 mm, from tray bottom UP): bolt head sits here
+//   2. Mid         (Ø2.0 mm, intermediate): head catches on pocket→mid step
+//   3. Lower clear (Ø2.5 mm × 4.0 mm): wider pass-through
+//   4. Upper clear (Ø2.0 mm × 2.0 mm, from wall top DOWN): shaft alignment
+// The bolt head catches on the pocket→mid step (2.6 mm head > 2.0 mm
+// bore even at +0.3 mm tolerance growth). The wider lower-clear bore
+// is safe because the head is already trapped below the mid segment.
+// At back positions the lower portion of the pocket extends into the
+// chamfer void (deboss).
 //
 // Hardware: 4× M1.4 hex nut DIN 934 (3.0 mm AF, 1.2 mm thick),
 //           4× M1.4 × 14 mm SHCS (2.6 mm head dia, 1.4 mm head height).
@@ -606,8 +611,16 @@ screw_mid_d        = 2.0;    // intermediate segment (reduced from 2.5:
                              // JLC3DP ±0.3 mm hole tolerance could grow
                              // 2.5 to 2.8, larger than the 2.6 mm SHCS
                              // head — bolt would fall through the step)
-screw_clear_d      = 2.0;    // top segment — M1.4 clearance from wall top
-screw_clear_depth  = 6.0;    // top segment depth (JLC max for 2 mm: 6 mm)
+// Clearance bore split into two sub-segments (changed 2026-04-22
+// pre-fab design review): a single Ø2.0 × 6.0 mm bore worst-cases
+// to 6.0/(2.0−0.3) = 3.53×, exceeding the 3× depth rule. Splitting
+// into a short upper guide and a wider lower pass-through keeps both
+// sub-segments comfortably inside 3× under worst-case hole shrink.
+screw_clear_upper_d     = 2.0;    // shaft alignment bore at wall top
+screw_clear_upper_depth = 2.0;    // short guide into overlay nut
+screw_clear_lower_d     = 2.5;    // wider pass-through (head already
+                                   // caught on pocket→mid step below)
+screw_clear_lower_depth = 4.0;    // remaining depth (total 6.0 mm)
 screw_bolt_length  = 14;     // M1.4 × 14 mm (same length all 4 positions).
                              // Bumped 12 → 14 with updated pocket_top
                              // formula so the bolt tip reaches the nut-
@@ -1107,9 +1120,17 @@ assert(!ENABLE_SCREW_INSERTS || (screw_wall_offset - screw_pocket_d / 2) >= 0.5,
 // Hex pocket must not breach the overlay top surface.
 assert(!ENABLE_SCREW_INSERTS || screw_nut_depth <= top_t - 1.0,
        "hex nut pocket depth leaves < 1.0 mm of overlay skin above");
-// JLC3DP SLA 3× depth rule for the clearance (topmost) segment.
-assert(!ENABLE_SCREW_INSERTS || screw_clear_depth <= screw_clear_d * 3,
-       "clearance segment exceeds JLC3DP SLA max (3× diameter)");
+// JLC3DP SLA 3× depth rule — checked under worst-case ±0.3 mm hole
+// tolerance shrink so a nominal-passing bore can't fail in production.
+assert(!ENABLE_SCREW_INSERTS ||
+       screw_clear_upper_depth <= (screw_clear_upper_d - 0.3) * 3,
+       "upper clearance segment exceeds JLC3DP SLA max under worst-case hole tolerance (3× (d − 0.3))");
+assert(!ENABLE_SCREW_INSERTS ||
+       screw_clear_lower_depth <= (screw_clear_lower_d - 0.3) * 3,
+       "lower clearance segment exceeds JLC3DP SLA max under worst-case hole tolerance (3× (d − 0.3))");
+// Mid bore must catch the bolt head even under worst-case hole growth.
+assert(!ENABLE_SCREW_INSERTS || screw_mid_d + 0.3 < 2.6,
+       "mid segment could grow past 2.6 mm bolt head under +0.3 mm hole tolerance — bolt falls through");
 // Bolt must reach the nut-pocket ceiling to guarantee full thread
 // engagement regardless of where the nut cures in the 2.5 mm-deep pocket.
 // screw_nut_pocket_ceiling is the Z-offset of the pocket's deepest point
@@ -1713,15 +1734,18 @@ module overlay_magnet_pockets() {
 }
 
 // ─── Screw + nut geometry (optional, ENABLE_SCREW_INSERTS) ─────────────────
-// Tray:  3-segment stepped through-bore from tray bottom to wall top.
-//        Each segment stays within JLC3DP SLA's 3× depth limit. The bolt
-//        head catches on the pocket→mid step; the shaft passes through
-//        mid+clear and into the overlay nut.
+// Tray:  4-segment stepped through-bore from tray bottom to wall top.
+//        Each segment stays within JLC3DP SLA's 3× depth limit under
+//        worst-case ±0.3 mm hole tolerance. The bolt head catches on
+//        the pocket→mid step; the shaft passes through mid + lower
+//        clear + upper clear and into the overlay nut.
 // Overlay: hex nut pocket on the underside, tilt-compensated.
 
 // Tilt-drift values (wall top surface is tilted).
-screw_clear_tilt_drift = screw_clear_d * tan(tilt_angle);
-screw_clear_cyl_h      = screw_clear_depth + screw_clear_tilt_drift + 0.2;
+screw_clear_upper_tilt  = screw_clear_upper_d * tan(tilt_angle);
+screw_clear_upper_cyl_h = screw_clear_upper_depth + screw_clear_upper_tilt + 0.2;
+screw_clear_lower_tilt  = screw_clear_lower_d * tan(tilt_angle);
+screw_clear_lower_cyl_h = screw_clear_lower_depth + screw_clear_lower_tilt + 0.2;
 screw_nut_tilt_drift   = screw_nut_ac * tan(tilt_angle);
 screw_nut_cyl_h        = screw_nut_depth + screw_nut_tilt_drift + 0.2;
 
@@ -1739,21 +1763,26 @@ screw_nut_pocket_ceiling = screw_nut_cyl_h
 
 module tray_screw_holes() {
     for (p = screw_positions()) {
-        // Clearance (top segment): from wall top going DOWN.
-        z_top_hi = top_z(p[1] + screw_clear_d/2) - top_t + 0.1;
-        clear_bot = z_top_hi - screw_clear_cyl_h;
-        translate([p[0], p[1], clear_bot])
-            cylinder(d = screw_clear_d, h = screw_clear_cyl_h);
+        // Upper clearance: short Ø2.0 shaft-alignment bore at wall top.
+        z_top_hi  = top_z(p[1] + screw_clear_upper_d/2) - top_t + 0.1;
+        upper_bot = z_top_hi - screw_clear_upper_cyl_h;
+        translate([p[0], p[1], upper_bot])
+            cylinder(d = screw_clear_upper_d, h = screw_clear_upper_cyl_h);
 
-        // Head catch point: where the pocket→mid step is.
+        // Lower clearance: wider Ø2.5 pass-through below the upper.
+        lower_top = upper_bot + 0.5;
+        lower_bot = lower_top - screw_clear_lower_cyl_h;
+        translate([p[0], p[1], lower_bot])
+            cylinder(d = screw_clear_lower_d, h = screw_clear_lower_cyl_h);
+
         // Bolt tip target = wall_top_center + screw_nut_pocket_ceiling so
         // the tip reaches the top of the overlay nut pocket regardless of
         // where in the pocket the nut settles during CA cure.
         wall_top_center = top_z(p[1]) - top_t;
         pocket_top = wall_top_center + screw_nut_pocket_ceiling - screw_bolt_length;
 
-        // Mid segment: from pocket_top to clearance bottom + overlap.
-        mid_top = clear_bot + 0.5;
+        // Mid segment: from pocket_top to lower clearance bottom + overlap.
+        mid_top = lower_bot + 0.5;
         translate([p[0], p[1], pocket_top - 0.01])
             cylinder(d = screw_mid_d, h = mid_top - pocket_top + 0.01);
 
