@@ -408,7 +408,13 @@ tray_corner_r    = 0.75;   // outer corner radius of tray (overridden by chamfer
 chamfer_top_primary   = 1.2;   // mm, 45° chamfer on overlay/tray top edges (1.0-1.5 spec)
 chamfer_edge_break    = 0.2;   // mm, minimum chamfer on all remaining sharp edges
 chamfer_back_bottom   = 10.0;  // mm, large triangular chamfer on tray bottom back edge (must be < pad_inset)
+chamfer_fill_min_y    = 2.0;   // mm, minimum Y-depth of chamfer fill at apex — prevents
+                               // knife-edge thinness that violates JLC3DP SLA ≥ 2.0 mm wall
 ENABLE_CHAMFERS       = true;  // master switch for all chamfer geometry
+assert(chamfer_fill_min_y <= chamfer_back_bottom - bottom_t,
+       str("chamfer_fill_min_y (", chamfer_fill_min_y,
+           " mm) exceeds chamfer fill base depth (",
+           chamfer_back_bottom - bottom_t, " mm)"));
 
 // ─── Overlay locating rabbet (optional, ENABLE_OVERLAY_RABBET) ──────────────
 // INVERTED ("tongue") geometry: a small ridge of wood stands proud ABOVE
@@ -1868,30 +1874,25 @@ module overlay_nut_pockets() {
 // becomes a negative number (a through-slit).
 //
 // Fix: locally pull the cavity back inner face forward so the back wall
-// stays a uniform tray_wall_t slab inside the chamfer band. The inner face
-// is chamfered parallel to the outer chamfer, offset by tray_wall_t, and
-// meets the straight upper cavity exactly at z = cb (no step). The chamfer
-// region at the back of the cavity (z = bottom_t..cb, roughly 7×5.3 mm in
-// y×z cross-section) is solid material. Nothing in the original cavity is
-// lost: the plate + PCB components all sit at z ≥ bottom_t + depth_below
-// (= 11.5 mm at the front, higher at the back), so the filled-in triangle
-// is empty cavity space that was never used.
+// stays at least tray_wall_t inside the chamfer band. The fill cross-section
+// is a trapezoid (not a triangle): at z = cb the inner face sits
+// chamfer_fill_min_y mm forward of cavity_back_y so the apex never thins
+// below the JLC3DP SLA minimum wall. The wall grows from tray_wall_t at
+// z = bottom_t to tray_wall_t + chamfer_fill_min_y at z = cb. The extra
+// thickness eats into unused cavity space (plate + PCB sit at z ≥ 11.5 mm).
 module back_wall_chamfer_fill() {
     cb = chamfer_back_bottom;
     cavity_back_y = outer_d - wall_t;           // straight cavity back (z ≥ cb)
     front_bot_y   = cavity_back_y - (cb - bottom_t);  // inner chamfer foot @ z=bottom_t
-    // X covers the full cavity width plus a 1 mm overhang each side so the
-    // triangular prism cleanly subtracts from the rectangular cavity cutout.
+    min_y         = chamfer_fill_min_y;
     x_lo = wall_t - 1;
     x_hi = outer_w - wall_t + 1;
     eps  = 0.001;
     hull() {
-        // Top apex edge at (y = cavity_back_y, z = cb), spanning X.
-        // Extend 0.01 mm above cb so the fill overlaps the straight
-        // cavity wall and avoids a coplanar tessellation seam.
-        translate([x_lo, cavity_back_y - eps, cb])
-            cube([x_hi - x_lo, eps, 0.01 + eps]);
-        // Bottom base rectangle at z = bottom_t, spanning full triangle base in Y.
+        // Top shelf at z = cb: min_y deep in Y (blunted, no knife-edge).
+        translate([x_lo, cavity_back_y - min_y, cb])
+            cube([x_hi - x_lo, min_y + eps, eps]);
+        // Bottom base rectangle at z = bottom_t, spanning full trapezoid base in Y.
         translate([x_lo, front_bot_y, bottom_t])
             cube([x_hi - x_lo, cavity_back_y - front_bot_y, eps]);
     }
