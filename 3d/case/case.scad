@@ -308,8 +308,10 @@ shelf_corner_r = 1.2;   // radius of the curved inner corners of the window.
 // The tray outer shell uses tray_wall_t. When tray_wall_t > overlay_wall_t, the
 // tray extends outward while inner geometry stays fixed — this increases the
 // magnet pocket outer cheek without affecting the mating interface.
-overlay_wall_t = 4.8;   // wall thickness for overlay and inner geometry
-tray_wall_t    = 5.3;   // wall thickness for tray outer shell (extend outward)
+overlay_wall_t = 6.4;   // wall thickness for overlay and inner geometry
+                        // (bumped 4.8 → 6.4 so screw bore cheek ≥ 1.5 mm per
+                        //  JLC3DP structural-features minimum at this part size)
+tray_wall_t    = 6.9;   // wall thickness for tray outer shell (extend outward)
 tray_ext       = tray_wall_t - overlay_wall_t;  // 0.5mm outward extension
 wall_t         = overlay_wall_t;  // alias for backward compat (inner geometry)
 bottom_t  = 3.0;    // bottom plate thickness
@@ -573,17 +575,13 @@ function magnet_positions() = [
 // Hardware: 4× M1.4 hex nut DIN 934 (3.0 mm AF, 1.2 mm thick),
 //           4× M1.4 × 14 mm SHCS (2.6 mm head dia, 1.4 mm head height).
 //
-// Why 14 mm not 12 mm (changed 2026-04-21 pre-fab review):
-//   The overlay nut pocket is 2.5 mm deep (screw_nut_depth) but the nut
-//   is only 1.2 mm thick, leaving 1.3 mm of axial play. Install sequence:
-//   user flips the overlay underside-up, drops nut into the upward-facing
-//   pocket — gravity pulls the nut to the pocket FLOOR (furthest from the
-//   mouth). In assembled orientation the floor is the deepest point into
-//   the overlay slab. A 12 mm bolt placed the tip only 1.2 mm past the
-//   wall top, missing a floor-seated nut by ~0.6 mm. A 14 mm bolt plus
-//   the updated pocket_top formula (see below) reaches the pocket
-//   CEILING, guaranteeing full nut engagement regardless of where the
-//   nut cures.
+// Why 14 mm (changed 2026-04-22 pre-fab review):
+//   14 mm is the only standard M1.4 SHCS length that simultaneously
+//   satisfies the mid-bore 3× depth rule (bolt ≤ 12.98 mm upper bound)
+//   AND the back-pocket effective-depth 3× rule (bolt ≥ 12.86 mm lower
+//   bound). 12 mm pushes the back pocket to 3.28× (fail); 16 mm pushes
+//   the mid bore well past 3×. The feasible window is ≈0.12 mm wide
+//   and 14 mm lands inside it with margin on both sides.
 screw_nut_af       = 3.4;    // hex pocket across-flats (3.0 mm M1.4 nut +
                              // 0.4 mm headroom so worst-case JLC3DP
                              // ±0.3 mm hole shrink still clears the nut).
@@ -593,9 +591,15 @@ screw_nut_af       = 3.4;    // hex pocket across-flats (3.0 mm M1.4 nut +
                              // a pocket that simply will not accept the nut.
                              // Overlay cheek stays above the 0.5 mm assert
                              // floor (2.4 − 1.7 = 0.7 mm nominal).
-screw_nut_depth    = 2.5;    // hex pocket depth (nut 1.2 mm + headroom
-                             // for the bolt tip to exit above the nut
-                             // without bottoming in solid overlay)
+screw_nut_depth    = 1.4;    // hex pocket depth (1.2 mm nut + 0.2 mm
+                             // tolerance so worst-case −0.2 mm depth
+                             // shrink still accepts the nut). Nut sits
+                             // flush with the overlay underside — no
+                             // glue-cure depth management needed.
+                             // Reduced 2.5 → 1.4 in the 2026-04-22
+                             // pre-fab review; compensated by growing
+                             // screw_clear_lower_depth 4.0 → 5.2 so
+                             // the mid-bore 3× margin stays above 2.9×.
 screw_pocket_d     = 3.4;    // bottom segment — catches bolt head (2.6 mm
                              // M1.4 SHCS head + 0.8 mm clearance so JLC3DP
                              // ±0.3 mm hole shrink still leaves ≥0.2 mm/side
@@ -616,16 +620,23 @@ screw_mid_d        = 2.0;    // intermediate segment (reduced from 2.5:
 // to 6.0/(2.0−0.3) = 3.53×, exceeding the 3× depth rule. Splitting
 // into a short upper guide and a wider lower pass-through keeps both
 // sub-segments comfortably inside 3× under worst-case hole shrink.
+// Lower depth grown 4.0 → 5.2 in the 2026-04-22 flush-nut review:
+// the shallower nut pocket (2.5 → 1.4) reduced pocket_ceiling by
+// 1.1 mm, which extended the mid bore by the same amount. Growing
+// the lower segment absorbs that extension back into the wider Ø2.5
+// bore where it comfortably passes 3× (5.2/2.2 = 2.36×).
 screw_clear_upper_d     = 2.0;    // shaft alignment bore at wall top
 screw_clear_upper_depth = 2.0;    // short guide into overlay nut
 screw_clear_lower_d     = 2.5;    // wider pass-through (head already
                                    // caught on pocket→mid step below)
-screw_clear_lower_depth = 4.0;    // remaining depth (total 6.0 mm)
+screw_clear_lower_depth = 5.2;    // wider pass-through depth (total
+                                   // upper + lower = 7.2 mm). Grown
+                                   // 4.0 → 5.2 to absorb the mid-bore
+                                   // extension from the flush nut pocket.
 screw_bolt_length  = 14;     // M1.4 × 14 mm (same length all 4 positions).
-                             // Bumped 12 → 14 with updated pocket_top
-                             // formula so the bolt tip reaches the nut-
-                             // pocket ceiling and engages the nut even
-                             // when the nut cures at the pocket floor.
+                             // Only standard length satisfying both the
+                             // mid-bore and back-pocket 3× depth rules
+                             // (see "Why 14 mm" comment above).
 screw_inset        = 13;     // corner inset (same geometry as magnet_inset)
 screw_wall_offset  = wall_t / 2;  // centered in wall — adequate cheek on
                                   // both sides with M1.4
@@ -1110,13 +1121,13 @@ screw_nut_ac = screw_nut_af / cos(30);
 // Overlay wall cheek around the hex nut pocket. The hex is rotated 30° so
 // flats face the wall-depth direction (±Y). Wall cheek is therefore at the
 // AF dimension, not AC, maximizing material in the thin direction.
-assert(!ENABLE_SCREW_INSERTS || (screw_wall_offset - screw_nut_af / 2) >= 0.5,
-       "hex nut pocket outer cheek < 0.5 mm in overlay wall");
-assert(!ENABLE_SCREW_INSERTS || (wall_t - screw_wall_offset - screw_nut_af / 2) >= 0.5,
-       "hex nut pocket inner cheek < 0.5 mm in overlay wall");
+assert(!ENABLE_SCREW_INSERTS || (screw_wall_offset - screw_nut_af / 2) >= 1.5,
+       "hex nut pocket outer cheek < 1.5 mm in overlay wall (JLC3DP structural-features min)");
+assert(!ENABLE_SCREW_INSERTS || (wall_t - screw_wall_offset - screw_nut_af / 2) >= 1.5,
+       "hex nut pocket inner cheek < 1.5 mm in overlay wall (JLC3DP structural-features min)");
 // Tray wall cheek around the widest bore segment (pocket).
-assert(!ENABLE_SCREW_INSERTS || (screw_wall_offset - screw_pocket_d / 2) >= 0.5,
-       "screw pocket outer cheek < 0.5 mm in tray wall");
+assert(!ENABLE_SCREW_INSERTS || (screw_wall_offset - screw_pocket_d / 2) >= 1.5,
+       "screw pocket outer cheek < 1.5 mm in tray wall (JLC3DP structural-features min)");
 // Hex pocket must not breach the overlay top surface.
 assert(!ENABLE_SCREW_INSERTS || screw_nut_depth <= top_t - 1.0,
        "hex nut pocket depth leaves < 1.0 mm of overlay skin above");
@@ -1761,6 +1772,49 @@ screw_nut_pocket_ceiling = screw_nut_cyl_h
                          - (screw_nut_ac / 2) * tan(tilt_angle)
                          - 0.1;
 
+// ─── Screw bore depth assertions (deferred from Section 5b) ────────────────
+// These depend on screw_clear_*_cyl_h and screw_nut_pocket_ceiling above,
+// so they live here rather than in the main assertion block.
+
+// Mid bore segment: the independent Ø screw_mid_d section between the
+// wider pocket (below) and lower clearance (above). Computed at the
+// front screw position; the tilt contribution makes this ≤ 0.001 mm
+// smaller than the back position.
+_mid_check_py       = screw_wall_offset;
+_mid_pocket_top     = top_z(_mid_check_py) - top_t
+                    + screw_nut_pocket_ceiling - screw_bolt_length;
+_mid_z_top_hi       = top_z(_mid_check_py + screw_clear_upper_d / 2)
+                    - top_t + 0.1;
+_mid_upper_bot      = _mid_z_top_hi - screw_clear_upper_cyl_h;
+_mid_lower_bot      = _mid_upper_bot + 0.5 - screw_clear_lower_cyl_h;
+_mid_indep_depth    = _mid_lower_bot - _mid_pocket_top;
+assert(!ENABLE_SCREW_INSERTS ||
+       _mid_indep_depth <= (screw_mid_d - 0.3) * 3,
+       str("mid bore segment exceeds JLC3DP SLA 3× depth rule under ",
+           "worst-case hole shrink: ", _mid_indep_depth, " mm > ",
+           (screw_mid_d - 0.3) * 3, " mm (Ø", screw_mid_d,
+           " − 0.3 = Ø", screw_mid_d - 0.3, " × 3)"));
+
+// Back pocket effective solid-material depth: the chamfer removes the
+// tray bottom at back screw positions. Solid material at the screw's
+// Y coordinate begins at z = cb − screw_wall_offset − tray_ext (linear
+// interpolation of the 45° back-bottom chamfer hull). Without chamfers
+// the full pocket_top height is solid wall and exceeds 3×.
+_back_pocket_py     = outer_d - screw_wall_offset;
+_back_pocket_top    = top_z(_back_pocket_py) - top_t
+                    + screw_nut_pocket_ceiling - screw_bolt_length;
+_back_chamfer_z     = ENABLE_CHAMFERS
+                    ? max(0, chamfer_back_bottom - screw_wall_offset - tray_ext)
+                    : 0;
+_back_pocket_eff    = _back_pocket_top - _back_chamfer_z;
+assert(!ENABLE_SCREW_INSERTS ||
+       _back_pocket_eff <= (screw_pocket_d - 0.3) * 3,
+       str("back screw pocket effective depth ", _back_pocket_eff,
+           " mm exceeds JLC3DP SLA 3× depth rule under worst-case ",
+           "hole shrink: max ", (screw_pocket_d - 0.3) * 3,
+           " mm (Ø", screw_pocket_d, " − 0.3 = Ø",
+           screw_pocket_d - 0.3, " × 3)"));
+
 module tray_screw_holes() {
     for (p = screw_positions()) {
         // Upper clearance: short Ø2.0 shaft-alignment bore at wall top.
@@ -2330,9 +2384,9 @@ module deco_back_logo() {
     z_center = (chamfer_back_bottom + back_wall_top_z) / 2;
     x_center = outer_w / 2;
 
-    translate([x_center, outer_d + tray_ext, z_center])
+    translate([x_center, outer_d + tray_ext + 0.1, z_center])
         rotate([90, 0, 0])
-            linear_extrude(height = deco_cut_depth + 0.1)
+            linear_extrude(height = deco_cut_depth + 0.2)
                 mirror([1, 0])
                     deco_logo_2d();
 }
@@ -2441,11 +2495,14 @@ module deco_logo_2d() {
         square([inner_sq, inner_sq]);
 
     // Wordmark — imported from brand SVG for exact font matching.
-    // Baseline aligned with chip bottom edge.
+    // Baseline aligned with chip bottom edge. The offset(0) pass
+    // cleans degenerate edges from the SVG tessellation that otherwise
+    // trigger CGAL coplanar-face errors at high $fn.
     translate([text_x0, -chip / 2])
         scale([s, s])
             translate([0, -SVG_WM_BASE_Y])
-                import("assets/mkey-case-wordmark.svg");
+                offset(r = -0.01) offset(r = 0.01)
+                    import("assets/mkey-case-wordmark.svg");
 }
 
 module deco_top_logo() {
@@ -2557,9 +2614,11 @@ module tray_outer_shell_chamfered() {
                     tray_footprint_chamfered();
         }
         // Upper body: wedge with chamfered-corner footprint
+        // Start 0.01 mm below cb to overlap the hull and avoid a
+        // coplanar seam in the STL tessellation.
         intersection() {
-            translate([0, 0, cb])
-                wedge_box(w, d, front_h - top_t - cb, back_h - top_t - cb);
+            translate([0, 0, cb - 0.01])
+                wedge_box(w, d, front_h - top_t - cb + 0.01, back_h - top_t - cb + 0.01);
             linear_extrude(height = back_h)
                 tray_footprint_chamfered();
         }

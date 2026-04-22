@@ -17,6 +17,12 @@ This produces `mkey_tray.stl` and `mkey_overlay.stl` in the current directory,
 oriented for optimal printing (overlay flipped cosmetic-face-down, tray
 bottom-down with cross-braces).
 
+> [!NOTE]
+> **Run `./build_stl.sh` after every parameter or geometry change.** The
+> build verifies that all assertions pass and that CGAL produces a valid
+> mesh at production `$fn`. A clean OpenSCAD preview at low `$fn` does not
+> guarantee a clean export — some CGAL errors only surface at `$fn=128`.
+
 ## Build Options
 
 | Flag | Description |
@@ -290,17 +296,14 @@ underside through the wall column and into the overlay nut. The through-
 hole is a 4-segment stepped bore — no post-print drilling required:
 - **Pocket** (3.4 mm dia, from tray bottom upward): bolt head sits here
 - **Mid** (2.0 mm dia, intermediate): head catches on pocket→mid step
-- **Lower clearance** (2.5 mm dia, 4.0 mm): wider pass-through
+- **Lower clearance** (2.5 mm dia, 5.2 mm): wider pass-through
 - **Upper clearance** (2.0 mm dia, 2.0 mm from wall top): shaft alignment
 
-**Bolt length note:** M1.4 × 14 mm (not 12 mm). The overlay nut pocket is
-2.5 mm deep to give the bolt tip headroom to exit above the nut. The nut
-itself is only 1.2 mm thick, so it can cure anywhere inside that pocket.
-A 12 mm bolt places the tip only 1.2 mm past the wall top — enough for a
-nut at the pocket mouth, but not for a nut that gravity pulled to the
-pocket floor during CA cure (overlay is flipped underside-up during nut
-install). 14 mm guarantees full thread engagement no matter where the
-nut settles.
+**Bolt length note:** M1.4 × 14 mm. The overlay nut pocket is 1.4 mm
+deep — the 1.2 mm nut sits flush with the overlay underside (0.2 mm
+tolerance headroom). 14 mm is the only standard M1.4 SHCS length that
+simultaneously satisfies the mid-bore and back-pocket 3× depth rules;
+12 mm fails the back pocket and 16 mm fails the mid bore.
 
 Each segment stays within JLC3DP SLA depth limits (max 3× diameter) even
 under worst-case ±0.3 mm hole-tolerance shrink.
@@ -310,9 +313,11 @@ pocket starts from the chamfer face (deboss).
 #### Nut installation
 
 1. **Dry-fit first.** Drop each nut into its hex pocket on the overlay
-   underside and confirm it sits flush or slightly below the surface.
-   The hex shape should prevent rotation by hand. If a nut is tight,
-   ream the pocket lightly with a needle file — do not force it.
+   underside and confirm it sits flush with the surface. The pocket is
+   only 0.2 mm deeper than the nut, so the nut should sit essentially
+   flush by geometry. The hex shape should prevent rotation by hand.
+   If a nut is tight, ream the pocket lightly with a needle file — do
+   not force it.
 2. **Glue with gel-type CA.** Apply a thin ring of gel CA around the
    pocket wall, press the nut in, and hold for 10 seconds. Wipe any
    squeeze-out immediately — excess CA on the overlay seating face will
