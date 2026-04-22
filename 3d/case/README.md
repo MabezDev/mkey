@@ -250,7 +250,13 @@ one per tray pocket and one per matching overlay pocket. Each pair must
    the attracting pole downward toward its tray mate. Test by holding
    the magnet with its eventual-up face touching the reference's
    marked face: it should **attract**.
-4. **Retain with thin CA glue (mandatory, not optional).** The 1.25 mm
+4. **Glue each magnet FLUSH with the pocket mouth (critical).** The
+   pockets are 2.0 mm deep for 1.0 mm magnets — if a magnet sinks to
+   the pocket floor, the 1 mm recess on each side creates a 2 mm air
+   gap that reduces holding force by ~90%. Place a flat reference plate
+   (glass, steel straightedge) over the pocket mouth during CA cure so
+   the magnet cures at the surface, not the bottom.
+5. **Retain with thin CA glue (mandatory, not optional).** The 1.25 mm
    nominal cheek between pocket and outer wall (1.05 mm worst-case after
    SLA shrink) is too thin to rely on press-fit alone — any walk-out
    during thermal cycling or drop shock can chip the cheek. Use gel-type
