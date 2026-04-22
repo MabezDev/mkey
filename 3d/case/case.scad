@@ -2795,13 +2795,13 @@ module print_support_ribs() {
 module print_support_rib(cx) {
     // The rib spans the full cavity depth (front inner wall to back inner
     // wall), growing from the floor up to just below the wall top.
-    y0 = wall_t;                    // front inner wall face
-    y1 = outer_d - wall_t;         // back inner wall face
+    y0 = wall_t - 0.1;              // front inner wall face (0.1 mm overlap)
+    y1 = outer_d - wall_t + 0.1;   // back inner wall face (0.1 mm overlap)
     span = y1 - y0;
 
     // Rib heights at front and back (follows the tilt, with rib_top_gap
     // clearance below the wall top to avoid the overlay mating surface).
-    z_floor   = bottom_t;
+    z_floor   = bottom_t - 0.1;     // 0.1 mm overlap into tray floor
     z_top_f   = top_z(y0) - top_t - rib_top_gap;   // wall top at front − gap
     z_top_b   = top_z(y1) - top_t - rib_top_gap;   // wall top at back − gap
     h_front   = z_top_f - z_floor;
