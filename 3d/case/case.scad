@@ -308,10 +308,10 @@ shelf_corner_r = 1.2;   // radius of the curved inner corners of the window.
 // The tray outer shell uses tray_wall_t. When tray_wall_t > overlay_wall_t, the
 // tray extends outward while inner geometry stays fixed — this increases the
 // magnet pocket outer cheek without affecting the mating interface.
-overlay_wall_t = 6.4;   // wall thickness for overlay and inner geometry
-                        // (bumped 4.8 → 6.4 so screw bore cheek ≥ 1.5 mm per
-                        //  JLC3DP structural-features minimum at this part size)
-tray_wall_t    = 6.9;   // wall thickness for tray outer shell (extend outward)
+overlay_wall_t = 7.4;   // wall thickness for overlay and inner geometry
+                        // (bumped 6.4 → 7.4 so screw bore cheek ≥ 2.0 mm —
+                        //  1.5 mm was the JLC3DP floor and left no margin)
+tray_wall_t    = 7.9;   // wall thickness for tray outer shell (extend outward)
 tray_ext       = tray_wall_t - overlay_wall_t;  // 0.5mm outward extension
 wall_t         = overlay_wall_t;  // alias for backward compat (inner geometry)
 bottom_t  = 3.0;    // bottom plate thickness
