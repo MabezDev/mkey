@@ -71,8 +71,8 @@ EXPLODE         = 2;       // set >0 to separate overlay from tray (mm)
 // When exporting STLs for manufacturing, set PRINT_MODE=true and render one
 // piece at a time (SHOW_TRAY xor SHOW_OVERLAY).
 PRINT_MODE      = false;   // flip to true (or pass -D) for STL export
-PRINT_SUPPORTS  = false;   // add internal anti-warp rib walls to the tray cavity
-                           // (grow with the walls during SLA build, resist bowing)
+PRINT_SUPPORTS  = false;   // add anti-warp supports: tray cavity ribs and
+                           // overlay tie bars across the key opening void
 
 // ─── Feature toggles (per-fabrication-method overrides) ─────────────────────
 // DESIGN NOTE — why these are toggles:
@@ -2743,8 +2743,10 @@ module case_overlay_print() {
     rotate([0, 180, 0])
     translate([0, 0, -top_t])
     rotate([-tilt_angle, 0, 0])
-    translate([0, 0, -(front_h - top_t)])
+    translate([0, 0, -(front_h - top_t)]) {
         case_overlay_finished();
+        if (PRINT_SUPPORTS) overlay_support_bars();
+    }
 }
 
 // ─── Print-oriented tray ────────────────────────────────────────────────────
@@ -2980,6 +2982,94 @@ module print_support_rib(cx) {
                        z_floor - 0.01])
                 cube([rib_t + 0.02, _cb_d + 0.01, _cb_h + 0.01]);
         }
+    }
+}
+
+// ─── Overlay anti-warp tie bars ─────────────────────────────────────────────
+// Flat rectangular bars on the underside of the overlay spanning the main key
+// opening void in the Y direction. They tie the front and back frame rails
+// together so cure shrinkage can't bow them apart.
+//
+// Cross-section (looking along Y, bar at centre of void):
+//
+//   overlay top (cosmetic face, on build plate during print)
+//   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//   ┊  frame  ┊          void           ┊  frame  ┊
+//   ┊         ┊     ┌──────────┐        ┊         ┊
+//   ┊         ┊     │   bar    │        ┊         ┊
+//   ━━━━━━━━━━━━━━━━┷━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━
+//   overlay underside (facing up during print)
+//
+// Each bar is overlay_bar_w wide (X) × overlay_bar_h thick (Z) and sits
+// flush against the underside of the slab. They embed overlay_bar_embed mm
+// into the solid frame at each end for a reliable print bond. To remove,
+// flex downward — the thin cross-section snaps at the frame edge.
+//
+// Only the MAIN key field void gets bars (rows 0-4 + ISO Enter). The arrow
+// and display voids are small enough to resist warp on their own.
+
+overlay_bar_w     = 4.0;   // bar width (X direction, mm)
+overlay_bar_h     = 1.5;   // bar height / thickness (Z direction, mm)
+overlay_bar_neck    = 1.0;   // neck height at frame junction (Z, mm). Matches
+                             // tray rib_neck: 1.0 mm nominal keeps worst-case
+                             // at 0.8 mm under ±0.2 mm JLC3DP tolerance.
+overlay_bar_neck_l  = 2.0;   // taper zone length inside the void (mm).
+                             // Matches tray rib_neck_len.
+
+// Main key field bounds in case coords (rows 0-4 + ISO Enter)
+_overlay_void_y0 = p2c_y(min([for (r = [for (i = [0:5]) key_rects[i]]) r[1]]) - key_cap_clearance);
+_overlay_void_y1 = p2c_y(max([for (r = [for (i = [0:5]) key_rects[i]]) r[3]]) + key_cap_clearance);
+_overlay_void_x0 = p2c_x(min([for (r = [for (i = [0:5]) key_rects[i]]) r[0]]) - key_cap_clearance);
+_overlay_void_x1 = p2c_x(max([for (r = [for (i = [0:5]) key_rects[i]]) r[2]]) + key_cap_clearance);
+
+// 5 bars evenly spaced across the void width (~48 mm pitch)
+_overlay_bar_count = 5;
+_overlay_bar_pitch = (_overlay_void_x1 - _overlay_void_x0) / (_overlay_bar_count + 1);
+overlay_bar_cx = [for (i = [1 : _overlay_bar_count])
+                      _overlay_void_x0 + i * _overlay_bar_pitch];
+
+if (PRINT_SUPPORTS) {
+    assert(overlay_bar_h >= 0.8,
+           str("Overlay bar height ", overlay_bar_h,
+               " mm below JLC3DP 0.8 mm feature minimum"));
+    assert(overlay_bar_w >= 0.8,
+           str("Overlay bar width ", overlay_bar_w,
+               " mm below JLC3DP 0.8 mm feature minimum"));
+}
+
+module overlay_support_bars() {
+    for (cx = overlay_bar_cx)
+        overlay_support_bar(cx);
+}
+
+module overlay_support_bar(cx) {
+    // 0.1 mm overlap into the frame for a clean mesh union
+    _ol = 0.1;
+    y0  = _overlay_void_y0 - _ol;               // front perimeter (tiny overlap)
+    y1  = _overlay_void_y1 + _ol;               // back perimeter  (tiny overlap)
+    ny0 = _overlay_void_y0 + overlay_bar_neck_l; // end of front taper
+    ny1 = _overlay_void_y1 - overlay_bar_neck_l; // start of back taper
+
+    // Front neck: thin at perimeter, tapers to full height over neck_l
+    hull() {
+        translate([cx - overlay_bar_w/2, y0, top_z(y0) - top_t])
+            cube([overlay_bar_w, 0.01, overlay_bar_neck]);
+        translate([cx - overlay_bar_w/2, ny0, top_z(ny0) - top_t])
+            cube([overlay_bar_w, 0.01, overlay_bar_h]);
+    }
+    // Main span at full height
+    hull() {
+        translate([cx - overlay_bar_w/2, ny0, top_z(ny0) - top_t])
+            cube([overlay_bar_w, 0.01, overlay_bar_h]);
+        translate([cx - overlay_bar_w/2, ny1, top_z(ny1) - top_t])
+            cube([overlay_bar_w, 0.01, overlay_bar_h]);
+    }
+    // Back neck: full height tapers to thin at perimeter
+    hull() {
+        translate([cx - overlay_bar_w/2, ny1, top_z(ny1) - top_t])
+            cube([overlay_bar_w, 0.01, overlay_bar_h]);
+        translate([cx - overlay_bar_w/2, y1 - 0.01, top_z(y1) - top_t])
+            cube([overlay_bar_w, 0.01, overlay_bar_neck]);
     }
 }
 

@@ -16,14 +16,14 @@
 # Options:
 #   --piece tray|overlay|both       Which piece(s) to export (default: both)
 #   --retention magnets|screws|both Which retention variant(s) (default: both)
-#   --supports                      Add breakaway cross-braces to the tray
+#   --supports                      Add breakaway supports (tray ribs + overlay bars)
 #   --fn N                          Override circle resolution (default: 128)
 #   --outdir DIR                    Output directory (default: current directory)
 #   -h, --help                      Show this help message
 #
 # Examples:
 #   ./build_stl.sh                            # All 4 STLs, no supports
-#   ./build_stl.sh --supports                 # All 4, tray with anti-warp ribs
+#   ./build_stl.sh --supports                 # All 4, with anti-warp supports
 #   ./build_stl.sh --retention magnets        # Magnet pair only
 #   ./build_stl.sh --piece tray --retention screws  # Just the screw tray
 
