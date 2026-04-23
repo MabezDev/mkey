@@ -14,8 +14,9 @@ cd 3d/case
 ```
 
 This produces `mkey_tray.stl` and `mkey_overlay.stl` in the current directory,
-oriented for optimal printing (overlay flipped cosmetic-face-down, tray
-bottom-down with cross-braces).
+oriented for optimal printing (overlay flipped cosmetic-face-down with
+anti-warp ribs standing up from the now-upward underside, tray bottom-down
+with anti-warp ribs inside the cavity).
 
 > [!NOTE]
 > **Run `./build_stl.sh` after every parameter or geometry change.** The
@@ -28,7 +29,7 @@ bottom-down with cross-braces).
 | Flag | Description |
 |------|-------------|
 | `--piece tray\|overlay\|both` | Which piece(s) to export (default: `both`) |
-| `--supports` | Add internal anti-warp rib walls to the tray cavity |
+| `--supports` | Add internal anti-warp rib walls to the tray cavity AND anti-warp ribs to the overlay underside |
 | `--fn N` | Circle resolution override (default: `128`; file preview default is `48`) |
 | `--outdir DIR` | Output directory (default: `.`) |
 
@@ -61,7 +62,7 @@ The main toggles in `case.scad` control which features are included:
 | `SHOW_TRAY` | `true` | Render the tray (bottom + walls) |
 | `SHOW_OVERLAY` | `true` | Render the overlay (top surface) |
 | `PRINT_MODE` | `false` | Re-orient pieces for 3D print export |
-| `PRINT_SUPPORTS` | `false` | Add internal anti-warp rib walls to tray (print mode only) |
+| `PRINT_SUPPORTS` | `false` | Add internal anti-warp rib walls to the tray cavity AND to the overlay underside (print mode only) |
 | `ENABLE_OVERLAY_RABBET` | `true` | Locating tongue/recess for X/Y registration |
 | `ENABLE_MAGNET_POCKETS` | `true` | Blind magnet pockets for overlay hold-down |
 | `ENABLE_SCREW_INSERTS` | `false` | M1.4 bolt + glued hex nut overlay retention (mutually exclusive with magnets) |
@@ -124,6 +125,14 @@ Missing any of these will compromise fit or finish.
 >   forces can fracture it during support removal. An island of bare
 >   build-plate under the window (with supports only on the surrounding
 >   slab) is preferred.
+> - Internal anti-warp ribs are already modelled on the up-facing
+>   underside of the overlay — two long ribs along the front and back
+>   bezels plus one shorter rib between the main key field and the
+>   display pocket. **Do not add factory supports on top of, between,
+>   or fused to these ribs.** We snap them off during post-processing,
+>   and factory supports welded to rib sides prevent clean removal.
+>   Factory supports on the surrounding flat underside slab (away from
+>   the ribs) are acceptable.
 >
 > Please confirm orientations AND the X-axis scale compensation in the
 > pre-build screenshots before starting the build.
@@ -188,11 +197,44 @@ front wall, back wall, and floor. Expected removal sequence:
 **Never saw down from above.** The 0.5 mm gap between rib top and wall top
 is too tight for a flush-cut blade and risks nicking the overlay seat.
 
+### Anti-warp rib breakaway (overlay)
+
+The overlay ships with 3 ribs on its underside (the face opposite the
+cosmetic face): a long rib along the front bezel, a long rib along the
+back bezel, and a shorter rib between the main key field and the
+display pocket. Each rib is attached to the slab by a single seam
+thinned to `rib_neck = 1.0 mm` over the first 2 mm of height, perforated
+along its length into ~19 mm segments.
+
+Removal sequence:
+
+1. Place the overlay on a soft pad, underside facing up. The ribs keep
+   it from resting on the cosmetic face.
+2. Grip the first rib segment with a precision flush-cutter (jaw
+   thickness ≤1.5 mm — e.g. Xuron 2175, the same tool used on the tray
+   ribs) at one perforation gap.
+3. Twist gently along the neck axis. The 1.0 × 2 mm neck shears cleanly
+   against the slab; the perforations keep crack propagation inside a
+   single ~19 mm segment.
+4. Repeat for every segment: 15 on each long X-rib, 4 on the centre
+   Y-rib.
+5. Sand the witness stubs flush with a sanding stick held **parallel
+   to the slab** (not plunging into it). The overlay underside mates
+   to the tray wall top via the rabbet; a flush finish there is
+   necessary but a rough surface is fine — it's hidden in final
+   assembly.
+
+**Do NOT flip the overlay and cut toward the cosmetic face.** Keep the
+cosmetic face down-against-the-pad throughout rib removal so no tool
+can reach it.
+
 ### Ship with ribs attached
 
 The tray's long-axis stiffness without ribs is marginal for shipping
 impact (the 363 mm × 23 mm cavity U-section racks easily under drop
-loads). Snap the ribs out only at assembly time, not before transport.
+loads). The overlay's 363 × 101 × 3.5 mm slab is similarly warp- and
+flex-sensitive in transit. Snap the ribs out on both pieces only at
+assembly time, not before transport.
 
 ## Fabrication Methods
 

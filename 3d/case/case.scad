@@ -72,7 +72,9 @@ EXPLODE         = 2;       // set >0 to separate overlay from tray (mm)
 // piece at a time (SHOW_TRAY xor SHOW_OVERLAY).
 PRINT_MODE      = false;   // flip to true (or pass -D) for STL export
 PRINT_SUPPORTS  = false;   // add internal anti-warp rib walls to the tray cavity
-                           // (grow with the walls during SLA build, resist bowing)
+                           // AND anti-warp ribs on the overlay underside
+                           // (both grow with their parent slab during the SLA
+                           // build, resist cure-shrinkage bow)
 
 // ─── Feature toggles (per-fabrication-method overrides) ─────────────────────
 // DESIGN NOTE — why these are toggles:
@@ -2744,7 +2746,10 @@ module case_overlay_print() {
     translate([0, 0, -top_t])
     rotate([-tilt_angle, 0, 0])
     translate([0, 0, -(front_h - top_t)])
+    union() {
         case_overlay_finished();
+        if (PRINT_SUPPORTS) overlay_print_support_ribs();
+    }
 }
 
 // ─── Print-oriented tray ────────────────────────────────────────────────────
@@ -2845,6 +2850,161 @@ wall_perf_len    = 2.0;  // length of each wall gap (mm, Z direction)
 // that existed between ribs 2 and 3 in the old 5-rib layout. Current
 // largest span is ~67 mm (left wall to rib 1).
 rib_cx = [71.5, 120.2, 161.8, 207.8, 252.0, 294.5];
+
+// ─── Overlay anti-warp ribs (PRINT_SUPPORTS, overlay side) ──────────────────
+// The overlay is a ~363 × 101 × 3.5 mm flat slab — the textbook SLA warp
+// victim. Cosmetic face prints against the build plate; the underside
+// (overlay_magnet_pockets / overlay_recess_3d / key_opening cut-outs) faces
+// up. To resist cure-shrinkage bow we add 3 sacrificial ribs STANDING UP
+// from that underside (in design frame they hang BELOW the slab; the
+// PRINT_MODE flip inverts them).
+//
+// Warp mode analysis: the slab's 363 mm X-axis dominates (L³ bending
+// stiffness), so we brace it with 2 long X-ribs — one along the front
+// bezel strip, one along the back. A single Y-rib between the main key
+// field and the display pocket adds mode-2 bracing.
+//
+// Plan-view layout (cosmetic face removed for clarity):
+//
+//     ┌───────────────────────────────────────────────────────┐
+//     │  ══════════════════════════════════════════════════   │  ← front X-rib (Y=8.50)
+//     │                                                       │
+//     │   [row 0 keys]    [row 1]    [row 2]     │           │
+//     │                                           │ display  │
+//     │   (more keys...)                          │  pocket  │  ← Y-rib (X=304.65)
+//     │                                           │          │
+//     │                                           │          │
+//     │  ══════════════════════════════════════════════════   │  ← back X-rib (Y=107.525)
+//     └───────────────────────────────────────────────────────┘
+//
+// Why these positions: the front bezel clear strip is [wall_t, ~10.07]
+// (recess inner face to first key-rect edge expanded by key_cap_clearance);
+// Y=8.50 lands 0.35 mm off the recess inner edge and 0.82 mm off the
+// key-rect edge. Back bezel is symmetric. The centre Y-rib lands in the
+// uncluttered 16 mm corridor between the main-field right edge and the
+// display pocket left edge (asserted ≥ 4 mm at line 1358).
+//
+// Breakaway: each rib is joined to the slab along ONE seam (top face in
+// design frame = bottom face in print). The seam is thinned from rib_t
+// to rib_neck for the first rib_neck_len of height and perforated along
+// its length so snap-off only has to shear one ~19 mm segment at a time.
+// Unlike the tray ribs there are no wall-junction necks to model.
+//
+// Reuses tray rib constants (rib_t, rib_neck, rib_neck_len) — the same
+// 1.5 mm / 1.0 mm / 2.0 mm proven sizing from the 2026-04-16 tray review.
+rib_h_overlay             = 6.0;   // rib height above the slab underside.
+                                   // 6 mm gives ~20× bare-slab bending
+                                   // stiffness and keeps the free-standing
+                                   // aspect ratio (L/h per segment ≈ 3:1)
+                                   // comfortably within SLA build limits.
+overlay_seam_perf_len     = 4.0;   // perforation gap length along the seam
+                                   // (matches tray floor_perf_len so the
+                                   // same Xuron 2175 flush-cutter fits).
+overlay_seam_perf_count_x = 14;    // gaps along each long X-rib seam.
+                                   // 14 gaps → 15 segments of ~19.3 mm
+                                   // each, matching the tray's segment
+                                   // scale.
+overlay_seam_perf_count_y = 3;     // gaps along the centre Y-rib seam.
+                                   // 3 gaps → 4 segments of ~19.3 mm.
+
+// Rib coordinates (case frame). Hard-coded — derivation above.
+overlay_rib_x_x_start = wall_t + rabbet_tol + 0.5;           // 7.70
+overlay_rib_x_x_end   = outer_w - wall_t - rabbet_tol - 0.5; // 360.74
+overlay_rib_x_y_front = 8.50;
+overlay_rib_x_y_back  = outer_d - 8.50;                      // 107.525
+overlay_rib_y_x       = 304.65;
+overlay_rib_y_y_start = 13.40;
+overlay_rib_y_y_end   = 102.225;
+
+// ─── Overlay-rib invariants ─────────────────────────────────────────────────
+// All checks only evaluated when PRINT_SUPPORTS is enabled; otherwise the
+// ribs don't exist and the geometry they would collide with is irrelevant.
+if (PRINT_SUPPORTS) {
+    // Front/back X-ribs must clear every wall-side magnet pocket by ≥FAB_SLOP.
+    // Front-wall magnets sit at p[1] ≈ wall_t/2; back-wall at outer_d − wall_t/2.
+    if (ENABLE_MAGNET_POCKETS) {
+        assert(len([for (p = magnet_positions())
+                    if (p[1] <= outer_d / 2 &&
+                        overlay_rib_x_y_front - rib_t/2 - (p[1] + magnet_d/2)
+                            < FAB_SLOP) 1]) == 0,
+               "overlay front anti-warp rib encroaches on a front-wall magnet pocket");
+        assert(len([for (p = magnet_positions())
+                    if (p[1] >  outer_d / 2 &&
+                        (p[1] - magnet_d/2) - (overlay_rib_x_y_back + rib_t/2)
+                            < FAB_SLOP) 1]) == 0,
+               "overlay back anti-warp rib encroaches on a back-wall magnet pocket");
+    }
+    // Same check for screw nut pockets (hex, checked via across-corners).
+    if (ENABLE_SCREW_INSERTS) {
+        _screw_nut_ac_r = screw_nut_ac / (2 * cos(30));
+        assert(len([for (p = screw_positions())
+                    if (p[1] <= outer_d / 2 &&
+                        overlay_rib_x_y_front - rib_t/2 - (p[1] + _screw_nut_ac_r)
+                            < FAB_SLOP) 1]) == 0,
+               "overlay front anti-warp rib encroaches on a front-wall screw nut pocket");
+        assert(len([for (p = screw_positions())
+                    if (p[1] >  outer_d / 2 &&
+                        (p[1] - _screw_nut_ac_r) - (overlay_rib_x_y_back + rib_t/2)
+                            < FAB_SLOP) 1]) == 0,
+               "overlay back anti-warp rib encroaches on a back-wall screw nut pocket");
+    }
+    // X-ribs must not bleed into the front/back row of key openings (the
+    // tight side — acceptable floor is FAB_SLOP because the rib is
+    // sacrificial and the cheek is non-load-bearing).
+    _min_key_y_case = p2c_y(min([for (r = key_rects) r[1]]) - key_cap_clearance);
+    _max_key_y_case = p2c_y(max([for (r = key_rects) r[3]]) + key_cap_clearance);
+    assert(_min_key_y_case - (overlay_rib_x_y_front + rib_t/2) >= FAB_SLOP,
+           "overlay front anti-warp rib too close to the front key-opening edge");
+    assert((overlay_rib_x_y_back - rib_t/2) - _max_key_y_case >= FAB_SLOP,
+           "overlay back anti-warp rib too close to the back key-opening edge");
+    // X-ribs must not sit inside the rabbet recess footprint (touching at
+    // nominal is OK — the rib is authored clear of the recess plan-view
+    // ring, and a 0.2 mm SLA grow-in could nominally touch without overlap).
+    if (ENABLE_OVERLAY_RABBET) {
+        assert(overlay_rib_x_y_front - rib_t/2 >= wall_t,
+               "overlay front anti-warp rib overlaps the rabbet recess inner edge");
+        assert((outer_d - wall_t) - (overlay_rib_x_y_back + rib_t/2) >= 0,
+               "overlay back anti-warp rib overlaps the rabbet recess inner edge");
+    }
+    // Centre Y-rib clears the main-field right edge AND the display pocket
+    // left edge by ≥FAB_SLOP.
+    _main_right_case  = p2c_x(max([for (r = key_rects)
+                                   if (r[0] < 290) r[2]]) + key_cap_clearance);
+    _disp_left_case   = p2c_x(disp_cx) - disp_pocket_w/2;
+    assert((overlay_rib_y_x - rib_t/2) - _main_right_case >= FAB_SLOP,
+           "overlay centre anti-warp rib too close to the main-field right edge");
+    assert(_disp_left_case - (overlay_rib_y_x + rib_t/2) >= FAB_SLOP,
+           "overlay centre anti-warp rib too close to the display pocket left edge");
+    // Centre Y-rib must terminate before reaching either X-rib neck, so
+    // each rib remains an isolated I-beam with a single breakaway seam.
+    assert(overlay_rib_y_y_start >= overlay_rib_x_y_front + rib_t/2 + 1.0,
+           "overlay centre rib merges into the front X-rib — shorten its Y range");
+    assert(overlay_rib_y_y_end <= overlay_rib_x_y_back - rib_t/2 - 1.0,
+           "overlay centre rib merges into the back X-rib — shorten its Y range");
+    // Breakaway neck worst-case ≥ 0.8 mm after SLA ±FAB_SLOP.
+    assert(rib_neck - FAB_SLOP >= 0.8,
+           "overlay rib neck below 0.8 mm after worst-case SLA shrink");
+    // Every segment between perforations is longer than the neck transition.
+    _seg_x = (overlay_rib_x_x_end - overlay_rib_x_x_start
+              - overlay_seam_perf_count_x * overlay_seam_perf_len)
+           / (overlay_seam_perf_count_x + 1);
+    _seg_y = (overlay_rib_y_y_end - overlay_rib_y_y_start
+              - overlay_seam_perf_count_y * overlay_seam_perf_len)
+           / (overlay_seam_perf_count_y + 1);
+    assert(_seg_x >= rib_neck_len + 0.5,
+           "overlay X-rib perforation segment shorter than rib_neck_len + 0.5");
+    assert(_seg_y >= rib_neck_len + 0.5,
+           "overlay Y-rib perforation segment shorter than rib_neck_len + 0.5");
+    // Every rib lies inside the overlay footprint.
+    assert(overlay_rib_x_x_start >= 0 && overlay_rib_x_x_end <= outer_w,
+           "overlay X-rib X-extent walks off the slab");
+    assert(overlay_rib_x_y_front >= 0 && overlay_rib_x_y_back <= outer_d,
+           "overlay X-rib Y-position walks off the slab");
+    assert(overlay_rib_y_y_start >= 0 && overlay_rib_y_y_end <= outer_d,
+           "overlay Y-rib Y-extent walks off the slab");
+    assert(overlay_rib_y_x >= 0 && overlay_rib_y_x <= outer_w,
+           "overlay Y-rib X-position walks off the slab");
+}
 
 // ─── Rib-in-chamfer guards ──────────────────────────────────────────────────
 // The back-bottom chamfer pulls the outer shell forward below z = cb.
@@ -2981,6 +3141,111 @@ module print_support_rib(cx) {
                 cube([rib_t + 0.02, _cb_d + 0.01, _cb_h + 0.01]);
         }
     }
+}
+
+// ─── Overlay anti-warp rib modules ─────────────────────────────────────────
+// Ribs hang BELOW the overlay underside in design frame. After the
+// case_overlay_print() transform stack flips the overlay cosmetic-face-
+// down, they stand UPWARD from the now-up-facing underside. Each rib is
+// a wedge_box tracking the 6° tilt so its top face lies flush with the
+// tilted slab underside on both Y edges.
+//
+// Seam thinning (rib_t → rib_neck) is subtracted from the TOP rib_neck_len
+// of rib height (design frame = attachment seam) and perforated at regular
+// spacing along the seam direction.
+
+module overlay_print_support_rib_x(y_rib, x_start, x_end) {
+    span_x  = x_end - x_start;
+    // Anchor z_bot to the front-side (lower Y, lower slab) so h_front
+    // is the nominal rib_h_overlay and h_back picks up the tilt growth
+    // across the rib's Y thickness.
+    z_bot   = top_z(y_rib - rib_t/2) - top_t - rib_h_overlay;
+    z_top_f = top_z(y_rib - rib_t/2) - top_t;
+    z_top_b = top_z(y_rib + rib_t/2) - top_t;
+    h_back  = z_top_b - z_bot;                              // h_front = rib_h_overlay
+    seg_x   = (span_x - overlay_seam_perf_count_x * overlay_seam_perf_len)
+              / (overlay_seam_perf_count_x + 1);
+
+    difference() {
+        translate([x_start, y_rib - rib_t/2, z_bot])
+            wedge_box(span_x, rib_t, rib_h_overlay, h_back);
+
+        // Seam neck: thin rib's Y thickness from rib_t → rib_neck over
+        // the TOP rib_neck_len of Z (slab-side in design frame).
+        for (side = [0, 1]) {
+            neck_cut_w = (rib_t - rib_neck) / 2;
+            y_cut      = y_rib - rib_t/2 + side * (rib_t - neck_cut_w)
+                       - 0.01 * (1 - side);
+            z_cut      = (side == 0 ? z_top_f : z_top_b) - rib_neck_len;
+            translate([x_start - 0.01, y_cut, z_cut])
+                cube([span_x + 0.02, neck_cut_w + 0.01,
+                      rib_neck_len + 0.02]);
+        }
+
+        // Seam perforations: full-Y through-gaps breaking the neck into
+        // discrete segments.
+        for (i = [1 : overlay_seam_perf_count_x])
+            translate([x_start + i * seg_x
+                       + (i - 1) * overlay_seam_perf_len,
+                       y_rib - rib_t/2 - 0.01,
+                       min(z_top_f, z_top_b) - rib_neck_len - 0.01])
+                cube([overlay_seam_perf_len,
+                      rib_t + 0.02,
+                      rib_neck_len + 0.02
+                        + abs(z_top_b - z_top_f)]);
+    }
+}
+
+module overlay_print_support_rib_y(x_rib, y_start, y_end) {
+    span_y  = y_end - y_start;
+    z_bot   = top_z(y_start) - top_t - rib_h_overlay;
+    z_top_s = top_z(y_start) - top_t;
+    z_top_e = top_z(y_end)   - top_t;
+    h_back  = z_top_e - z_bot;
+    seg_y   = (span_y - overlay_seam_perf_count_y * overlay_seam_perf_len)
+              / (overlay_seam_perf_count_y + 1);
+
+    difference() {
+        translate([x_rib - rib_t/2, y_start, z_bot])
+            wedge_box(rib_t, span_y, rib_h_overlay, h_back);
+
+        // Seam neck in X direction, following the tilted top edge.
+        for (side = [0, 1]) {
+            neck_cut_w = (rib_t - rib_neck) / 2;
+            x_cut      = x_rib - rib_t/2 + side * (rib_t - neck_cut_w)
+                       - 0.01 * (1 - side);
+            // Top of rib at local Y=0 is z_top_s, at local Y=span_y is
+            // z_top_e. Subtract from max(z_top_s,z_top_e) - rib_neck_len
+            // downward by rib_neck_len + tilt growth.
+            z_cut_bot  = min(z_top_s, z_top_e) - rib_neck_len;
+            z_cut_h    = rib_neck_len + abs(z_top_e - z_top_s) + 0.02;
+            translate([x_cut, y_start - 0.01, z_cut_bot - 0.01])
+                cube([neck_cut_w + 0.01, span_y + 0.02, z_cut_h]);
+        }
+
+        // Seam perforations along Y.
+        for (i = [1 : overlay_seam_perf_count_y])
+            translate([x_rib - rib_t/2 - 0.01,
+                       y_start + i * seg_y
+                       + (i - 1) * overlay_seam_perf_len,
+                       min(z_top_s, z_top_e) - rib_neck_len - 0.01])
+                cube([rib_t + 0.02,
+                      overlay_seam_perf_len,
+                      rib_neck_len + 0.02
+                        + abs(z_top_e - z_top_s)]);
+    }
+}
+
+module overlay_print_support_ribs() {
+    overlay_print_support_rib_x(overlay_rib_x_y_front,
+                                overlay_rib_x_x_start,
+                                overlay_rib_x_x_end);
+    overlay_print_support_rib_x(overlay_rib_x_y_back,
+                                overlay_rib_x_x_start,
+                                overlay_rib_x_x_end);
+    overlay_print_support_rib_y(overlay_rib_y_x,
+                                overlay_rib_y_y_start,
+                                overlay_rib_y_y_end);
 }
 
 // =============================================================================
