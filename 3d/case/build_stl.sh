@@ -66,9 +66,28 @@ case "$RETENTION" in
     *) echo "Error: --retention must be magnets, screws, or both" >&2; exit 1 ;;
 esac
 
-OPENSCAD="${OPENSCAD:-openscad}"
-if ! command -v "$OPENSCAD" &>/dev/null; then
-    echo "Error: '$OPENSCAD' not found in PATH." >&2
+find_openscad() {
+    if [[ -n "${OPENSCAD:-}" ]]; then
+        command -v "$OPENSCAD" &>/dev/null && { echo "$OPENSCAD"; return 0; }
+        return 1
+    fi
+    command -v openscad &>/dev/null && { echo "openscad"; return 0; }
+    local candidates=(
+        /Applications/OpenSCAD.app/Contents/MacOS/OpenSCAD
+        /Applications/OpenSCAD-Nightly.app/Contents/MacOS/OpenSCAD
+        /snap/bin/openscad
+        /usr/local/bin/openscad
+        /usr/bin/openscad
+    )
+    local c
+    for c in "${candidates[@]}"; do
+        [[ -x "$c" ]] && { echo "$c"; return 0; }
+    done
+    return 1
+}
+
+if ! OPENSCAD=$(find_openscad); then
+    echo "Error: OpenSCAD not found in PATH or in any known install location." >&2
     echo "Install OpenSCAD: https://openscad.org/downloads.html" >&2
     echo "Or set \$OPENSCAD to the binary path." >&2
     exit 1
