@@ -101,6 +101,19 @@ if ! command -v admesh &>/dev/null; then
     exit 1
 fi
 
+# Optional: coplanar face merge (eliminates cosmetic triangle seam lines)
+HAVE_MERGE=false
+if command -v python3 &>/dev/null && python3 -c "import trimesh; import numpy" &>/dev/null 2>&1; then
+    HAVE_MERGE=true
+else
+    echo "Note: optional coplanar face merging is disabled."
+    echo "  Manifold boolean ops can leave cosmetic triangle seam lines on flat"
+    echo "  surfaces (e.g. diagonal edges on walls near magnet pockets). These"
+    echo "  don't affect the print but make the STL visually noisy in viewers."
+    echo "  Install: pip install trimesh numpy"
+    echo ""
+fi
+
 mkdir -p "$OUTDIR"
 
 render_piece() {
@@ -153,6 +166,13 @@ render_piece() {
     removed=$(awk '/Facets removed/ {print $NF}' "$log")
     rm -f "$log"
     echo "  admesh cleanup: removed ${removed:-0} degenerate facets"
+
+    # Optional: merge coplanar adjacent faces to eliminate cosmetic seam lines
+    if $HAVE_MERGE; then
+        local merge_tmp="${outfile}.merge.tmp"
+        python3 "$SCRIPT_DIR/merge_coplanar.py" "$outfile" "$merge_tmp"
+        mv "$merge_tmp" "$outfile"
+    fi
 
     echo "  Done: $outfile"
 }
