@@ -2992,15 +2992,15 @@ module print_support_rib(cx) {
 // Cross-section (looking along Y, bar at centre of void):
 //
 //   overlay top (cosmetic face, on build plate during print)
+//   ━━━━━━━━━━━━━━━━┯━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━
+//   ┊  frame  ┊     │   bar    │        ┊  frame  ┊
+//   ┊         ┊     └──────────┘        ┊         ┊
+//   ┊         ┊          void           ┊         ┊
 //   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-//   ┊  frame  ┊          void           ┊  frame  ┊
-//   ┊         ┊     ┌──────────┐        ┊         ┊
-//   ┊         ┊     │   bar    │        ┊         ┊
-//   ━━━━━━━━━━━━━━━━┷━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━
 //   overlay underside (facing up during print)
 //
 // Each bar is overlay_bar_w wide (X) × overlay_bar_h thick (Z) and sits
-// flush against the underside of the slab. They embed overlay_bar_embed mm
+// flush against the top of the slab (the build-plate face). They embed
 // into the solid frame at each end for a reliable print bond. To remove,
 // flex downward — the thin cross-section snaps at the frame edge.
 //
@@ -3051,23 +3051,23 @@ module overlay_support_bar(cx) {
 
     // Front neck: thin at perimeter, tapers to full height over neck_l
     hull() {
-        translate([cx - overlay_bar_w/2, y0, top_z(y0) - top_t])
+        translate([cx - overlay_bar_w/2, y0, top_z(y0) - overlay_bar_neck])
             cube([overlay_bar_w, 0.01, overlay_bar_neck]);
-        translate([cx - overlay_bar_w/2, ny0, top_z(ny0) - top_t])
+        translate([cx - overlay_bar_w/2, ny0, top_z(ny0) - overlay_bar_h])
             cube([overlay_bar_w, 0.01, overlay_bar_h]);
     }
     // Main span at full height
     hull() {
-        translate([cx - overlay_bar_w/2, ny0, top_z(ny0) - top_t])
+        translate([cx - overlay_bar_w/2, ny0, top_z(ny0) - overlay_bar_h])
             cube([overlay_bar_w, 0.01, overlay_bar_h]);
-        translate([cx - overlay_bar_w/2, ny1, top_z(ny1) - top_t])
+        translate([cx - overlay_bar_w/2, ny1, top_z(ny1) - overlay_bar_h])
             cube([overlay_bar_w, 0.01, overlay_bar_h]);
     }
     // Back neck: full height tapers to thin at perimeter
     hull() {
-        translate([cx - overlay_bar_w/2, ny1, top_z(ny1) - top_t])
+        translate([cx - overlay_bar_w/2, ny1, top_z(ny1) - overlay_bar_h])
             cube([overlay_bar_w, 0.01, overlay_bar_h]);
-        translate([cx - overlay_bar_w/2, y1 - 0.01, top_z(y1) - top_t])
+        translate([cx - overlay_bar_w/2, y1 - 0.01, top_z(y1) - overlay_bar_neck])
             cube([overlay_bar_w, 0.01, overlay_bar_neck]);
     }
 }
