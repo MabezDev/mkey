@@ -2515,14 +2515,13 @@ module deco_logo_2d() {
         square([inner_sq, inner_sq]);
 
     // Wordmark — imported from brand SVG for exact font matching.
-    // Baseline aligned with chip bottom edge. The offset(0) pass
-    // cleans degenerate edges from the SVG tessellation that otherwise
-    // trigger CGAL coplanar-face errors at high $fn.
+    // Baseline aligned with chip bottom edge. The SVG bezier curves
+    // are pre-flattened to polylines (flatten_svg.py) so OpenSCAD's
+    // SVG tessellator doesn't introduce degenerate slivers.
     translate([text_x0, -chip / 2])
         scale([s, s])
             translate([0, -SVG_WM_BASE_Y])
-                offset(r = -0.01) offset(r = 0.01)
-                    import("assets/mkey-case-wordmark.svg");
+                import("assets/mkey-case-wordmark.svg");
 }
 
 module deco_top_logo() {
