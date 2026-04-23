@@ -66,9 +66,38 @@ case "$RETENTION" in
     *) echo "Error: --retention must be magnets, screws, or both" >&2; exit 1 ;;
 esac
 
-if ! command -v openscad &>/dev/null; then
-    echo "Error: openscad not found in PATH." >&2
+find_openscad() {
+    if [[ -n "${OPENSCAD:-}" ]]; then
+        command -v "$OPENSCAD" &>/dev/null && { echo "$OPENSCAD"; return 0; }
+        return 1
+    fi
+    command -v openscad &>/dev/null && { echo "openscad"; return 0; }
+    local candidates=(
+        /Applications/OpenSCAD.app/Contents/MacOS/OpenSCAD
+        /Applications/OpenSCAD-Nightly.app/Contents/MacOS/OpenSCAD
+        /snap/bin/openscad
+        /usr/local/bin/openscad
+        /usr/bin/openscad
+    )
+    local c
+    for c in "${candidates[@]}"; do
+        [[ -x "$c" ]] && { echo "$c"; return 0; }
+    done
+    return 1
+}
+
+if ! OPENSCAD=$(find_openscad); then
+    echo "Error: OpenSCAD not found in PATH or in any known install location." >&2
     echo "Install OpenSCAD: https://openscad.org/downloads.html" >&2
+    echo "Or set \$OPENSCAD to the binary path." >&2
+    exit 1
+fi
+
+if ! command -v admesh &>/dev/null; then
+    echo "Error: admesh not found in PATH." >&2
+    echo "admesh is required to strip degenerate facets from Manifold output" >&2
+    echo "(JLC flags these as 'noise shells' / 'multi-shells')." >&2
+    echo "Install: 'brew install admesh' (macOS) or 'apt install admesh' (Debian/Ubuntu)." >&2
     exit 1
 fi
 
@@ -95,7 +124,8 @@ render_piece() {
 
     echo "Rendering $piece/$retention -> $outfile (fn=$FN, supports=$SUPPORTS) ..."
 
-    openscad \
+    "$OPENSCAD" \
+        --backend=manifold \
         -o "$outfile" \
         -D "PRINT_MODE=true" \
         -D "SHOW_TRAY=$show_tray" \
@@ -107,6 +137,22 @@ render_piece() {
         -D "ENABLE_SCREW_INSERTS=$screws" \
         -D "\$fn=$FN" \
         "$SCAD_FILE"
+
+    # Post-process: strip degenerate (zero-area) facets and re-weld near-
+    # coincident vertices. The Manifold backend's tessellation can leave
+    # knife-edge slivers at boolean boundaries — JLC's pre-print checker
+    # flags these as "noise shells" and "multi-shells detected" (exact-edge
+    # matching sees the sliver seams as disconnected components). admesh
+    # removes the zero-area facets and re-serialises vertices so the exact
+    # check sees a single connected shell.
+    local tmpfile="${outfile}.admesh.tmp"
+    local log="${outfile}.admesh.log"
+    admesh -e -u -d -v --write-binary-stl="$tmpfile" "$outfile" > "$log" 2>&1
+    mv "$tmpfile" "$outfile"
+    local removed
+    removed=$(awk '/Facets removed/ {print $NF}' "$log")
+    rm -f "$log"
+    echo "  admesh cleanup: removed ${removed:-0} degenerate facets"
 
     echo "  Done: $outfile"
 }
