@@ -71,10 +71,8 @@ EXPLODE         = 2;       // set >0 to separate overlay from tray (mm)
 // When exporting STLs for manufacturing, set PRINT_MODE=true and render one
 // piece at a time (SHOW_TRAY xor SHOW_OVERLAY).
 PRINT_MODE      = false;   // flip to true (or pass -D) for STL export
-PRINT_SUPPORTS  = false;   // add internal anti-warp rib walls to the tray cavity
-                           // (grow with the walls during SLA build, resist bowing)
-PRINT_OVERLAY_SUPPORTS = false;  // add snap-off tie bars across the key opening void
-                                 // in the overlay (resist frame warp during SLA cure)
+PRINT_SUPPORTS  = false;   // add anti-warp supports: tray cavity ribs and
+                           // overlay tie bars across the key opening void
 
 // ─── Feature toggles (per-fabrication-method overrides) ─────────────────────
 // DESIGN NOTE — why these are toggles:
@@ -2747,7 +2745,7 @@ module case_overlay_print() {
     rotate([-tilt_angle, 0, 0])
     translate([0, 0, -(front_h - top_t)]) {
         case_overlay_finished();
-        if (PRINT_OVERLAY_SUPPORTS) overlay_support_bars();
+        if (PRINT_SUPPORTS) overlay_support_bars();
     }
 }
 
@@ -3030,7 +3028,7 @@ _overlay_bar_pitch = (_overlay_void_x1 - _overlay_void_x0) / (_overlay_bar_count
 overlay_bar_cx = [for (i = [1 : _overlay_bar_count])
                       _overlay_void_x0 + i * _overlay_bar_pitch];
 
-if (PRINT_OVERLAY_SUPPORTS) {
+if (PRINT_SUPPORTS) {
     assert(overlay_bar_h >= 0.8,
            str("Overlay bar height ", overlay_bar_h,
                " mm below JLC3DP 0.8 mm feature minimum"));

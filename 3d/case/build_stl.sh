@@ -133,7 +133,6 @@ render_piece() {
         -D "SHOW_PLATE=false" \
         -D "SHOW_DISPLAY=false" \
         -D "PRINT_SUPPORTS=$SUPPORTS" \
-        -D "PRINT_OVERLAY_SUPPORTS=$SUPPORTS" \
         -D "ENABLE_MAGNET_POCKETS=$magnets" \
         -D "ENABLE_SCREW_INSERTS=$screws" \
         -D "\$fn=$FN" \
