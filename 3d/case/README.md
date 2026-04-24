@@ -6,16 +6,16 @@
 
 ## Quick Start
 
-Export print-ready STLs with breakaway supports for 3D printing:
+Export print-ready STLs for 3D printing:
 
 ```bash
 cd 3d/case
-./build_stl.sh --supports
+./build_stl.sh
 ```
 
 This produces `mkey_tray.stl` and `mkey_overlay.stl` in the current directory,
 oriented for optimal printing (overlay flipped cosmetic-face-down, tray
-bottom-down with cross-braces).
+bottom-down). Add supports in your slicer (Lychee, ChiTuBox, etc.).
 
 > [!NOTE]
 > **Run `./build_stl.sh` after every parameter or geometry change.** The
@@ -28,7 +28,6 @@ bottom-down with cross-braces).
 | Flag | Description |
 |------|-------------|
 | `--piece tray\|overlay\|both` | Which piece(s) to export (default: `both`) |
-| `--supports` | Add internal anti-warp rib walls to the tray cavity |
 | `--fn N` | Circle resolution override (default: `128`; file preview default is `48`) |
 | `--outdir DIR` | Output directory (default: `.`) |
 
@@ -41,16 +40,9 @@ optimal 3D printing:
   The cosmetic face (key openings / display window) is flipped **down** toward
   the build plate — this gives the best surface finish on both SLA resin and FDM.
 
-- **Tray**: Printed bottom-down (the bottom is already flat at Z=0). With
-  `--supports`, six internal rib walls are added inside the cavity, running
-  front-to-back. These grow simultaneously with the tray walls during the
-  SLA build, creating T-sections that resist the 363 mm long walls from
-  bowing under cure shrinkage. After post-cure: score each rib along the
-  front/back wall necks (in the Y direction, from inside the open cavity) —
-  do NOT try to saw down from above, the 0.5 mm gap between rib top and
-  wall top is too tight for a flush-cut blade. Snap out in segments using
-  the pre-modelled perforations, then lightly sand the witness marks
-  parallel to the wall surface (not into the thin neck stub).
+- **Tray**: Printed bottom-down (the bottom is already flat at Z=0). Add
+  supports in the slicer — place them on outer walls and bottom only, not
+  inside the cavity.
 
 ## Design Parameters (case.scad)
 
@@ -61,7 +53,6 @@ The main toggles in `case.scad` control which features are included:
 | `SHOW_TRAY` | `true` | Render the tray (bottom + walls) |
 | `SHOW_OVERLAY` | `true` | Render the overlay (top surface) |
 | `PRINT_MODE` | `false` | Re-orient pieces for 3D print export |
-| `PRINT_SUPPORTS` | `false` | Add internal anti-warp rib walls to tray (print mode only) |
 | `ENABLE_OVERLAY_RABBET` | `true` | Locating tongue/recess for X/Y registration |
 | `ENABLE_MAGNET_POCKETS` | `true` | Blind magnet pockets for overlay hold-down |
 | `ENABLE_SCREW_INSERTS` | `false` | M1.4 bolt + glued hex nut overlay retention (mutually exclusive with magnets) |
@@ -99,9 +90,8 @@ Missing any of these will compromise fit or finish.
 > **TRAY (mkey_tray.stl):**
 > - Orient bottom-face DOWN on the build plate (the flat ~363 × 111 mm face).
 >   Walls up, cavity open upward.
-> - Internal anti-warp ribs are already modelled inside the cavity — **do
->   not add factory supports inside the cavity.** Factory supports on the
->   outer side walls and outer bottom are acceptable.
+> - Factory supports on the outer side walls and outer bottom are acceptable.
+>   **Do not add factory supports inside the cavity.**
 > - The outer back wall carries a debossed "mKey" logo centred
 >   horizontally, vertically between the bottom chamfer and the wall top
 >   (~43 × 9 mm footprint). Please keep factory support contact points
@@ -162,43 +152,11 @@ Order of operations when the parts arrive from JLC3DP:
    A 0.2–0.3 mm edge break at all four window corners and edges
    multiplies its real-world durability.
 
-### Anti-warp rib breakaway (tray)
-
-The tray ships with 6 internal ribs, each cut with scored necks at the
-front wall, back wall, and floor. Expected removal sequence:
-
-1. Enter the tray cavity from the open top with a #11 craft blade.
-2. For each rib, score the X-side notches at the front-wall neck
-   (Y ≈ 4.8–6.8 mm) and back-wall neck (Y ≈ 104–106 mm) if the factory
-   hasn't left them pre-thinned — usually the necks print thin enough to
-   snap directly.
-3. Work a **precision / micro flush-cutter** (jaw thickness ≤1.5 mm —
-   e.g. Xuron 2175, Tamiya Sharp Pointed, or similar) into each
-   wall-neck perforation gap (2 mm Z-height) and snip the thin webs
-   (3 per wall). Do front wall first, then back. Standard hobby
-   flush-cutters will NOT fit the 2 mm gap and will chip the wall.
-4. With the rib free at both walls, twist it around the floor axis — the
-   6 × 13.5 × 1 mm floor webs shear one at a time as the 4 mm punched
-   perforations propagate the crack.
-5. Lift the rib out, flush-sand the 36 total floor stubs (6 webs × 6
-   ribs; the two end webs of each rib are ~11.5 mm and the four middle
-   webs are ~13.5 mm) with a sanding stick parallel to the wall (not
-   perpendicular — the stick will catch adjacent stubs otherwise).
-
-**Never saw down from above.** The 0.5 mm gap between rib top and wall top
-is too tight for a flush-cut blade and risks nicking the overlay seat.
-
-### Ship with ribs attached
-
-The tray's long-axis stiffness without ribs is marginal for shipping
-impact (the 363 mm × 23 mm cavity U-section racks easily under drop
-loads). Snap the ribs out only at assembly time, not before transport.
-
 ## Fabrication Methods
 
 **SLA resin (recommended)** — JLC3DP or equivalent. All tolerances and
-minimum feature sizes are tuned for SLA's +/-0.2 mm accuracy. Use
-`--supports` to add braces for the tray.
+minimum feature sizes are tuned for SLA's +/-0.2 mm accuracy. Add
+supports in your slicer.
 
 **MJF/SLS nylon** — NOT recommended. Loses the 1.0 mm shelf_frame_x display
 window detail.
@@ -211,7 +169,6 @@ window detail.
 # In case.scad or via -D flags:
 ENABLE_DECORATIVE_TRIMS = false;
 PRINT_MODE = false;
-PRINT_SUPPORTS = false;
 ```
 
 ## Assembly

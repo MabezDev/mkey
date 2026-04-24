@@ -16,7 +16,7 @@
 #     ENABLE_OVERLAY_RABBET  (2 states)
 #     ENABLE_MAGNET_POCKETS  (2 states)
 #     ENABLE_DECORATIVE_TRIMS + sub-toggles (decoratives on: 16 combos, off: 1)
-#     PRINT_MODE × PRINT_SUPPORTS (3 meaningful combos)
+#     PRINT_MODE (2 states)
 #     SHOW_TRAY / SHOW_OVERLAY (3 piece combos: tray-only, overlay-only, both)
 #
 #   Total unique configurations: see --dry-run output for the full matrix.
@@ -146,7 +146,7 @@ echo ""
 #                           Mutually exclusive with ENABLE_MAGNET_POCKETS.
 #   ENABLE_DECORATIVE_TRIMS: master gate for DECO_* sub-features (no asserts
 #                            currently, but geometry changes significantly)
-#   PRINT_MODE / PRINT_SUPPORTS: changes orientation/rib geometry
+#   PRINT_MODE: changes orientation for print export
 #   SHOW_TRAY / SHOW_OVERLAY: selects which piece(s) to render
 #
 # The retention toggles (magnets/screws) are mutually exclusive, so valid
@@ -199,18 +199,12 @@ done
 
 # --- Section 3: Print mode combinations ---
 echo ""
-echo "--- Section 3: Print mode × supports ---"
+echo "--- Section 3: Print mode ---"
 
 for print_mode in true false; do
-    for supports in true false; do
-        if [[ "$print_mode" == "false" && "$supports" == "true" ]]; then
-            continue
-        fi
-        label="print=$print_mode supports=$supports"
-        run_config "$label" \
-            -D "PRINT_MODE=$print_mode" \
-            -D "PRINT_SUPPORTS=$supports"
-    done
+    label="print=$print_mode"
+    run_config "$label" \
+        -D "PRINT_MODE=$print_mode"
 done
 
 # --- Section 4: Piece selection combinations ---
@@ -248,20 +242,14 @@ for piece_label in tray overlay; do
             else
                 magnets=false; screws=false
             fi
-            for supports in true false; do
-                if [[ "$piece_label" == "overlay" && "$supports" == "true" ]]; then
-                    continue
-                fi
-                label="print=$piece_label rabbet=$rabbet retention=$retention supports=$supports"
-                run_config "$label" \
-                    -D "PRINT_MODE=true" \
-                    -D "SHOW_TRAY=$show_tray" \
-                    -D "SHOW_OVERLAY=$show_overlay" \
-                    -D "ENABLE_OVERLAY_RABBET=$rabbet" \
-                    -D "ENABLE_MAGNET_POCKETS=$magnets" \
-                    -D "ENABLE_SCREW_INSERTS=$screws" \
-                    -D "PRINT_SUPPORTS=$supports"
-            done
+            label="print=$piece_label rabbet=$rabbet retention=$retention"
+            run_config "$label" \
+                -D "PRINT_MODE=true" \
+                -D "SHOW_TRAY=$show_tray" \
+                -D "SHOW_OVERLAY=$show_overlay" \
+                -D "ENABLE_OVERLAY_RABBET=$rabbet" \
+                -D "ENABLE_MAGNET_POCKETS=$magnets" \
+                -D "ENABLE_SCREW_INSERTS=$screws"
         done
     done
 done
