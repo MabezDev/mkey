@@ -151,8 +151,15 @@ render_piece() {
     mv "$tmpfile" "$outfile"
     local removed
     removed=$(awk '/Facets removed/ {print $NF}' "$log")
-    rm -f "$log"
     echo "  admesh cleanup: removed ${removed:-0} degenerate facets"
+
+    local parts
+    parts=$(awk '/Number of parts/ {for(i=1;i<=NF;i++) if($i=="parts"){print $(i+2); exit}}' "$log")
+    rm -f "$log"
+    if [[ "${parts:-0}" -gt 1 ]]; then
+        echo "  ERROR: admesh detected $parts shells in $outfile (expected 1)" >&2
+        exit 1
+    fi
 
     echo "  Done: $outfile"
 }

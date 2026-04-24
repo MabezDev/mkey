@@ -1673,9 +1673,10 @@ module recess_2d() {
 }
 
 // Tongue: positive tilted ring-slab standing proud above the tray wall
-// top. In `tongue_2d()` footprint. Z range extends 0.01 mm BELOW wall_top
-// so the union with the tray wall top has overlap rather than a
-// coplanar-face singularity.
+// top. In `tongue_2d()` footprint. Z range extends 1 mm BELOW wall_top
+// so the union with the tray shell has a thick volumetric overlap —
+// 0.01 mm was too thin and the Manifold tessellator lost the overlap,
+// leaving the tongue as a disconnected shell (JLC "multi-shell" flag).
 module tray_tongue_3d() {
     intersection() {
         translate([0, 0, -1])
@@ -1686,8 +1687,8 @@ module tray_tongue_3d() {
                       front_h - top_t + rabbet_h,
                       back_h  - top_t + rabbet_h);
             wedge_box(outer_w, outer_d,
-                      front_h - top_t - 0.01,
-                      back_h  - top_t - 0.01);
+                      front_h - top_t - 1,
+                      back_h  - top_t - 1);
         }
     }
 }
@@ -1695,10 +1696,9 @@ module tray_tongue_3d() {
 // Recess: negative tilted ring-slab cut INTO the overlay underside. In
 // `recess_2d()` footprint. Uses `rabbet_h + rabbet_h_tol` so the recess
 // is deeper than the tongue, absorbing Z-direction fab tolerance on both
-// pieces (see rabbet_h_tol comment above). Lower Z bound extends 0.01 mm
+// pieces (see rabbet_h_tol comment above). Lower Z bound extends 1 mm
 // below the overlay underside so the subtraction cleanly pierces the
-// underside plane rather than touching it coplanarly (CGAL produces
-// degenerate topology for exactly-coincident faces).
+// underside plane (0.01 mm was too thin for the Manifold tessellator).
 module overlay_recess_3d() {
     recess_total = rabbet_h + rabbet_h_tol;
     intersection() {
@@ -1710,8 +1710,8 @@ module overlay_recess_3d() {
                       front_h - top_t + recess_total,
                       back_h  - top_t + recess_total);
             wedge_box(outer_w, outer_d,
-                      front_h - top_t - 0.01,
-                      back_h  - top_t - 0.01);
+                      front_h - top_t - 1,
+                      back_h  - top_t - 1);
         }
     }
 }
