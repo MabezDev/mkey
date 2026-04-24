@@ -4,4 +4,4 @@ SLA standard resin. Orient **cosmetic-face DOWN** (key openings/display window t
 
 **X-axis scale compensation MANDATORY on this piece.** 363 mm length; uncompensated drift prevents assembly. Confirm in pre-build screenshots.
 
-Supports ONLY on outer vertical walls. No supports on cosmetic face or pockets. Raft keep-out under the ~32x38 mm display window — the 1 mm picture-frame rib will fracture under peel forces.
+No supports on cosmetic face or pockets. Raft keep-out under the ~32x38 mm display window — the 1 mm picture-frame rib will fracture under peel forces.

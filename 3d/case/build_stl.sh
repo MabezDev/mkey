@@ -16,14 +16,12 @@
 # Options:
 #   --piece tray|overlay|both       Which piece(s) to export (default: both)
 #   --retention magnets|screws|both Which retention variant(s) (default: both)
-#   --supports                      Add breakaway supports (tray ribs + overlay bars)
 #   --fn N                          Override circle resolution (default: 128)
 #   --outdir DIR                    Output directory (default: current directory)
 #   -h, --help                      Show this help message
 #
 # Examples:
-#   ./build_stl.sh                            # All 4 STLs, no supports
-#   ./build_stl.sh --supports                 # All 4, with anti-warp supports
+#   ./build_stl.sh                            # All 4 STLs
 #   ./build_stl.sh --retention magnets        # Magnet pair only
 #   ./build_stl.sh --piece tray --retention screws  # Just the screw tray
 
@@ -35,7 +33,6 @@ SCAD_FILE="$SCRIPT_DIR/case.scad"
 # Defaults
 PIECE="both"
 RETENTION="both"
-SUPPORTS="false"
 FN=128
 OUTDIR="."
 
@@ -48,7 +45,6 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --piece)     PIECE="$2"; shift 2 ;;
         --retention) RETENTION="$2"; shift 2 ;;
-        --supports)  SUPPORTS="true"; shift ;;
         --fn)        FN="$2"; shift 2 ;;
         --outdir)    OUTDIR="$2"; shift 2 ;;
         -h|--help)   usage ;;
@@ -122,7 +118,7 @@ render_piece() {
         screws)  screws="true" ;;
     esac
 
-    echo "Rendering $piece/$retention -> $outfile (fn=$FN, supports=$SUPPORTS) ..."
+    echo "Rendering $piece/$retention -> $outfile (fn=$FN) ..."
 
     "$OPENSCAD" \
         --backend=manifold \
@@ -132,7 +128,6 @@ render_piece() {
         -D "SHOW_OVERLAY=$show_overlay" \
         -D "SHOW_PLATE=false" \
         -D "SHOW_DISPLAY=false" \
-        -D "PRINT_SUPPORTS=$SUPPORTS" \
         -D "ENABLE_MAGNET_POCKETS=$magnets" \
         -D "ENABLE_SCREW_INSERTS=$screws" \
         -D "\$fn=$FN" \
