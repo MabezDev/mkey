@@ -314,7 +314,8 @@ overlay_wall_t = 7.4;   // wall thickness for overlay and inner geometry
 tray_wall_t    = 7.9;   // wall thickness for tray outer shell (extend outward)
 tray_ext       = tray_wall_t - overlay_wall_t;  // 0.5mm outward extension
 wall_t         = overlay_wall_t;  // alias for backward compat (inner geometry)
-bottom_t  = 3.0;    // bottom plate thickness
+bottom_t  = 3.0;    // bottom plate thickness (kept at 3.0: reducing to 2.5 would leave
+                     // only 1.7 mm under pad recesses, below the 2.0 mm structural assert)
 top_t     = 3.5;    // top surface thickness (display cover area)
 
 // ─── Internal ────────────────────────────────────────────────────────────────
@@ -1671,6 +1672,11 @@ module recess_2d() {
         if (ENABLE_SCREW_INSERTS)  screw_notch_footprints_2d(notch_margin);
     }
 }
+_recess_fillet_r = 1.0;
+module recess_filleted_2d() {
+    offset(r = _recess_fillet_r) offset(delta = -_recess_fillet_r)
+        recess_2d();
+}
 
 // Tongue: positive tilted ring-slab standing proud above the tray wall
 // top. In `tongue_2d()` footprint. Z range extends 1 mm BELOW wall_top
@@ -1704,7 +1710,7 @@ module overlay_recess_3d() {
     intersection() {
         translate([0, 0, -1])
             linear_extrude(height = back_h + 10)
-                recess_2d();
+                recess_filleted_2d();
         difference() {
             wedge_box(outer_w, outer_d,
                       front_h - top_t + recess_total,
@@ -1915,20 +1921,89 @@ module back_wall_chamfer_fill() {
     }
 }
 
+// ─── Cavity internal fillets (stress relief) ───────────────────────────────
+// Positive fillet bodies at the concave internal corners of the tray cavity.
+// Wall-floor: R=1.5mm quarter-round along all 4 bottom edges.
+// Wall-wall: R=1.5mm quarter-round at the 4 vertical cavity corners.
+_cavity_fillet_r = 1.5;
+
+module tray_cavity_fillets() {
+    fr = _cavity_fillet_r;
+    // Wall-floor fillets: quarter-round running along each bottom edge
+    // Front wall-floor (along X)
+    translate([wall_t + fr, wall_t + fr, bottom_t + fr])
+        rotate([0, 90, 0])
+            _fillet_quarter_run(inner_w - 2 * fr, fr, 180);
+    // Back wall-floor (along X)
+    translate([wall_t + fr, outer_d - wall_t - fr, bottom_t + fr])
+        rotate([0, 90, 0])
+            _fillet_quarter_run(inner_w - 2 * fr, fr, 270);
+    // Left wall-floor (along Y)
+    translate([wall_t + fr, wall_t + fr, bottom_t + fr])
+        rotate([-90, 0, 0])
+            _fillet_quarter_run(inner_d - 2 * fr, fr, 90);
+    // Right wall-floor (along Y)
+    translate([outer_w - wall_t - fr, wall_t + fr, bottom_t + fr])
+        rotate([-90, 0, 0])
+            _fillet_quarter_run(inner_d - 2 * fr, fr, 180);
+
+    // Wall-wall vertical fillets: quarter-round at each of the 4 cavity corners
+    _ww_h = back_h;  // tall enough to exceed any wall height
+    // Front-left
+    translate([wall_t + fr, wall_t + fr, bottom_t])
+        _fillet_quarter_run(_ww_h, fr, 90);
+    // Front-right
+    translate([outer_w - wall_t - fr, wall_t + fr, bottom_t])
+        _fillet_quarter_run(_ww_h, fr, 180);
+    // Back-left
+    translate([wall_t + fr, outer_d - wall_t - fr, bottom_t])
+        _fillet_quarter_run(_ww_h, fr, 0);
+    // Back-right
+    translate([outer_w - wall_t - fr, outer_d - wall_t - fr, bottom_t])
+        _fillet_quarter_run(_ww_h, fr, 270);
+
+    // Wall-floor corner spheres (blend the three meeting fillets)
+    for (cx = [wall_t + fr, outer_w - wall_t - fr])
+        for (cy = [wall_t + fr, outer_d - wall_t - fr])
+            translate([cx, cy, bottom_t + fr])
+                _fillet_corner_sphere(fr);
+}
+
+module _fillet_quarter_run(length, r, start_angle) {
+    rotate([0, 0, start_angle])
+    translate([0, 0, 0])
+    linear_extrude(height = length)
+        difference() {
+            square(r);
+            translate([r, r]) circle(r = r, $fn = 24);
+        }
+}
+
+module _fillet_corner_sphere(r) {
+    difference() {
+        translate([-r, -r, -r]) cube(r);
+        sphere(r = r, $fn = 24);
+    }
+}
+
 // ─── PIECE 1: TRAY (bottom + walls) ─────────────────────────────────────────
 module case_tray() {
     union() {
         difference() {
-            // Outer shell — extended by tray_ext on all sides for thicker walls.
-            // Top face at wall_top (= top_z − top_t) so the overlay's flat
-            // underside sits directly on the wall cheek.
-            // Use chamfered or rounded corners based on ENABLE_CHAMFERS.
-            if (ENABLE_CHAMFERS)
-                tray_outer_shell_chamfered();
-            else
-                translate([-tray_ext, -tray_ext, 0])
-                    rounded_wedge_box(outer_w + 2*tray_ext, outer_d + 2*tray_ext,
-                              front_h - top_t, back_h - top_t, tray_corner_r);
+            union() {
+                // Outer shell — extended by tray_ext on all sides for thicker walls.
+                // Top face at wall_top (= top_z − top_t) so the overlay's flat
+                // underside sits directly on the wall cheek.
+                // Use chamfered or rounded corners based on ENABLE_CHAMFERS.
+                if (ENABLE_CHAMFERS)
+                    tray_outer_shell_chamfered();
+                else
+                    translate([-tray_ext, -tray_ext, 0])
+                        rounded_wedge_box(outer_w + 2*tray_ext, outer_d + 2*tray_ext,
+                                  front_h - top_t, back_h - top_t, tray_corner_r);
+
+                tray_cavity_fillets();
+            }
 
             // Inner cavity (fully open top). The straight wedge cavity is
             // reduced near the back wall in the chamfer band (z < cb) so the
@@ -1952,12 +2027,18 @@ module case_tray() {
 
             // Optional: screw through-bore in the wall columns.
             if (ENABLE_SCREW_INSERTS) tray_screw_holes();
+
+            // Drain holes through the floor for resin escape
+            tray_drain_holes();
         }
 
         // Optional: overlay-locating tongue standing proud above the
         // wall top. Unioned AFTER the cavity/slot/magnet cuts so its
         // geometry is preserved in full.
         if (ENABLE_OVERLAY_RABBET) tray_tongue_3d();
+
+        // Permanent underside ribs for anti-warp stiffening
+        tray_underside_ribs();
     }
 }
 
@@ -2336,6 +2417,84 @@ module bottom_pad_recesses() {
     for (pos = positions) {
         translate([pos[0], pos[1], -0.01])
             cube([pad_w, pad_h, pad_d + 0.01]);
+    }
+}
+
+// ─── Underside longitudinal ribs (anti-warp, permanent) ─────────────────────
+// Two ribs running the full X-length on the tray's desk-facing surface.
+// Positioned at Y = inner_d × 0.33 and 0.67, between the rubber-foot pads.
+_underside_rib_w   = 1.5;   // rib width (Y direction)
+_underside_rib_h   = 2.0;   // rib height (Z direction, proud of bottom)
+_underside_rib_r   = 1.0;   // fillet radius at rib-to-floor junctions
+_underside_rib_cy  = [inner_d * 0.33, inner_d * 0.67];
+
+module tray_underside_ribs() {
+    for (cy = _underside_rib_cy) {
+        ry = wall_t + cy - _underside_rib_w / 2;
+        translate([-tray_ext, ry, -_underside_rib_h]) {
+            minkowski() {
+                cube([outer_w + 2 * tray_ext - 2 * _underside_rib_r,
+                      _underside_rib_w - 2 * _underside_rib_r,
+                      _underside_rib_h - _underside_rib_r]);
+                cylinder(r = _underside_rib_r, h = _underside_rib_r, $fn = 16);
+            }
+        }
+    }
+}
+
+// ─── Tray drain holes (resin escape) ────────────────────────────────────────
+// 3.0 mm diameter through-floor holes at the four corners of the tray floor,
+// positioned under the plate footprint where they are concealed after assembly.
+// Chamfered 0.3 mm × 45° on both sides for clean support contact and resin flow.
+_drain_d       = 3.0;
+_drain_chamfer = 0.3;
+_drain_inset_x = wall_t + 5.0;
+_drain_inset_y = wall_t + 5.0;
+
+module tray_drain_holes() {
+    positions = [
+        [_drain_inset_x,               _drain_inset_y],                // front-left
+        [outer_w - _drain_inset_x,     _drain_inset_y],                // front-right
+        [_drain_inset_x,               outer_d - _drain_inset_y],      // back-left
+        [outer_w - _drain_inset_x,     outer_d - _drain_inset_y],      // back-right
+        [outer_w / 2,                  _drain_inset_y],                // front-mid
+        [outer_w / 2,                  outer_d - _drain_inset_y],      // back-mid
+    ];
+    for (p = positions) {
+        translate([p[0], p[1], -0.01]) {
+            cylinder(d = _drain_d, h = bottom_t + 0.02, $fn = 24);
+            cylinder(d1 = _drain_d + 2 * _drain_chamfer,
+                     d2 = _drain_d,
+                     h = _drain_chamfer + 0.01, $fn = 24);
+            translate([0, 0, bottom_t - _drain_chamfer])
+                cylinder(d1 = _drain_d,
+                         d2 = _drain_d + 2 * _drain_chamfer,
+                         h = _drain_chamfer + 0.02, $fn = 24);
+        }
+    }
+}
+
+// ─── Tray support-contact pads (sacrificial, print-only) ────────────────────
+// Raised pads on the tray underside where heavy supports will land.
+_support_pad_d    = 3.0;
+_support_pad_h    = 0.3;
+
+module tray_support_pads() {
+    positions = [
+        [-tray_ext + 2, -tray_ext + 2],                                             // corner: front-left
+        [outer_w + tray_ext - 2, -tray_ext + 2],                                    // corner: front-right
+        [-tray_ext + 2, outer_d + tray_ext - 2],                                    // corner: back-left
+        [outer_w + tray_ext - 2, outer_d + tray_ext - 2],                           // corner: back-right
+        [(outer_w) / 2, -tray_ext + 2],                                              // mid-edge: front
+        [(outer_w) / 2, outer_d + tray_ext - 2],                                     // mid-edge: back
+        for (cy = _underside_rib_cy) each [
+            [-tray_ext + 2, wall_t + cy],                                             // rib-end: left
+            [outer_w + tray_ext - 2, wall_t + cy],                                   // rib-end: right
+        ]
+    ];
+    for (p = positions) {
+        translate([p[0], p[1], -_support_pad_h])
+            cylinder(d = _support_pad_d, h = _support_pad_h, $fn = 16);
     }
 }
 
@@ -2744,7 +2903,12 @@ module case_overlay_print() {
     rotate([-tilt_angle, 0, 0])
     translate([0, 0, -(front_h - top_t)]) {
         case_overlay_finished();
-        if (PRINT_SUPPORTS) overlay_support_bars();
+        if (PRINT_SUPPORTS) {
+            overlay_support_bars();
+            overlay_diagonal_bars();
+            display_window_print_flange();
+            overlay_support_witness_pads();
+        }
     }
 }
 
@@ -2755,7 +2919,10 @@ module case_overlay_print() {
 // SLA build, providing anti-warp support from the first layer onward.
 module case_tray_print() {
     case_tray_finished();
-    if (PRINT_SUPPORTS) print_support_ribs();
+    if (PRINT_SUPPORTS) {
+        print_support_ribs();
+        tray_support_pads();
+    }
 }
 
 // ─── Internal anti-warp rib walls ──────────────────────────────────────────
@@ -2867,9 +3034,96 @@ if (PRINT_SUPPORTS && ENABLE_CHAMFERS) {
                ") at z=bottom_t — ribs protrude through back wall"));
 }
 
+// Transverse (Y-direction) rib X position — midpoint of cavity
+_transverse_rib_cx = 190;
+
 module print_support_ribs() {
     for (cx = rib_cx)
         print_support_rib(cx);
+    print_support_transverse_rib(_transverse_rib_cx);
+}
+
+// Y-direction rib spanning left wall to right wall, same breakaway system
+module print_support_transverse_rib(cy_pos) {
+    x0 = wall_t - 0.1;
+    x1 = outer_w - wall_t + 0.1;
+    span = x1 - x0;
+
+    z_floor = bottom_t - 0.1;
+    z_top   = top_z(cy_pos) - top_t - rib_top_gap;
+    h       = z_top - z_floor;
+
+    // Perforation counts for left/right walls (same as front/back on longitudinal)
+    _t_wall_perf_count = 2;
+    _t_floor_perf_count = 5;
+    floor_seg_x  = (span - _t_floor_perf_count * floor_perf_len) / (_t_floor_perf_count + 1);
+    wall_seg_z   = (h    - _t_wall_perf_count  * wall_perf_len)  / (_t_wall_perf_count  + 1);
+
+    difference() {
+        // Full rib slab (Y-direction, so rib_t is in Y)
+        translate([x0, cy_pos - rib_t / 2, z_floor])
+            cube([span, rib_t, h]);
+
+        // Breakaway neck at left wall
+        for (side = [0, 1]) {
+            neck_cut_w = (rib_t - rib_neck) / 2;
+            translate([x0 - 0.01,
+                       cy_pos - rib_t / 2 + side * (rib_t - neck_cut_w) - 0.01 * (1 - side),
+                       z_floor - 0.01])
+                cube([rib_neck_len + 0.02,
+                      neck_cut_w + 0.01,
+                      h + 0.02]);
+        }
+
+        // Breakaway neck at right wall
+        for (side = [0, 1]) {
+            neck_cut_w = (rib_t - rib_neck) / 2;
+            translate([x1 - rib_neck_len - 0.01,
+                       cy_pos - rib_t / 2 + side * (rib_t - neck_cut_w) - 0.01 * (1 - side),
+                       z_floor - 0.01])
+                cube([rib_neck_len + 0.02,
+                      neck_cut_w + 0.01,
+                      h + 0.02]);
+        }
+
+        // Breakaway neck at floor
+        for (side = [0, 1]) {
+            neck_cut_w = (rib_t - rib_neck) / 2;
+            translate([x0 - 0.01,
+                       cy_pos - rib_t / 2 + side * (rib_t - neck_cut_w) - 0.01 * (1 - side),
+                       z_floor - 0.01])
+                cube([span + 0.02,
+                      neck_cut_w + 0.01,
+                      rib_neck_len + 0.01]);
+        }
+
+        // Corner breaks (left-floor, right-floor)
+        translate([x0 - 0.01, cy_pos - rib_t / 2 - 0.01, z_floor - 0.01])
+            cube([rib_neck_len + 0.02, rib_t + 0.02, rib_neck_len + 0.01]);
+        translate([x1 - rib_neck_len - 0.01, cy_pos - rib_t / 2 - 0.01, z_floor - 0.01])
+            cube([rib_neck_len + 0.02, rib_t + 0.02, rib_neck_len + 0.01]);
+
+        // Floor neck perforations
+        for (i = [1 : _t_floor_perf_count])
+            translate([x0 + i * floor_seg_x + (i - 1) * floor_perf_len,
+                       cy_pos - rib_t / 2 - 0.01,
+                       z_floor - 0.01])
+                cube([floor_perf_len, rib_t + 0.02, rib_neck_len + 0.01]);
+
+        // Left wall neck perforations
+        for (i = [1 : _t_wall_perf_count])
+            translate([x0 - 0.01,
+                       cy_pos - rib_t / 2 - 0.01,
+                       z_floor + i * wall_seg_z + (i - 1) * wall_perf_len])
+                cube([rib_neck_len + 0.02, rib_t + 0.02, wall_perf_len]);
+
+        // Right wall neck perforations
+        for (i = [1 : _t_wall_perf_count])
+            translate([x1 - rib_neck_len - 0.01,
+                       cy_pos - rib_t / 2 - 0.01,
+                       z_floor + i * wall_seg_z + (i - 1) * wall_perf_len])
+                cube([rib_neck_len + 0.02, rib_t + 0.02, wall_perf_len]);
+    }
 }
 
 module print_support_rib(cx) {
@@ -3008,7 +3262,7 @@ module print_support_rib(cx) {
 // and display voids are small enough to resist warp on their own.
 
 overlay_bar_w     = 4.0;   // bar width (X direction, mm)
-overlay_bar_h     = 1.5;   // bar height / thickness (Z direction, mm)
+overlay_bar_h     = 2.0;   // bar height / thickness (Z direction, mm) — grown from 1.5 for tilted-print rigidity
 overlay_bar_neck    = 1.0;   // neck height at frame junction (Z, mm). Matches
                              // tray rib_neck: 1.0 mm nominal keeps worst-case
                              // at 0.8 mm under ±0.2 mm JLC3DP tolerance.
@@ -3070,6 +3324,121 @@ module overlay_support_bar(cx) {
         translate([cx - overlay_bar_w/2, y1 - 0.01, top_z(y1) - overlay_bar_neck])
             cube([overlay_bar_w, 0.01, overlay_bar_neck]);
     }
+}
+
+// ─── Display window breakaway reinforcement flange ─────────────────────────
+// Temporary lip around the display window on the overlay pocket side (underside).
+// Reinforces the thin shelf_frame_x=1.0mm picture-frame rib during SLA peel.
+// Removed post-cure with flush cutters.
+_disp_flange_t      = 0.8;   // flange thickness (Z)
+_disp_flange_extend = 1.5;   // outward extension from window perimeter
+_disp_flange_neck   = 0.5;   // breakaway neck thickness (Z)
+
+module display_window_print_flange() {
+    cx = p2c_x(disp_cx);
+    cy = p2c_y(disp_cy);
+
+    translate([cx, cy, top_z(cy)])
+    rotate([tilt_angle, 0, 0])
+    translate([0, 0, -top_t]) {
+        // Flange ring: pocket-sized outer, window-sized inner
+        difference() {
+            translate([-(disp_pocket_w / 2 + _disp_flange_extend),
+                       -(disp_pocket_h / 2 + _disp_flange_extend),
+                       0])
+                linear_extrude(height = _disp_flange_neck)
+                    offset(r = disp_pocket_r) offset(delta = -disp_pocket_r)
+                        square([disp_pocket_w + 2 * _disp_flange_extend,
+                                disp_pocket_h + 2 * _disp_flange_extend]);
+            // Remove the window interior
+            translate([-disp_win_w / 2, -disp_win_h / 2, -0.01])
+                linear_extrude(height = _disp_flange_t + 0.02)
+                    display_window_2d();
+        }
+    }
+}
+
+// ─── Overlay diagonal tie bars (anti-rhombus, print-only) ──────────────────
+// Two diagonal bars across the main key-opening void, connecting opposite
+// corners. Resists the rhombus-mode warp that a tilted print induces.
+module overlay_diagonal_bars() {
+    _ol = 0.1;
+    x0 = _overlay_void_x0 - _ol;
+    x1 = _overlay_void_x1 + _ol;
+    y0 = _overlay_void_y0 - _ol;
+    y1 = _overlay_void_y1 + _ol;
+
+    // Bar from front-left to back-right
+    _overlay_diag_bar(x0, y0, x1, y1);
+    // Bar from front-right to back-left
+    _overlay_diag_bar(x1, y0, x0, y1);
+}
+
+module _overlay_diag_bar(x0, y0, x1, y1) {
+    // Build the diagonal bar as hull between two short cubes at each end
+    hull() {
+        translate([x0 - overlay_bar_w / 2, y0, top_z(y0) - overlay_bar_h])
+            cube([overlay_bar_w, 0.01, overlay_bar_neck]);
+        translate([x0 - overlay_bar_w / 2, y0 + overlay_bar_neck_l,
+                   top_z(y0 + overlay_bar_neck_l) - overlay_bar_h])
+            cube([overlay_bar_w, 0.01, overlay_bar_h]);
+    }
+    hull() {
+        translate([x0 - overlay_bar_w / 2, y0 + overlay_bar_neck_l,
+                   top_z(y0 + overlay_bar_neck_l) - overlay_bar_h])
+            cube([overlay_bar_w, 0.01, overlay_bar_h]);
+        translate([x1 - overlay_bar_w / 2, y1 - overlay_bar_neck_l,
+                   top_z(y1 - overlay_bar_neck_l) - overlay_bar_h])
+            cube([overlay_bar_w, 0.01, overlay_bar_h]);
+    }
+    hull() {
+        translate([x1 - overlay_bar_w / 2, y1 - overlay_bar_neck_l,
+                   top_z(y1 - overlay_bar_neck_l) - overlay_bar_h])
+            cube([overlay_bar_w, 0.01, overlay_bar_h]);
+        translate([x1 - overlay_bar_w / 2, y1 - 0.01, top_z(y1) - overlay_bar_neck])
+            cube([overlay_bar_w, 0.01, overlay_bar_neck]);
+    }
+}
+
+// ─── Overlay support witness pads (sacrificial, print-only) ────────────────
+// Small raised pads on the cosmetic-face frame perimeter where supports land.
+// Sanded off after support removal.
+_witness_pad_d     = 2.0;
+_witness_pad_h     = 0.2;
+_witness_pad_pitch = 3.0;
+
+module overlay_support_witness_pads() {
+    // Pads along the two long frame rails (front and back), excluding
+    // key openings and display window zones.
+    // Front rail: Y = -overhang
+    for (x = [let(x0 = -overhang + _witness_pad_pitch)
+              for (i = [0 : floor((overlay_w - 2 * _witness_pad_pitch) / _witness_pad_pitch)])
+                  x0 + i * _witness_pad_pitch])
+        if (x < _overlay_void_x0 - 2 || x > _overlay_void_x1 + 2)
+            translate([x, -overhang, overlay_front_h])
+                cylinder(d = _witness_pad_d, h = _witness_pad_h, $fn = 12);
+
+    // Back rail: Y = outer_d + overhang
+    for (x = [let(x0 = -overhang + _witness_pad_pitch)
+              for (i = [0 : floor((overlay_w - 2 * _witness_pad_pitch) / _witness_pad_pitch)])
+                  x0 + i * _witness_pad_pitch])
+        if (x < _overlay_void_x0 - 2 || x > _overlay_void_x1 + 2)
+            translate([x, outer_d + overhang, overlay_back_h])
+                cylinder(d = _witness_pad_d, h = _witness_pad_h, $fn = 12);
+
+    // Left rail
+    for (y = [let(y0 = -overhang + _witness_pad_pitch)
+              for (i = [0 : floor((overlay_d - 2 * _witness_pad_pitch) / _witness_pad_pitch)])
+                  y0 + i * _witness_pad_pitch])
+        translate([-overhang, y, top_z(y)])
+            cylinder(d = _witness_pad_d, h = _witness_pad_h, $fn = 12);
+
+    // Right rail
+    for (y = [let(y0 = -overhang + _witness_pad_pitch)
+              for (i = [0 : floor((overlay_d - 2 * _witness_pad_pitch) / _witness_pad_pitch)])
+                  y0 + i * _witness_pad_pitch])
+        translate([outer_w + overhang, y, top_z(y)])
+            cylinder(d = _witness_pad_d, h = _witness_pad_h, $fn = 12);
 }
 
 // =============================================================================
