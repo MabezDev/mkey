@@ -14,8 +14,9 @@ cd 3d/case
 ```
 
 This produces `mkey_tray.stl` and `mkey_overlay.stl` in the current directory,
-oriented for optimal printing (overlay flipped cosmetic-face-down, tray
-bottom-down). Add supports in your slicer (Lychee, ChiTuBox, etc.).
+oriented for optimal printing (both pieces rotated 26° around the shortest
+axis then 45° around Z — tray open-upright but at an angle). Add supports in
+your slicer (Lychee, ChiTuBox, etc.).
 
 > [!NOTE]
 > **Run `./build_stl.sh` after every parameter or geometry change.** The
@@ -34,15 +35,16 @@ bottom-down). Add supports in your slicer (Lychee, ChiTuBox, etc.).
 ## Print Orientation
 
 The build script sets `PRINT_MODE=true`, which transforms the parts for
-optimal 3D printing:
+optimal 3D printing. Both pieces are rotated **26° around X** (the shortest
+axis / depth direction), then **45° around Z**:
 
-- **Overlay**: The 5-degree wedge tilt is removed so the part lies perfectly flat.
-  The cosmetic face (key openings / display window) is flipped **down** toward
-  the build plate — this gives the best surface finish on both SLA resin and FDM.
+- **Tray**: Sits open-upright but at an angle. The angled orientation
+  reduces layer-line stairstepping on the walls and gives the slicer better
+  support access. Add supports in the slicer as needed.
 
-- **Tray**: Printed bottom-down (the bottom is already flat at Z=0). Add
-  supports in the slicer — place them on outer walls and bottom only, not
-  inside the cavity.
+- **Overlay**: The 6° design tilt is removed first so the part is axis-aligned,
+  then the same 26°/45° print rotation is applied. Add supports in the slicer
+  as needed.
 
 ## Design Parameters (case.scad)
 
@@ -88,32 +90,24 @@ Missing any of these will compromise fit or finish.
 > confirm the compensation in your pre-build screenshots.
 >
 > **TRAY (mkey_tray.stl):**
-> - Orient bottom-face DOWN on the build plate (the flat ~363 × 111 mm face).
->   Walls up, cavity open upward.
-> - Factory supports on the outer side walls and outer bottom are acceptable.
->   **Do not add factory supports inside the cavity.**
+> - The STL is pre-rotated for printing: tilted 26° around the shortest
+>   axis (depth), then 45° around Z. The tray is open-upright but at an
+>   angle. **Do not re-orient — print as supplied.**
+> - Factory supports are acceptable on outer surfaces. **Do not add
+>   factory supports inside the cavity.**
 > - The outer back wall carries a debossed "mKey" logo centred
 >   horizontally, vertically between the bottom chamfer and the wall top
 >   (~43 × 9 mm footprint). Please keep factory support contact points
 >   clear of that debossed region if possible.
 >
 > **OVERLAY (mkey_overlay.stl):**
-> - Orient cosmetic-face DOWN on the build plate (the face with the key
->   openings and display window). The underside, which carries the magnet
->   pockets (or hex nut pockets if using screw retention), faces up.
-> - Place factory supports **only on the outer vertical side walls.** No
->   point supports on the downward-facing cosmetic face (key openings,
->   display window rim, pinstripe groove) and no supports inside the magnet
->   pockets, hex nut pockets, or display pocket on the up-facing underside. A raft under the
->   cosmetic face is acceptable provided the pinstripe groove and key
->   openings drain during post-processing (we IPA-flush these on our end).
-> - **RAFT KEEP-OUT under the display window:** Please keep the raft
->   contact area clear of the ~32 × 38 mm region centred on the display
->   window cutout on the down-facing cosmetic face. The picture-frame
->   around the window is a 1.0 × 1.5 mm cross-grain rib — raft peel
->   forces can fracture it during support removal. An island of bare
->   build-plate under the window (with supports only on the surrounding
->   slab) is preferred.
+> - The STL is pre-rotated for printing: the 6° design tilt is removed,
+>   then the piece is tilted 26° around the shortest axis (depth) and 45°
+>   around Z. **Do not re-orient — print as supplied.**
+> - Place factory supports on outer surfaces only. No supports inside
+>   magnet pockets, hex nut pockets, or the display pocket.
+> - Avoid support contact on the cosmetic face (key openings, display
+>   window rim, pinstripe groove) where possible.
 >
 > Please confirm orientations AND the X-axis scale compensation in the
 > pre-build screenshots before starting the build.

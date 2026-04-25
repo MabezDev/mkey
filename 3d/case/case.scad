@@ -66,8 +66,10 @@ EXPLODE         = 2;       // set >0 to separate overlay from tray (mm)
 
 // ─── Print-mode switches ────────────────────────────────────────────────────
 // When PRINT_MODE is true, the assembly renders print-oriented pieces:
-//   - Overlay is flattened (6° tilt removed) and flipped cosmetic-face-down
-//   - Tray is unchanged in orientation (bottom is already flat)
+//   - Both tray and overlay are tilted 26° around X (shortest axis) then
+//     rotated 45° around Z, so the tray sits open-upright but at an angle.
+//   - The overlay has its 6° design tilt removed first, then the same
+//     26°/45° print rotation is applied.
 // When exporting STLs for manufacturing, set PRINT_MODE=true and render one
 // piece at a time (SHOW_TRAY xor SHOW_OVERLAY).
 PRINT_MODE      = false;   // flip to true (or pass -D) for STL export
@@ -2709,45 +2711,65 @@ module case_overlay_finished() {
 // =============================================================================
 // SECTION 11b: PRINT-MODE MODULES
 // =============================================================================
-// When PRINT_MODE is true, these wrappers re-orient the finished pieces for
-// optimal 3D printing:
-//   - Overlay: flattened (6° tilt removed), flipped cosmetic-face-down
-//   - Tray: orientation unchanged (bottom already flat)
+// When PRINT_MODE is true, both pieces are rotated 26° around X (the shortest
+// axis — depth direction), then 45° around Z.  The tray sits open-upright but
+// at an angle; the overlay has its 6° design tilt removed first so it starts
+// flat before the print rotation is applied.
+//
+// The print_orient() helper centres the piece at the origin, applies the two
+// rotations, then drops the result onto Z=0.
+
+print_tilt  = 26;  // degrees around X (shortest axis)
+print_yaw   = 45;  // degrees around Z
+
+// Helper: centre a bounding box, apply the 26°X + 45°Z print rotation, then
+// project the result down to sit on Z=0.  Caller passes the axis-aligned
+// bounding box [min, max] of the piece before rotation.
+module print_orient(bb_min, bb_max) {
+    cx = (bb_min[0] + bb_max[0]) / 2;
+    cy = (bb_min[1] + bb_max[1]) / 2;
+    cz = (bb_min[2] + bb_max[2]) / 2;
+    hx = (bb_max[0] - bb_min[0]) / 2;
+    hy = (bb_max[1] - bb_min[1]) / 2;
+    hz = (bb_max[2] - bb_min[2]) / 2;
+    // Worst-case Z drop after both rotations — conservatively use the
+    // bounding-sphere radius so the piece is guaranteed above Z=0, then
+    // the slicer or a later translate can seat it exactly.
+    r = norm([hx, hy, hz]);
+    translate([r, r, r])
+    rotate([print_tilt, 0, print_yaw])
+    translate([-cx, -cy, -cz])
+    children();
+}
 
 // ─── Print-oriented overlay ─────────────────────────────────────────────────
-// Undo the 6° wedge tilt so the overlay lies perfectly flat, then flip it
-// upside-down so the cosmetic top surface (key opening / display window)
-// faces the build plate for the best surface finish on SLA and FDM.
-//
-// IMPORTANT: use rotate() not mirror() for the flip — mirror([0,0,1])
-// reverses chirality, which inverts all debossed text and logos.
+// Step 1: remove the 6° design tilt so the overlay is axis-aligned.
+// Step 2: apply the 26°X + 45°Z print rotation via print_orient().
 module case_overlay_print() {
-    // After case_overlay_finished(), the overlay sits in design position:
+    // Flattened overlay bounding box (after tilt removal):
     //   X: -overhang .. overlay_w - overhang
     //   Y: -overhang .. overlay_d - overhang
-    //   Z: overlay_front_h - top_t .. overlay_back_h  (tilted 6°)
-    //
-    // Step 1: rotate -tilt_angle around X to flatten the top/bottom faces.
-    // Step 2: rotate 180° around Y to flip cosmetic face down (preserves
-    //         chirality — text/logos stay correct).  Negates both X and Z.
-    // Step 3: translate so the piece sits on Z=0 with X,Y ≥ 0.
+    //   Z: 0 .. top_t
+    flat_bb_min = [-overhang, -overhang, 0];
+    flat_bb_max = [overlay_w - overhang, overlay_d - overhang, top_t];
 
-    // rotate([0,180,0]) maps (x,y,z) → (-x, y, -z): Z flips (cosmetic face
-    // down) and X flips (compensated by the outer translate).  Y is unchanged
-    // so the overhang shift stays the same as the design-position fix-up.
-    translate([overlay_w - overhang, overhang, 0])
-    rotate([0, 180, 0])
-    translate([0, 0, -top_t])
-    rotate([-tilt_angle, 0, 0])
-    translate([0, 0, -(front_h - top_t)]) {
-        case_overlay_finished();
+    print_orient(flat_bb_min, flat_bb_max) {
+        rotate([-tilt_angle, 0, 0])
+        translate([0, 0, -(front_h - top_t)]) {
+            case_overlay_finished();
+        }
     }
 }
 
 // ─── Print-oriented tray ────────────────────────────────────────────────────
-// The tray bottom is already at Z=0 (flat), so no rotation is needed.
+// The tray is already at Z=0 in design position.  Apply the 26°X + 45°Z
+// print rotation directly.
 module case_tray_print() {
-    case_tray_finished();
+    tray_bb_min = [0, 0, 0];
+    tray_bb_max = [outer_w, outer_d, back_h - top_t];
+
+    print_orient(tray_bb_min, tray_bb_max)
+        case_tray_finished();
 }
 
 // =============================================================================
