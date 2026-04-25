@@ -1,0 +1,15 @@
+X-axis scale compensation mandatory: ~350 mm long part, warping risk uncompensated shrinkage prevents assembly of mating parts (±0.2 mm). 
+
+Print Orientation: 26degrees via the X axis, 45degrees via the Z axis.
+
+Drain holes: If required, add them to the four rubber-pad recesses on the tray underside.
+
+Supports: OK on outer walls, underside, perimeter edges, and inside the cavity.
+Heavy supports preferred along the underside to resist warping.
+
+NO supports: on the 9 gasket mounting slots (inner walls),
+6 magnet pockets or 4 screw through-holes (wall tops), USB-C cutout (back
+wall), rabbet tongue (wall tops), or debossed logo (outer back wall).
+
+Please confirm orientation, support placement, and any geometry modifications
+with screenshots before printing.
