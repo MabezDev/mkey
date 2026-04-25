@@ -1,11 +1,11 @@
-X-axis scale compensation mandatory: ~350 mm long part, warping risk uncompensated shrinkage prevents assembly of mating parts (±0.2 mm). 
+X-axis scale compensation mandatory — ~350mm part, uncompensated shrinkage prevents mating.
 
-Print Orientation: 26degrees via the X axis, 45degrees via the Z axis.
+Orientation: 26° X, 45° Z.
 
-Supports: OK on underside flat areas away from pockets, and on perimeter edges.
-Heavy supports preferred along the underside to resist warping.
+Supports: OK on underside flat areas away from pockets and perimeter edges. Heavy on underside to resist warping.
 
-NO supports, NO sanding and NO blasting: on the top face (keycap side), display window rim, display pocket,
-6 magnet pockets or 4 nut pockets (underside), or rabbet recess (underside).
+NO supports: top face (keycap side).
 
-Please confirm orientation, support placement, and any geometry modifications with screenshots before printing.
+NO supports/sanding/blasting: display window rim, display pocket, 6 magnet pockets or 4 nut pockets (underside), rabbet recess (underside).
+
+Confirm orientation and supports with screenshots before printing.
