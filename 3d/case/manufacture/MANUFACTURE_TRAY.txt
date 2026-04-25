@@ -7,7 +7,7 @@ Drain holes: If required, add them to the four rubber-pad recesses on the tray u
 Supports: OK on outer walls, underside, perimeter edges, and inside the cavity.
 Heavy supports preferred along the underside to resist warping.
 
-NO supports: on the 9 gasket mounting slots (inner walls),
+NO supports, NO sanding and NO blasting: on the 9 gasket mounting slots (inner walls),
 6 magnet pockets or 4 screw through-holes (wall tops), USB-C cutout (back
 wall), rabbet tongue (wall tops), or debossed logo (outer back wall).
 
