@@ -1,0 +1,11 @@
+X-axis scale compensation mandatory — ~350mm, shrinkage prevents mating.
+
+Orientation: 26° X, 45° Z.
+
+Drain holes: if needed, use rubber-pad recesses on underside.
+
+Supports OK: outer walls, underside, perimeter edges, cavity. Heavy on underside for warp resistance.
+
+NO supports/sanding/blasting: 9 gasket slots (inner walls), magnet pockets or screw holes (wall tops), USB-C cutout, rabbet tongue, debossed logo (back wall).
+
+Confirm orientation and supports with screenshots.

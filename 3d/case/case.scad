@@ -14,9 +14,9 @@
 //   to JLC3DP SLA's ±0.2 mm <100 mm / ±0.3% >100 mm tolerance band and
 //   0.2 mm assembly-clearance rule; the 2026-04-14 pre-fab review
 //   re-tightened disp_cut_tol and grew the locating tongue to clear those
-//   rules with margin. Orient each piece with the cosmetic face (display
-//   window / key opening) DOWN toward the build plate — face-down gives
-//   the smoothest surface finish on both SLA resin and FDM.
+//   rules with margin. Orient each piece bottom-up (cosmetic face away
+//   from build plate); detailed print orientation is specified in the
+//   manufacture notes.
 //
 // ╔════════════════════════════════════════════════════════════════════════╗
 // ║  MANDATORY ORDER-NOTE REQUIREMENT — X-AXIS SCALE COMPENSATION         ║
@@ -66,7 +66,7 @@ EXPLODE         = 2;       // set >0 to separate overlay from tray (mm)
 
 // ─── Print-mode switches ────────────────────────────────────────────────────
 // When PRINT_MODE is true, the assembly renders print-oriented pieces:
-//   - Overlay is flattened (6° tilt removed) and flipped cosmetic-face-down
+//   - Overlay is flattened (6° tilt removed), bottom-up (pockets face up)
 //   - Tray is unchanged in orientation (bottom is already flat)
 // When exporting STLs for manufacturing, set PRINT_MODE=true and render one
 // piece at a time (SHOW_TRAY xor SHOW_OVERLAY).
@@ -2711,35 +2711,23 @@ module case_overlay_finished() {
 // =============================================================================
 // When PRINT_MODE is true, these wrappers re-orient the finished pieces for
 // optimal 3D printing:
-//   - Overlay: flattened (6° tilt removed), flipped cosmetic-face-down
+//   - Overlay: flattened (6° tilt removed), bottom-up (pockets face up)
 //   - Tray: orientation unchanged (bottom already flat)
 
 // ─── Print-oriented overlay ─────────────────────────────────────────────────
-// Undo the 6° wedge tilt so the overlay lies perfectly flat, then flip it
-// upside-down so the cosmetic top surface (key opening / display window)
-// faces the build plate for the best surface finish on SLA and FDM.
-//
-// IMPORTANT: use rotate() not mirror() for the flip — mirror([0,0,1])
-// reverses chirality, which inverts all debossed text and logos.
+// Undo the 6° wedge tilt so the overlay lies perfectly flat, bottom-up
+// (cosmetic face on top, pockets/underside facing the build plate is NOT
+// used — manufacturer notes specify the actual build-plate orientation).
 module case_overlay_print() {
     // After case_overlay_finished(), the overlay sits in design position:
     //   X: -overhang .. overlay_w - overhang
     //   Y: -overhang .. overlay_d - overhang
     //   Z: overlay_front_h - top_t .. overlay_back_h  (tilted 6°)
     //
-    // Step 1: rotate -tilt_angle around X to flatten the top/bottom faces.
-    // Step 2: rotate 180° around Y to flip cosmetic face down (preserves
-    //         chirality — text/logos stay correct).  Negates both X and Z.
-    // Step 3: translate so the piece sits on Z=0 with X,Y ≥ 0.
-
-    // rotate([0,180,0]) maps (x,y,z) → (-x, y, -z): Z flips (cosmetic face
-    // down) and X flips (compensated by the outer translate).  Y is unchanged
-    // so the overhang shift stays the same as the design-position fix-up.
-    translate([overlay_w - overhang, overhang, 0])
-    rotate([0, 180, 0])
-    translate([0, 0, -top_t])
+    // Flatten the 6° tilt and shift to sit on Z=0 with X,Y ≥ 0.
+    translate([overhang, overhang, 0])
     rotate([-tilt_angle, 0, 0])
-    translate([0, 0, -(front_h - top_t)]) {
+    translate([0, 0, -(overlay_front_h - top_t)]) {
         case_overlay_finished();
     }
 }
