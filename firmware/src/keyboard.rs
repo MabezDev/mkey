@@ -125,6 +125,8 @@ pub async fn usb(
         request_handler: None,
         poll_ms: 60,
         max_packet_size: 64,
+        hid_subclass: embassy_usb::class::hid::HidSubclass::No,
+        hid_boot_protocol: embassy_usb::class::hid::HidBootProtocol::None,
     };
     let hid = HidReaderWriter::<_, 1, 8>::new(&mut builder, &mut hid_state, hid_config);
 

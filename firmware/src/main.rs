@@ -1,6 +1,5 @@
 #![no_std]
 #![no_main]
-#![feature(type_alias_impl_trait)]
 
 use core::ptr::addr_of_mut;
 use core::sync::atomic::Ordering;
@@ -80,12 +79,14 @@ fn main() -> ! {
 
     let delay = Delay::new();
 
+    let sw_ints = SoftwareInterruptControl::new(peripherals.SW_INTERRUPT);
+
     let timg0 = TimerGroup::new(peripherals.TIMG0);
-    esp_rtos::start(timg0.timer0);
+    esp_rtos::start(timg0.timer0, sw_ints.software_interrupt0);
 
     let mut io = Io::new(peripherals.IO_MUX);
     io.set_interrupt_handler(display::te);
-    interrupt::enable(Interrupt::GPIO, Priority::Priority2).unwrap();
+    interrupt::enable(Interrupt::GPIO, Priority::Priority2);
 
     let sclk = peripherals.GPIO4;
     let sio0 = peripherals.GPIO6;
@@ -210,10 +211,8 @@ fn main() -> ! {
         ]
     );
 
-    let sw_ints = SoftwareInterruptControl::new(peripherals.SW_INTERRUPT);
     esp_rtos::start_second_core(
         peripherals.CPU_CTRL,
-        sw_ints.software_interrupt0,
         sw_ints.software_interrupt1,
         unsafe { &mut *addr_of_mut!(APP_CORE_STACK) },
         move || {
@@ -226,14 +225,14 @@ fn main() -> ! {
                     esp_hal::usb_serial_jtag::UsbSerialJtag::new(peripherals.USB_DEVICE);
                 let (_rx, tx) = usb_serial.split();
                 executor.run(|spawner| {
-                    spawner.must_spawn(keyboard::matrix(columns, rows, signal));
-                    spawner.must_spawn(keyboard::jtag_drain(tx));
+                    spawner.spawn(keyboard::matrix(columns, rows, signal).unwrap());
+                    spawner.spawn(keyboard::jtag_drain(tx).unwrap());
                 });
             } else {
                 let device = Usb::new(peripherals.USB0, peripherals.GPIO20, peripherals.GPIO19);
                 executor.run(|spawner| {
-                    spawner.must_spawn(keyboard::matrix(columns, rows, signal));
-                    spawner.must_spawn(keyboard::usb(device, signal));
+                    spawner.spawn(keyboard::matrix(columns, rows, signal).unwrap());
+                    spawner.spawn(keyboard::usb(device, signal).unwrap());
                 });
             }
         },
