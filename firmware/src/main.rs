@@ -1,6 +1,5 @@
 #![no_std]
 #![no_main]
-#![feature(type_alias_impl_trait)]
 
 use core::ptr::addr_of_mut;
 use core::sync::atomic::Ordering;
@@ -14,20 +13,18 @@ use embedded_graphics_core::pixelcolor::Rgb565;
 // esp-backtrace still linked for backtrace support, but our own panic handler
 // in panic.rs saves the message to RTC memory before resetting.
 use esp_hal::clock::CpuClock;
-use esp_hal::dma::DmaRxBuf;
-use esp_hal::dma::DmaTxBuf;
-use esp_hal::dma_buffers;
+use esp_hal::dma_rx_buffer;
+use esp_hal::dma_tx_buffer;
 use esp_hal::gpio::InputConfig;
 use esp_hal::gpio::Level;
 use esp_hal::interrupt;
-use esp_hal::interrupt::software::SoftwareInterruptControl;
 use esp_hal::interrupt::Priority;
-use esp_hal::otg_fs::Usb;
 use esp_hal::peripherals::Interrupt;
 use esp_hal::system::Stack;
 use esp_hal::time::Rate;
 use esp_hal::timer::systimer::SystemTimer;
 use esp_hal::timer::timg::TimerGroup;
+use esp_hal::usb::otg::Usb;
 use esp_hal::{
     delay::Delay,
     gpio::Io,
@@ -81,11 +78,11 @@ fn main() -> ! {
     let delay = Delay::new();
 
     let timg0 = TimerGroup::new(peripherals.TIMG0);
-    esp_rtos::start(timg0.timer0);
+    esp_rtos::start(timg0.timer0, peripherals.FROM_CPU_INTR0);
 
     let mut io = Io::new(peripherals.IO_MUX);
     io.set_interrupt_handler(display::te);
-    interrupt::enable(Interrupt::GPIO, Priority::Priority2).unwrap();
+    interrupt::enable(Interrupt::GPIO, Priority::Priority2);
 
     let sclk = peripherals.GPIO4;
     let sio0 = peripherals.GPIO6;
@@ -102,8 +99,6 @@ fn main() -> ! {
     te_pin.listen(esp_hal::gpio::Event::RisingEdge);
     critical_section::with(|cs| TE.borrow_ref_mut(cs).replace(te_pin));
 
-    let (tx_buffer, tx_descriptors, rx_buffer, rx_descriptors) = dma_buffers!(MAX_DMA_TRANSFER, 1);
-
     let mut spi = Spi::new(
         peripherals.SPI2,
         esp_hal::spi::master::Config::default()
@@ -119,8 +114,8 @@ fn main() -> ! {
     .with_cs(cs)
     .with_dma(peripherals.DMA_CH0)
     .with_buffers(
-        DmaRxBuf::new(rx_descriptors, rx_buffer).unwrap(),
-        DmaTxBuf::new(tx_descriptors, tx_buffer).unwrap(),
+        dma_rx_buffer!(1).unwrap(),
+        dma_tx_buffer!(MAX_DMA_TRANSFER).unwrap(),
     );
 
     reset.set_low();
@@ -210,11 +205,9 @@ fn main() -> ! {
         ]
     );
 
-    let sw_ints = SoftwareInterruptControl::new(peripherals.SW_INTERRUPT);
     esp_rtos::start_second_core(
         peripherals.CPU_CTRL,
-        sw_ints.software_interrupt0,
-        sw_ints.software_interrupt1,
+        peripherals.FROM_CPU_INTR1,
         unsafe { &mut *addr_of_mut!(APP_CORE_STACK) },
         move || {
             let signal =
@@ -223,17 +216,18 @@ fn main() -> ! {
 
             if debug {
                 let usb_serial =
-                    esp_hal::usb_serial_jtag::UsbSerialJtag::new(peripherals.USB_DEVICE);
+                    esp_hal::usb::usb_serial_jtag::UsbSerialJtag::new(peripherals.USB_DEVICE);
                 let (_rx, tx) = usb_serial.split();
                 executor.run(|spawner| {
-                    spawner.must_spawn(keyboard::matrix(columns, rows, signal));
-                    spawner.must_spawn(keyboard::jtag_drain(tx));
+                    spawner.spawn(keyboard::matrix(columns, rows, signal).unwrap());
+                    spawner.spawn(keyboard::jtag_drain(tx).unwrap());
                 });
             } else {
-                let device = Usb::new(peripherals.USB0, peripherals.GPIO20, peripherals.GPIO19);
+                let device =
+                    Usb::new_fs(peripherals.USB_FS, peripherals.GPIO20, peripherals.GPIO19);
                 executor.run(|spawner| {
-                    spawner.must_spawn(keyboard::matrix(columns, rows, signal));
-                    spawner.must_spawn(keyboard::usb(device, signal));
+                    spawner.spawn(keyboard::matrix(columns, rows, signal).unwrap());
+                    spawner.spawn(keyboard::usb(device, signal).unwrap());
                 });
             }
         },

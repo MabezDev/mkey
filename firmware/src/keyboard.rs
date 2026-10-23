@@ -7,8 +7,8 @@ use embassy_sync::signal::Signal;
 use embassy_time::Duration;
 use embassy_time::Timer;
 use esp_hal::gpio::{Input, Output};
-use esp_hal::otg_fs;
-use esp_hal::otg_fs::asynch::{Config, Driver};
+use esp_hal::usb::otg::embassy_usb_device::{Config, Driver};
+use esp_hal::usb::otg::Usb;
 
 use embassy_usb::class::cdc_acm::CdcAcmClass;
 use embassy_usb::class::hid::{HidReaderWriter, ReportId, RequestHandler, State};
@@ -85,7 +85,7 @@ fn handle_fn_combos(key_state: &[[bool; NUM_COLS]; NUM_ROWS]) -> bool {
 
 #[embassy_executor::task]
 pub async fn usb(
-    usb: otg_fs::Usb<'static>,
+    usb: Usb<'static>,
     signal: &'static Signal<CriticalSectionRawMutex, KeyboardReport>,
 ) {
     let mut ep_out_buffer = [0u8; 1024];
@@ -125,6 +125,8 @@ pub async fn usb(
         request_handler: None,
         poll_ms: 60,
         max_packet_size: 64,
+        hid_subclass: embassy_usb::class::hid::HidSubclass::No,
+        hid_boot_protocol: embassy_usb::class::hid::HidBootProtocol::None,
     };
     let hid = HidReaderWriter::<_, 1, 8>::new(&mut builder, &mut hid_state, hid_config);
 
@@ -302,7 +304,7 @@ impl MyDeviceHandler {
 /// Debug mode: drain the log pipe to USB-SERIAL-JTAG.
 #[embassy_executor::task]
 pub async fn jtag_drain(
-    mut tx: esp_hal::usb_serial_jtag::UsbSerialJtagTx<'static, esp_hal::Blocking>,
+    mut tx: esp_hal::usb::usb_serial_jtag::UsbSerialJtagTx<'static, esp_hal::Blocking>,
 ) -> ! {
     let mut buf = [0u8; 64];
     loop {
