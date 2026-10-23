@@ -15,7 +15,7 @@ use esp_hal::timer::systimer::SystemTimer;
 use esp_hal::Blocking;
 use esp_hal::{handler, ram};
 
-pub type QSpiDisplay<'a> = esp_hal::spi::master::SpiDmaBus<'a, Blocking>;
+pub type QSpiDisplay<'a> = esp_hal::spi::master::SpiDma<'a, Blocking>;
 
 pub const MAX_DMA_TRANSFER: usize = 32736 / 4;
 pub const WIDTH: usize = 356;
